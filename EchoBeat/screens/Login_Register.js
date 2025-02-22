@@ -1,16 +1,9 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView, Image } from 'react-native';
-import { useRouter } from 'expo-router';
 
-export default function InicioSesion() {
+export default function InicioSesion({navigation}) {
   const [correo, setCorreo] = useState('');
   const [contrasena, setContrasena] = useState('');
-  const router = useRouter();
-
-  const handleLogin = () => {// validar correo y contraseña
-    
-    router.push('/HomeScreen');
-  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -46,7 +39,10 @@ export default function InicioSesion() {
         />
       </View>
 
-      <TouchableOpacity style={styles.boton}>
+      <TouchableOpacity 
+        style={styles.boton}
+        onPress={() => navigation.navigate('HomeScreen')}
+      >
         <Text style={styles.botonTexto}>INICIA SESIÓN</Text>
       </TouchableOpacity>
 
