@@ -1,14 +1,21 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView, Image } from 'react-native';
+import { useRouter } from 'expo-router';
 
 export default function InicioSesion() {
   const [correo, setCorreo] = useState('');
   const [contrasena, setContrasena] = useState('');
+  const router = useRouter();
+
+  const handleLogin = () => {// validar correo y contraseña
+    
+    router.push('/HomeScreen');
+  }
 
   return (
     <SafeAreaView style={styles.container}>
       <Image
-        source={require('../assets/images/logo.png')}
+        source={require('../assets/logo.png')}
         style={styles.logo}
         resizeMode="contain"
       />
@@ -61,13 +68,14 @@ const styles = StyleSheet.create({
       width: 150,
       height: 150,
       alignSelf: 'center',
-      marginBottom: 20,
+      marginBottom: 10,
+      marginTop: -20,
     },
     titulo: {
       fontSize: 28,
       fontWeight: 'bold',
       marginBottom: 20,
-      marginTop: 150,
+      marginTop: 10,
       textAlign: 'center',
       color: '#f2ab55',
     },
@@ -87,9 +95,10 @@ const styles = StyleSheet.create({
       paddingHorizontal: 12,
       paddingVertical: 12,
       fontSize: 16,
+      color: '#ffffff',
     },
     boton: {
-      backgroundColor: '#1E90FF',
+      backgroundColor: '#ffb723',
       paddingVertical: 15,
       borderRadius: 8,
       alignItems: 'center',
@@ -97,7 +106,7 @@ const styles = StyleSheet.create({
     },
     botonSecundario: {
       marginTop: 20,
-      backgroundColor: '#32CD32',
+      backgroundColor: '#fd7407',
     },
     botonTexto: {
       color: '#fff',
