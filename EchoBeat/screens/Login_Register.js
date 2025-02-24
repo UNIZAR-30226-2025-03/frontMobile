@@ -37,6 +37,9 @@ export default function InicioSesion({navigation}) {
           onChangeText={setContrasena}
           secureTextEntry
         />
+        <TouchableOpacity onPress={() => navigation.navigate('ForgottenPswd')}>
+          <Text style={styles.forgotPasswordText}>He olvidado mi contraseña</Text>
+        </TouchableOpacity>
       </View>
 
       <TouchableOpacity 
@@ -92,6 +95,13 @@ const styles = StyleSheet.create({
       paddingVertical: 12,
       fontSize: 16,
       color: '#ffffff',
+    },
+    forgotPasswordText: {
+      color: '#f2ab55',
+      textAlign: 'right',
+      marginTop: 5,
+      textDecorationLine: 'underline',
+      fontSize: 14,
     },
     boton: {
       backgroundColor: '#ffb723',
