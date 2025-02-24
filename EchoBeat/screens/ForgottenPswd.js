@@ -1,8 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useLayoutEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView } from 'react-native';
 
 export default function ForgottenPswd({ navigation }) {
-  const [email, setEmail] = useState('');
+  const [correo, setCorreo] = useState('');
+  useLayoutEffect(() => {
+      navigation.setOptions({
+        headerShown: false,
+      });
+  }, [navigation]);
+
+  const validarCorreo = (email) => {
+    const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return regex.test(email);
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -11,15 +21,23 @@ export default function ForgottenPswd({ navigation }) {
         Introduce tu correo electrónico y te enviaremos instrucciones para recuperar tu contraseña.
       </Text>
 
-      <TextInput
-        style={styles.input}
-        placeholder="Correo electrónico"
-        placeholderTextColor="#ffffff"
-        value={email}
-        onChangeText={setEmail}
-        keyboardType="email-address"
-        autoCapitalize="none"
-      />
+      <View style={styles.inputContainer}>
+        <Text style={styles.label}>Correo electrónico</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Introduce tu correo electrónico"
+            placeholderTextColor="#ffffff"
+            value={correo}
+            onChangeText={setCorreo}
+            keyboardType="email-address"
+            autoCapitalize="none"
+          />
+          {correo.length > 0 && !validarCorreo(correo) && (
+            <Text style={styles.error}>
+              Formato de correo inválido.
+            </Text>
+          )}
+      </View>
 
       <TouchableOpacity 
         style={styles.boton}
@@ -31,7 +49,7 @@ export default function ForgottenPswd({ navigation }) {
         <Text style={styles.botonTexto}>ENVIAR</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity onPress={() => navigation.goBack()}>
+      <TouchableOpacity onPress={() => navigation.navigate('Login_Register')}>
         <Text style={styles.volver}>← Volver a Inicio de Sesión</Text>
       </TouchableOpacity>
     </SafeAreaView>

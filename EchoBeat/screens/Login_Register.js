@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView, Image } from 'react-native';
 
-export default function InicioSesion({navigation}) {
+export default function Login_Register({navigation}) {
   const [correo, setCorreo] = useState('');
   const [contrasena, setContrasena] = useState('');
 
@@ -49,7 +49,9 @@ export default function InicioSesion({navigation}) {
         <Text style={styles.botonTexto}>INICIA SESIÓN</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity style={[styles.boton, styles.botonSecundario]}>
+      <TouchableOpacity style={[styles.boton, styles.botonSecundario]}
+        onPress={() => navigation.navigate('Register')}
+      >
         <Text style={styles.botonTexto}>REGÍSTRATE</Text>
       </TouchableOpacity>
     </SafeAreaView>
