@@ -14,12 +14,12 @@ const songData = [
 ];
 
 const playlistData = [
-  { id: '1', title: 'Lista 1', image: require('../assets/logo.png') },
-  { id: '2', title: 'Lista 2', image: require('../assets/logo.png') },
-  { id: '3', title: 'Lista 3', image: require('../assets/logo.png') },
-  { id: '4', title: 'Lista 4', image: require('../assets/logo.png') },
-  { id: '5', title: 'Lista 5', image: require('../assets/logo.png') },
-  { id: '6', title: 'Lista 6', image: require('../assets/logo.png') },
+  { id: '1', title: 'Lista 1', image: require('../assets/thanos1.jpg') },
+  { id: '2', title: 'Lista 2', image: require('../assets/jordi.jpg') },
+  { id: '3', title: 'Lista 3', image: require('../assets/eliasgossip.jpg') },
+  { id: '4', title: 'Lista 4', image: require('../assets/mujerona.jpg') },
+  { id: '5', title: 'Lista 5', image: require('../assets/darkraul.jpg') },
+  { id: '6', title: 'Lista 6', image: require('../assets/carloscoche.jpg') },
   { id: '7', title: 'Lista 7', image: require('../assets/logo.png') },
   { id: '8', title: 'Lista 8', image: require('../assets/logo.png') },
 ];

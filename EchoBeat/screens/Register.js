@@ -8,17 +8,18 @@ const usuariosRegistrados = {       // Ejemplos que reemplazaremos por llamada a
 };
 
 export default function Register({ navigation }) {
-  const [nombre, setNombre] = useState('');
   const [correo, setCorreo] = useState('');
   const [nickname, setNickname] = useState('');
-  const [edad, setEdad] = useState(null);
+  const [fechaNacimiento, setFechaNacimiento] = useState(null);
+  const [contraseña, setContraseña] = useState('');
   const [formValido, setFormValido] = useState(false);
+  const currentYear = new Date().getFullYear();
 
   useEffect(() => {
     const correoValido = validarCorreo(correo);
-    const nombreValido = nombre.trim().split(' ').length >= 2;
     const nicknameValido = nickname.trim().length > 0;
-    const edadValida = edad !== null;
+    const fechaValida = fechaNacimiento !== null;
+    const contraseñaValida = !!contraseña && contraseña.trim().length > 0;
     navigation.setOptions({
         headerShown: false,
     });
@@ -28,46 +29,52 @@ export default function Register({ navigation }) {
 
     setFormValido(
         correoValido &&
-        nombreValido &&
         nicknameValido &&
-        edadValida &&
+        fechaValida &&
         correoUnico &&
+        contraseñaValida &&
         nicknameUnico
     );
-  }, [nombre, correo, nickname, edad, navigation]);
+  }, [correo, nickname, fechaNacimiento, contraseña, navigation]);
 
   const validarCorreo = (email) => {
     const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return regex.test(email);
   };
 
-  const handleRegistro = () => {
-    Alert.alert('Registro exitoso', `¡Bienvenido, ${nickname}!`);
-    navigation.navigate('Login_Register');
+  const handleRegister = async () => {
+    try {
+      const response = await fetch("http://192.168.1.52:3000/users/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          Email: correo, // Usa el estado del correo
+          Password: contraseña, // Usa el estado de la contraseña
+          Nick: nickname,
+          FechaNacimiento: new Date(fechaNacimiento).toISOString(), // Convierte a formato ISO
+        }),
+      });
+  
+      const data = await response.json();
+  
+      if (!response.ok) {
+        throw new Error(data.message || "Error al registrar usuario");
+      }
+  
+      Alert.alert("Éxito", "Registro exitoso, ahora inicia sesión.");
+      navigation.navigate("Login_Register"); // Redirige al login
+    } catch (error) {
+      Alert.alert("Error", error.message);
+    }
   };
+  
 
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false}>
         <Text style={styles.titulo}>Rellena los campos para registrarte</Text>
-
-        {/* Nombre y Apellido */}
-        <View style={styles.inputContainer}>
-          <Text style={styles.label}>Nombre real y apellidos</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Introduce tu nombre y apellidos"
-            placeholderTextColor="#ffffff"
-            value={nombre}
-            onChangeText={setNombre}
-          />
-          {nombre.trim().length > 0 &&
-            nombre.trim().split(' ').length < 2 && (
-              <Text style={styles.error}>
-                Debes introducir al menos nombre y apellido.
-              </Text>
-            )}
-        </View>
 
         {/* Correo Electrónico */}
         <View style={styles.inputContainer}>
@@ -111,18 +118,32 @@ export default function Register({ navigation }) {
         </View>
 
         <View style={styles.inputContainer}>
-          <Text style={styles.label}>Edad</Text>
+          <Text style={styles.label}>Contraseña</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Crea tu contraseña"
+            placeholderTextColor="#ffffff"
+            value={contraseña}
+            onChangeText={setContraseña}
+            secureTextEntry
+          />
+        </View>
+
+        <View style={styles.inputContainer}>
+          <Text style={styles.label}>Fecha de nacimiento</Text>
           <View style={styles.pickerContainer}>
             <Picker
-              selectedValue={edad}
-              onValueChange={(value) => setEdad(value)}
+              selectedValue={fechaNacimiento}
+              onValueChange={(value) => setFechaNacimiento(value)}
               dropdownIconColor="#f2ab55"
               style={{ color: '#ffffff' }}
             >
-              <Picker.Item label="Selecciona tu edad" value={null} />
-              {Array.from({ length: 99 }, (_, i) => i + 1).map((num) => (
-                <Picker.Item key={num} label={`${num}`} value={num} />
-              ))}
+              <Picker.Item label="Selecciona tu año de nacimiento" value={null} />
+              {Array.from({ length: currentYear - 1899 }, (_, i) => 1900 + i)
+                .reverse()
+                .map((year) => (
+                  <Picker.Item key={year} label={`${year}`} value={year} />
+                ))}
             </Picker>
           </View>
         </View>
@@ -130,7 +151,7 @@ export default function Register({ navigation }) {
         <TouchableOpacity
           style={[styles.boton, !formValido && styles.botonDeshabilitado]}
           disabled={!formValido}
-          onPress={handleRegistro}
+          onPress={handleRegister}
         >
           <Text style={styles.botonTexto}>REGISTRAR</Text>
         </TouchableOpacity>
@@ -159,7 +180,7 @@ const styles = StyleSheet.create({
     color: '#f2ab55',
     textAlign: 'center',
     marginBottom: 20,
-    marginTop: 150,
+    marginTop: 120,
   },
   inputContainer: {
     marginBottom: 20,
@@ -194,7 +215,7 @@ const styles = StyleSheet.create({
     paddingVertical: 15,
     borderRadius: 8,
     alignItems: 'center',
-    marginTop: 120,
+    marginTop: 40,
   },
   botonDeshabilitado: {
     backgroundColor: '#b1b1b1',

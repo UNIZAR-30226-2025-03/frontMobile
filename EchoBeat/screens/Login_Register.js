@@ -1,9 +1,58 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView, Image } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView, Image, Alert } from 'react-native';
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function Login_Register({navigation}) {
-  const [correo, setCorreo] = useState('');
-  const [contrasena, setContrasena] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleLogin = async () => {
+    try {
+      const response = await fetch("http://48.209.24.188:3000/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          Email: email,
+          Password: password,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Error al iniciar sesión");
+      }
+
+      if (data.accessToken) {
+        await AsyncStorage.setItem("token", data.accessToken);
+        Alert.alert("Éxito", "Inicio de sesión exitoso");
+        navigation.navigate("HomeScreen");
+      }
+    } catch (error) {
+      setErrorMessage(error.message);
+      Alert.alert("Error", error.message);
+    }
+  };
+
+
+  const checkAuth = async () => {
+    const token = await AsyncStorage.getItem("token");
+    if (token) {
+      navigation.navigate("HomeScreen");
+    }
+  };
+
+  // 🔹 Función para cerrar sesión
+  const handleLogout = async () => {
+    await AsyncStorage.removeItem("token");
+    navigation.navigate("Login_Register");
+  };
+
+
 
   return (
     <SafeAreaView style={styles.container}>
@@ -20,8 +69,8 @@ export default function Login_Register({navigation}) {
           style={styles.input}
           placeholder="Introduce tu correo"
           placeholderTextColor="#ffffff"
-          value={correo}
-          onChangeText={setCorreo}
+          value={email}
+          onChangeText={setEmail}
           keyboardType="email-address"
           autoCapitalize="none"
         />
@@ -33,8 +82,8 @@ export default function Login_Register({navigation}) {
           style={styles.input}
           placeholder="Introduce tu contraseña"
           placeholderTextColor="#ffffff"
-          value={contrasena}
-          onChangeText={setContrasena}
+          value={password}
+          onChangeText={setPassword}
           secureTextEntry
         />
         <TouchableOpacity onPress={() => navigation.navigate('ForgottenPswd')}>
@@ -42,11 +91,12 @@ export default function Login_Register({navigation}) {
         </TouchableOpacity>
       </View>
 
-      <TouchableOpacity 
-        style={styles.boton}
-        onPress={() => navigation.navigate('HomeScreen')}
+      <TouchableOpacity
+        style={[styles.boton, loading && styles.botonDeshabilitado]}
+        onPress={handleLogin}
+        disabled={loading}
       >
-        <Text style={styles.botonTexto}>INICIA SESIÓN</Text>
+        <Text style={styles.botonTexto}>{loading ? 'Cargando...' : 'INICIA SESIÓN'}</Text>
       </TouchableOpacity>
 
       <TouchableOpacity style={[styles.boton, styles.botonSecundario]}
@@ -120,5 +170,8 @@ const styles = StyleSheet.create({
       color: '#fff',
       fontSize: 16,
       fontWeight: 'bold',
+    },
+    botonDeshabilitado: {
+      backgroundColor: '#b1b1b1',
     },
   });
