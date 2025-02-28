@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {View,Text,TextInput,TouchableOpacity,StyleSheet,SafeAreaView,ScrollView,Alert,} from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 
-const usuariosRegistrados = {       // ARREGLAR ESTO PARA QUE LO GESTIONE LA API
+const usuariosRegistrados = {       // Ejemplos que reemplazaremos por llamada a API
   correos: ['usuario@example.com', 'test@test.com'],
   nicknames: ['user123', 'nick456'],
 };
@@ -44,7 +44,7 @@ export default function Register({ navigation }) {
 
   const handleRegister = async () => {
     try {
-      const response = await fetch("http://48.209.24.188:3000/users/register", {
+      const response = await fetch("http://192.168.1.52:3000/users/register", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -110,7 +110,7 @@ export default function Register({ navigation }) {
             value={nickname}
             onChangeText={setNickname}
           />
-          {usuariosRegistrados.nicknames.includes(nickname) && (    // REVISAR
+          {usuariosRegistrados.nicknames.includes(nickname) && (
             <Text style={styles.error}>
               Este nickname ya está registrado.
             </Text>

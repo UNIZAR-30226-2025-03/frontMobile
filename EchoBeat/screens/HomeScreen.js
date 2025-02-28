@@ -1,5 +1,6 @@
-import React, { use, useState, useLayoutEffect } from 'react';
-import { View,Text,FlatList,Image,StyleSheet,Dimensions,TouchableOpacity,Animated } from 'react-native';
+import React, { use, useState, useLayoutEffect, useEffect } from 'react';
+import { View,Text,FlatList,Image,StyleSheet,Dimensions,TouchableOpacity,Animated,Alert } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width } = Dimensions.get('window');
 const AnimatedImage = Animated.createAnimatedComponent(Image);
@@ -13,29 +14,83 @@ const songData = [
   { id: '6', title: 'Canción 6', image: require('../assets/favicon.png') },
 ];
 
-const playlistData = [
-  { id: '1', title: 'Lista 1', image: require('../assets/thanos1.jpg') },
-  { id: '2', title: 'Lista 2', image: require('../assets/jordi.jpg') },
-  { id: '3', title: 'Lista 3', image: require('../assets/eliasgossip.jpg') },
-  { id: '4', title: 'Lista 4', image: require('../assets/mujerona.jpg') },
-  { id: '5', title: 'Lista 5', image: require('../assets/darkraul.jpg') },
-  { id: '6', title: 'Lista 6', image: require('../assets/carloscoche.jpg') },
-  { id: '7', title: 'Lista 7', image: require('../assets/logo.png') },
-  { id: '8', title: 'Lista 8', image: require('../assets/logo.png') },
-];
-
 export default function HomeScreen({ navigation }) {
   const [cancionSonando, setCancionSonando] = useState(true);
   const rotation = new Animated.Value(0);
   const [menuAbierto, setMenuAbierto] = useState(false);
   const [blurAnimation] = useState(new Animated.Value(0));
   const [menuAnimation] = useState(new Animated.Value(0));
+  const [playlistData, setPlaylistData] = useState([]);
+  const [userEmail, setUserEmail] = useState('');
+  const [userName, setUserName] = useState('');
 
   useLayoutEffect(() => {
     navigation.setOptions({
       headerShown: false,
     });
   }, [navigation]);
+
+  useEffect(() => {
+    obtenerEmailYListas();
+    obtenerNombreUsuario();
+  }, []);
+
+  const obtenerEmailYListas = async () => {
+    try {
+      const email = await AsyncStorage.getItem('email'); // Obtiene el email almacenado en login
+      if (!email) {
+        Alert.alert("Error", "No se pudo recuperar el email del usuario.");
+        return;
+      }
+      setUserEmail(email);
+      await obtenerPlaylists(email);
+    } catch (error) {
+      console.error("Error obteniendo email:", error);
+    }
+  };
+
+  const obtenerPlaylists = async (email) => {
+    try {
+      const response = await fetch(`http://48.209.24.188:3000/playlists/user?email=${email}`);
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Error al obtener playlists");
+      }
+
+      setPlaylistData(data.playlists || []); // Asegurar que haya playlists
+    } catch (error) {
+      console.error("Error obteniendo playlists:", error);
+      Alert.alert("Error", error.message);
+    }
+  };
+
+  const obtenerNombreUsuario = async () => {
+    try {
+      const email = await AsyncStorage.getItem('email'); // Obtiene el email almacenado en login
+      if (!email) {
+        Alert.alert("Error", "No se pudo recuperar el email del usuario.");
+        return;
+      }
+      setUserEmail(email);
+
+      // 🔹 Chivato antes de llamar a la API
+      console.log("Email para la API:", email);
+
+      // Llamada a la API para obtener el nombre del usuario
+      const response = await fetch("http://48.209.24.188:3000/users/nick?userEmail=${email}");
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Error al obtener el nombre del usuario");
+      }
+
+      setUserName(data.name || 'Usuario'); // Asegura que haya un nombre
+    } catch (error) {
+      console.error("Error obteniendo el nombre del usuario:", error);
+      Alert.alert("Error", error.message);
+    }
+  };
 
   const toggleMenu = () => {
     setMenuAbierto(!menuAbierto);
@@ -143,7 +198,7 @@ export default function HomeScreen({ navigation }) {
         style={{ flex: 1 }}
       >
         <View style={styles.headerContainer}>
-          <Text style={styles.greeting}>Buenos días, nombreUsuario</Text>
+          <Text style={styles.greeting}>Buenos días, {userName}</Text>
           <TouchableOpacity onPress={() => navigation.navigate('ProfileScreen')}>
             <Image
               source={require('../assets/favicon.png')}
@@ -167,7 +222,7 @@ export default function HomeScreen({ navigation }) {
         <FlatList
           data={playlistData}
           renderItem={renderPlaylistItem}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item, index) => index.toString()}
           numColumns={2}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.playlistList}

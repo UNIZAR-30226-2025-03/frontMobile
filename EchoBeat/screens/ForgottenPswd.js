@@ -19,7 +19,6 @@ export default function ForgottenPswd({ navigation }) {
   };
 
   const handlePasswordReset = async () => {
-    // ✅ Reseteamos mensajes de error previos
     setErrorCorreo('');
     setErrorApi('');
 
@@ -36,7 +35,7 @@ export default function ForgottenPswd({ navigation }) {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ email: correo }),
+        body: JSON.stringify({ Email: correo }),
       });
 
       const data = await response.json();

@@ -29,6 +29,7 @@ export default function Login_Register({navigation}) {
 
       if (data.accessToken) {
         await AsyncStorage.setItem("token", data.accessToken);
+        await AsyncStorage.setItem("email", email);
         Alert.alert("Éxito", "Inicio de sesión exitoso");
         navigation.navigate("HomeScreen");
       }
