@@ -40,7 +40,7 @@ export default function HomeScreen({ navigation }) {
       console.log("Email para la API:", email);
 
       // Llamada a la API para obtener el nombre del usuario
-      const response = await fetch(`http://48.209.24.188:3000/users/nick?userEmail=${userEmail}`);
+      const response = await fetch(`http://48.209.24.188:3000/users/nick?userEmail=${email}`);
       const data = await response.json();
 
       if (!response.ok) {
@@ -109,14 +109,14 @@ export default function HomeScreen({ navigation }) {
     const botones = [
       { id: 1, label: 'Opción 1' },
       { id: 2, label: 'Opción 2' },
-      { id: 3, label: 'Opción 3' },
+      { id: 3, label: 'LUPA', screen: 'Search' },
       { id: 4, label: 'Opción 4' },
       { id: 5, label: 'Opción 5' },
     ];
 
     return botones.map((boton, index) => {
       const angle = (Math.PI / (botones.length - 1)) * index;
-      const x = Math.cos(angle) * 120;
+      const x = Math.cos(angle) * 145;
       const y = -Math.sin(angle) * 120;
 
       return (
@@ -140,7 +140,8 @@ export default function HomeScreen({ navigation }) {
             },
           ]}
         >
-          <TouchableOpacity style={styles.botonMenuSecundario}>
+          <TouchableOpacity style={styles.botonMenuSecundario}
+                                   onPress={() => navigation.navigate(boton.screen)}>
             <Text style={styles.botonTexto}>{boton.label}</Text>
           </TouchableOpacity>
         </Animated.View>
@@ -161,6 +162,20 @@ export default function HomeScreen({ navigation }) {
     outputRange: ['0deg', '360deg'],
   });
 
+  const renderPlaylistCreada = ({ item }) => {
+    const defaultImage = require('../assets/darkraul.jpg');
+    const imageSource = (item.lista && item.lista.Portada && item.lista.Portada !== "URL_por_defecto")
+      ? { uri: item.lista.Portada }
+      : defaultImage;
+
+    return (
+      <View style={styles.playlistItem}>
+        <Image source={imageSource} style={styles.playlistImage} />
+        <Text style={styles.playlistTitle}>{item.lista ? item.lista.Nombre : '####'}</Text>
+      </View>
+    );
+  };
+
   const renderRecomendationsItem = ({ item }) => {
     const defaultImage = require('../assets/darkraul.jpg');
     const imageSource = (item.FotoGenero && item.FotoGenero !== "URL_por_defecto")
@@ -175,20 +190,6 @@ export default function HomeScreen({ navigation }) {
       <View style={styles.recomendationsItem}>
         <Image source={imageSource} style={styles.recomendationsImage} />
         <Text style={styles.recomendationsTitle}>{nameGenero}</Text>
-      </View>
-    );
-  };
-
-  const renderPlaylistCreada = ({ item }) => {
-    const defaultImage = require('../assets/darkraul.jpg');
-    const imageSource = (item.lista && item.lista.Portada && item.lista.Portada !== "URL_por_defecto")
-      ? { uri: item.lista.Portada }
-      : defaultImage;
-
-    return (
-      <View style={styles.playlistItem}>
-        <Image source={imageSource} style={styles.playlistImage} />
-        <Text style={styles.playlistTitle}>{item.lista ? item.lista.Nombre : '####'}</Text>
       </View>
     );
   };
@@ -350,7 +351,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   recomendationsSlider: {
-    flex: 3,
     width: width * 0.9,
     alignSelf: 'center',
   },
@@ -360,7 +360,7 @@ const styles = StyleSheet.create({
   },
   recomendationsItem: {
     width: width / 2.5 - 15,
-    marginBottom: 15,
+    marginBottom: 15, 
     alignItems: 'center',
   },
   recomendationsImage: {

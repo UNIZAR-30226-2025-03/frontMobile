@@ -6,6 +6,11 @@ import Register from './screens/Register';
 import HomeScreen from './screens/HomeScreen';
 import ProfileScreen from './screens/ProfileScreen';
 import ForgottenPswd from './screens/ForgottenPswd';
+import Search from './screens/Search';
+import Chats from './screens/Chats';
+import Favorites from './screens/Favorites';
+import Settings from './screens/Settings';
+import MyLists from './screens/MyLists';
 
 const Stack = createNativeStackNavigator();
 
@@ -18,6 +23,11 @@ export default function App() {
         <Stack.Screen name="HomeScreen" component={HomeScreen} />
         <Stack.Screen name="ProfileScreen" component={ProfileScreen} />
         <Stack.Screen name="ForgottenPswd" component={ForgottenPswd} />
+        <Stack.Screen name="Search" component={Search} />
+        <Stack.Screen name="Chats" component={Chats} />
+        <Stack.Screen name="Favorites" component={Favorites} />
+        <Stack.Screen name="Settings" component={Settings} />
+        <Stack.Screen name="MyLists" component={MyLists} />
       </Stack.Navigator>
     </NavigationContainer>
   );
