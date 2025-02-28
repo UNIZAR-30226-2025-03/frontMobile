@@ -5,22 +5,14 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const { width } = Dimensions.get('window');
 const AnimatedImage = Animated.createAnimatedComponent(Image);
 
-const songData = [
-  { id: '1', title: 'Canción 1', image: require('../assets/favicon.png') },
-  { id: '2', title: 'Canción 2', image: require('../assets/favicon.png') },
-  { id: '3', title: 'Canción 3', image: require('../assets/favicon.png') },
-  { id: '4', title: 'Canción 4', image: require('../assets/favicon.png') },
-  { id: '5', title: 'Canción 5', image: require('../assets/favicon.png') },
-  { id: '6', title: 'Canción 6', image: require('../assets/favicon.png') },
-];
-
 export default function HomeScreen({ navigation }) {
+  const [playlistCreadas, setPlaylistCreadas] = useState([]);
   const [cancionSonando, setCancionSonando] = useState(true);
   const rotation = new Animated.Value(0);
   const [menuAbierto, setMenuAbierto] = useState(false);
   const [blurAnimation] = useState(new Animated.Value(0));
   const [menuAnimation] = useState(new Animated.Value(0));
-  const [playlistData, setPlaylistData] = useState([]);
+  const [recomendations, setRecomendations] = useState([]);
   const [userEmail, setUserEmail] = useState('');
   const [userName, setUserName] = useState('');
 
@@ -31,43 +23,13 @@ export default function HomeScreen({ navigation }) {
   }, [navigation]);
 
   useEffect(() => {
-    obtenerEmailYListas();
-    obtenerNombreUsuario();
+    obtenerInfoUser();
   }, []);
 
-  const obtenerEmailYListas = async () => {
+  const obtenerInfoUser = async () => {
     try {
       const email = await AsyncStorage.getItem('email'); // Obtiene el email almacenado en login
-      if (!email) {
-        Alert.alert("Error", "No se pudo recuperar el email del usuario.");
-        return;
-      }
-      setUserEmail(email);
-      await obtenerPlaylists(email);
-    } catch (error) {
-      console.error("Error obteniendo email:", error);
-    }
-  };
 
-  const obtenerPlaylists = async (email) => {
-    try {
-      const response = await fetch(`http://48.209.24.188:3000/playlists/user?email=${email}`);
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || "Error al obtener playlists");
-      }
-
-      setPlaylistData(data.playlists || []); // Asegurar que haya playlists
-    } catch (error) {
-      console.error("Error obteniendo playlists:", error);
-      Alert.alert("Error", error.message);
-    }
-  };
-
-  const obtenerNombreUsuario = async () => {
-    try {
-      const email = await AsyncStorage.getItem('email'); // Obtiene el email almacenado en login
       if (!email) {
         Alert.alert("Error", "No se pudo recuperar el email del usuario.");
         return;
@@ -78,16 +40,51 @@ export default function HomeScreen({ navigation }) {
       console.log("Email para la API:", email);
 
       // Llamada a la API para obtener el nombre del usuario
-      const response = await fetch("http://48.209.24.188:3000/users/nick?userEmail=${email}");
+      const response = await fetch(`http://48.209.24.188:3000/users/nick?userEmail=${userEmail}`);
       const data = await response.json();
 
       if (!response.ok) {
         throw new Error(data.message || "Error al obtener el nombre del usuario");
       }
 
-      setUserName(data.name || 'Usuario'); // Asegura que haya un nombre
+      setUserName(data.Nick || 'Usuario'); // Asegura que haya un nombre
+
+      await obtenerPlaylistsCreadas(email);
+      await obtenerRecomendaciones(email);
+
     } catch (error) {
       console.error("Error obteniendo el nombre del usuario:", error);
+      Alert.alert("Error", error.message);
+    }
+  };
+
+  // Obtiene las Playlists creadas por un usuario
+  const obtenerPlaylistsCreadas = async (email) => {
+    try {
+      const response = await fetch(`http://48.209.24.188:3000/playlists/user?userEmail=${email}`);
+      const data = await response.json();
+
+      setPlaylistCreadas(data);
+    } catch (error) {
+      console.error("Error obteniendo playlists creadas:", error);
+      Alert.alert("Error", error.message);
+    }
+  }
+
+  // Obtiene las recomendaciones de playlists para un usuario -> Son Objetos de "Generos" desde los 
+  // que se puede acceder a las playlists de esos generos
+  const obtenerRecomendaciones = async (email) => {
+    try {
+      const response = await fetch(`http://48.209.24.188:3000/genero/preferencia?userEmail=${email}`);
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Error al obtener recomendaciones");
+      }
+    
+      setRecomendations(data);
+    } catch (error) {
+      console.error("Error obteniendo recomendaciones:", error);
       Alert.alert("Error", error.message);
     }
   };
@@ -164,19 +161,37 @@ export default function HomeScreen({ navigation }) {
     outputRange: ['0deg', '360deg'],
   });
 
-  const renderSongItem = ({ item }) => (
-    <View style={styles.songItem}>
-      <Image source={item.image} style={styles.songImage} />
-      <Text style={styles.songTitle}>{item.title}</Text>
-    </View>
-  );
+  const renderRecomendationsItem = ({ item }) => {
+    const defaultImage = require('../assets/darkraul.jpg');
+    const imageSource = (item.FotoGenero && item.FotoGenero !== "URL_por_defecto")
+      ? { uri: item.ForoGenero }
+      : defaultImage;
+    const nameGenero = (item.NombreGenero && item.NombreGenero !== "NULL")
+      ? item.NombreGenero
+      : '####';
 
-  const renderPlaylistItem = ({ item }) => (
-    <View style={styles.playlistItem}>
-      <Image source={item.image} style={styles.playlistImage} />
-      <Text style={styles.playlistTitle}>{item.title}</Text>
-    </View>
-  );
+
+    return (
+      <View style={styles.recomendationsItem}>
+        <Image source={imageSource} style={styles.recomendationsImage} />
+        <Text style={styles.recomendationsTitle}>{nameGenero}</Text>
+      </View>
+    );
+  };
+
+  const renderPlaylistCreada = ({ item }) => {
+    const defaultImage = require('../assets/darkraul.jpg');
+    const imageSource = (item.lista && item.lista.Portada && item.lista.Portada !== "URL_por_defecto")
+      ? { uri: item.lista.Portada }
+      : defaultImage;
+
+    return (
+      <View style={styles.playlistItem}>
+        <Image source={imageSource} style={styles.playlistImage} />
+        <Text style={styles.playlistTitle}>{item.lista ? item.lista.Nombre : '####'}</Text>
+      </View>
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -198,36 +213,37 @@ export default function HomeScreen({ navigation }) {
         style={{ flex: 1 }}
       >
         <View style={styles.headerContainer}>
-          <Text style={styles.greeting}>Buenos días, {userName}</Text>
+          <Text style={styles.greeting}>Hola 😄, {userName}</Text>
           <TouchableOpacity onPress={() => navigation.navigate('ProfileScreen')}>
             <Image
+              // Completar con API de la imagen del usuario
               source={require('../assets/favicon.png')}
               style={styles.profileImage}
             />
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.subTitle}>Escuchado recientemente</Text>
+        <Text style={styles.subTitle}>Tus Listas</Text>
         <FlatList
-          data={songData}
-          renderItem={renderSongItem}
-          keyExtractor={(item) => item.id}
+          data={playlistCreadas}
+          renderItem={renderPlaylistCreada}
+          keyExtractor={(item, index) => index.toString()}
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.songList}
-          style={styles.songSlider}
+          contentContainerStyle={styles.playlistList}
+          style={styles.playlistCreadasSlider}
         />
 
-        <Text style={styles.subTitle}>Tus listas de reproducción</Text>
+        <Text style={styles.subTitle}>Recomendaciones</Text>
         <FlatList
-          data={playlistData}
-          renderItem={renderPlaylistItem}
+          data={recomendations}
+          renderItem={renderRecomendationsItem}
           keyExtractor={(item, index) => index.toString()}
           numColumns={2}
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.playlistList}
-          columnWrapperStyle={{ justifyContent: 'space-between' }}
-          style={styles.playlistSlider}
+          contentContainerStyle={styles.recomendationsList}
+          columnWrapperStyle={ styles.recomendationsList }
+          style={styles.recomendationsSlider}
         />
       </View>
 
@@ -239,7 +255,7 @@ export default function HomeScreen({ navigation }) {
           activeOpacity={0.8}
         >
           <Text style={styles.buttonText}>
-            {menuAbierto ? 'X' : '. . .'}
+            {menuAbierto ? 'x' : '. . .'}
           </Text>
         </TouchableOpacity>
 
@@ -283,7 +299,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 20,
+    marginTop: 30,
   },
   greeting: {
     fontSize: 24,
@@ -300,58 +316,60 @@ const styles = StyleSheet.create({
     marginTop: 15,
   },
   subTitle: {
-    fontSize: 20,
+    fontSize: 28,
     fontWeight: 'bold',
     color: '#f2ab55',
     marginTop: 10,
     marginBottom: 10,
     marginLeft: 20,
   },
-  songList: {
-    justifyContent: 'center',
-    paddingBottom: 50,
-  },
-  songSlider: {
-    width: width * 0.83,
-    alignSelf: 'center',
-  },
-  songItem: {
-    width: width / 5 - 10,
-    marginRight: 15,
-    alignItems: 'center',
-  },
-  songImage: {
-    width: width / 5 - 20,
-    height: width / 5 - 20,
-    borderRadius: 10,
-    backgroundColor: '#333',
-  },
-  songTitle: {
-    marginTop: 5,
-    color: '#fff',
-    fontSize: 12,
-    textAlign: 'center',
-  },
-  playlistSlider: {
+  playlistCreadasSlider: {
+    flex: 1,
     width: width * 0.9,
     alignSelf: 'center',
   },
   playlistList: {
-    paddingBottom: 100,
     paddingHorizontal: 5,
   },
   playlistItem: {
     width: width / 2.5 - 15,
-    margin: 15,
+    marginRight: 20,
     alignItems: 'center',
   },
   playlistImage: {
-    width: width / 2.5 - 5,
-    height: width / 2.5 - 5,
+    width: width / 3 - 20,
+    height: width / 3 - 20,
     borderRadius: 20,
     backgroundColor: '#333',
   },
   playlistTitle: {
+    marginTop: 5,
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  recomendationsSlider: {
+    flex: 3,
+    width: width * 0.9,
+    alignSelf: 'center',
+  },
+  recomendationsList: {
+    justifyContent: 'space-between',
+    paddingHorizontal: 5,
+  },
+  recomendationsItem: {
+    width: width / 2.5 - 15,
+    marginBottom: 15,
+    alignItems: 'center',
+  },
+  recomendationsImage: {
+    width: width / 2.5 - 20,
+    height: width / 2.5 - 20,
+    borderRadius: 20,
+    backgroundColor: '#333',
+  },
+  recomendationsTitle: {
     marginTop: 5,
     color: '#fff',
     fontSize: 14,
