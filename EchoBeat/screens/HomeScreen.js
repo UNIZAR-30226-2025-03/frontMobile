@@ -107,11 +107,11 @@ export default function HomeScreen({ navigation }) {
 
   const renderBotonesMenu = () => {
     const botones = [
-      { id: 1, label: 'Opción 1' },
-      { id: 2, label: 'Opción 2' },
+      { id: 1, label: 'MIS LISTAS', screen: 'MyLists' },
+      { id: 2, label: 'FAVS', screen: 'Favorites' },
       { id: 3, label: 'LUPA', screen: 'Search' },
-      { id: 4, label: 'Opción 4' },
-      { id: 5, label: 'Opción 5' },
+      { id: 4, label: 'CHATS', screen: 'Chats' },
+      { id: 5, label: 'AJUSTES', screen: 'Settings' },
     ];
 
     return botones.map((boton, index) => {
@@ -140,8 +140,7 @@ export default function HomeScreen({ navigation }) {
             },
           ]}
         >
-          <TouchableOpacity style={styles.botonMenuSecundario}
-                                   onPress={() => navigation.navigate(boton.screen)}>
+          <TouchableOpacity style={styles.botonMenuSecundario} onPress={() => navigation.navigate(boton.screen)}>
             <Text style={styles.botonTexto}>{boton.label}</Text>
           </TouchableOpacity>
         </Animated.View>
@@ -270,14 +269,16 @@ export default function HomeScreen({ navigation }) {
               }),
             }}
           >
-            <AnimatedImage
-              width={65}
-              height={65}
-              marginTop={5}
-              marginRight={20}
-              source={require('../assets/favicon.png')}
-              style={[styles.discIcon, { transform: [{ rotate: spin }] }]}
-            />
+            <TouchableOpacity onPress={() => navigation.navigate('MusicPlayer')}>
+              <AnimatedImage
+                width={65}
+                height={65}
+                marginTop={5}
+                marginRight={20}
+                source={require('../assets/favicon.png')}
+                style={[styles.discIcon, { transform: [{ rotate: spin }] }]}
+              />
+            </TouchableOpacity>
           </Animated.View>
         )}
       </View>

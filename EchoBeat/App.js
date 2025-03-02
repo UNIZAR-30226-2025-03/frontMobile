@@ -11,6 +11,7 @@ import Chats from './screens/Chats';
 import Favorites from './screens/Favorites';
 import Settings from './screens/Settings';
 import MyLists from './screens/MyLists';
+import MusicPlayer from './screens/MusicPlayer';
 
 const Stack = createNativeStackNavigator();
 
@@ -28,6 +29,7 @@ export default function App() {
         <Stack.Screen name="Favorites" component={Favorites} />
         <Stack.Screen name="Settings" component={Settings} />
         <Stack.Screen name="MyLists" component={MyLists} />
+        <Stack.Screen name="MusicPlayer" component={MusicPlayer} />
       </Stack.Navigator>
     </NavigationContainer>
   );
