@@ -1,25 +1,22 @@
-import React, { use, useState, useLayoutEffect, useEffect } from 'react';
-import { View,Text,FlatList,Image,StyleSheet,Dimensions,TouchableOpacity,Animated,Alert } from 'react-native';
+import React, { useState, useLayoutEffect, useEffect, useRef } from 'react';
+import { View, Text, FlatList, Image, StyleSheet, Dimensions, TouchableOpacity, Animated, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Ionicons } from '@expo/vector-icons';
 
 const { width } = Dimensions.get('window');
-const AnimatedImage = Animated.createAnimatedComponent(Image);
 
 export default function HomeScreen({ navigation }) {
   const [playlistCreadas, setPlaylistCreadas] = useState([]);
   const [cancionSonando, setCancionSonando] = useState(true);
-  const rotation = new Animated.Value(0);
+  const rotation = useRef(new Animated.Value(0)).current;
   const [menuAbierto, setMenuAbierto] = useState(false);
-  const [blurAnimation] = useState(new Animated.Value(0));
-  const [menuAnimation] = useState(new Animated.Value(0));
+  const blurAnimation = useRef(new Animated.Value(0)).current;
   const [recomendations, setRecomendations] = useState([]);
   const [userEmail, setUserEmail] = useState('');
   const [userName, setUserName] = useState('');
 
   useLayoutEffect(() => {
-    navigation.setOptions({
-      headerShown: false,
-    });
+    navigation.setOptions({ headerShown: false });
   }, [navigation]);
 
   useEffect(() => {
@@ -28,119 +25,120 @@ export default function HomeScreen({ navigation }) {
 
   const obtenerInfoUser = async () => {
     try {
-      const email = await AsyncStorage.getItem('email'); // Obtiene el email almacenado en login
-
+      const email = await AsyncStorage.getItem('email');
       if (!email) {
         Alert.alert("Error", "No se pudo recuperar el email del usuario.");
         return;
       }
       setUserEmail(email);
-
-      // 🔹 Chivato antes de llamar a la API
-      console.log("Email para la API:", email);
-
-      // Llamada a la API para obtener el nombre del usuario
       const response = await fetch(`http://48.209.24.188:3000/users/nick?userEmail=${email}`);
       const data = await response.json();
-
       if (!response.ok) {
         throw new Error(data.message || "Error al obtener el nombre del usuario");
       }
-
-      setUserName(data.Nick || 'Usuario'); // Asegura que haya un nombre
-
+      setUserName(data.Nick || 'Usuario');
       await obtenerPlaylistsCreadas(email);
       await obtenerRecomendaciones(email);
-
     } catch (error) {
-      console.error("Error obteniendo el nombre del usuario:", error);
       Alert.alert("Error", error.message);
     }
   };
 
-  // Obtiene las Playlists creadas por un usuario
   const obtenerPlaylistsCreadas = async (email) => {
     try {
       const response = await fetch(`http://48.209.24.188:3000/playlists/user?userEmail=${email}`);
       const data = await response.json();
-
       setPlaylistCreadas(data);
     } catch (error) {
-      console.error("Error obteniendo playlists creadas:", error);
       Alert.alert("Error", error.message);
     }
-  }
+  };
 
-  // Obtiene las recomendaciones de playlists para un usuario -> Son Objetos de "Generos" desde los 
-  // que se puede acceder a las playlists de esos generos
   const obtenerRecomendaciones = async (email) => {
     try {
       const response = await fetch(`http://48.209.24.188:3000/genero/preferencia?userEmail=${email}`);
       const data = await response.json();
-
       if (!response.ok) {
         throw new Error(data.message || "Error al obtener recomendaciones");
       }
-    
       setRecomendations(data);
     } catch (error) {
-      console.error("Error obteniendo recomendaciones:", error);
       Alert.alert("Error", error.message);
     }
   };
 
+  // Crea un Animated.Value para cada uno de los 5 botones del menú
+  const menuButtonAnimValues = useRef([
+    new Animated.Value(0),
+    new Animated.Value(0),
+    new Animated.Value(0),
+    new Animated.Value(0),
+    new Animated.Value(0),
+  ]).current;
+
   const toggleMenu = () => {
+    if (!menuAbierto) {
+      // Abrir: animar cada botón de forma escalonada (izquierda a derecha)
+      Animated.stagger(100, menuButtonAnimValues.map(anim =>
+        Animated.timing(anim, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        })
+      )).start();
+    } else {
+      // Cerrar: animar en orden inverso (derecha a izquierda)
+      Animated.stagger(100, menuButtonAnimValues.slice().reverse().map(anim =>
+        Animated.timing(anim, {
+          toValue: 0,
+          duration: 300,
+          useNativeDriver: true,
+        })
+      )).start();
+    }
     setMenuAbierto(!menuAbierto);
-    Animated.parallel([
-      Animated.timing(blurAnimation, {
-        toValue: menuAbierto ? 0 : 1,
-        duration: 300,
-        useNativeDriver: true,
-      }),
-      Animated.timing(menuAnimation, {
-        toValue: menuAbierto ? 0 : 1,
-        duration: 400,
-        useNativeDriver: true,
-      }),
-    ]).start();
+    Animated.timing(blurAnimation, {
+      toValue: menuAbierto ? 0 : 1,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
   };
 
   const renderBotonesMenu = () => {
     const botones = [
-      { id: 1, label: 'MIS LISTAS', screen: 'MyLists' },
-      { id: 2, label: 'FAVS', screen: 'Favorites' },
-      { id: 3, label: 'LUPA', screen: 'Search' },
-      { id: 4, label: 'CHATS', screen: 'Chats' },
-      { id: 5, label: 'AJUSTES', screen: 'Settings' },
+      { id: 1, label: 'MIS LISTAS', screen: 'MyLists', icon: 'list' },
+      { id: 2, label: 'FAVS', screen: 'Favorites', icon: 'heart' },
+      { id: 3, label: 'BUSCAR', screen: 'Search', icon: 'search' },
+      { id: 4, label: 'CHATS', screen: 'Chats', icon: 'chatbubbles' },
+      { id: 5, label: 'AJUSTES', screen: 'Settings', icon: 'settings' },
     ];
 
     return botones.map((boton, index) => {
       const angle = (Math.PI / (botones.length - 1)) * index;
       const x = Math.cos(angle) * 145;
       const y = -Math.sin(angle) * 120;
-
+      const animValue = menuButtonAnimValues[index];
+      const translateX = animValue.interpolate({
+        inputRange: [0, 1],
+        outputRange: [0, x],
+      });
+      const translateY = animValue.interpolate({
+        inputRange: [0, 1],
+        outputRange: [0, y],
+      });
       return (
         <Animated.View
           key={boton.id}
           style={[
             styles.menuBoton,
             {
-              transform: [
-                { translateX: menuAnimation.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [0, x],
-                  })
-                },
-                { translateY: menuAnimation.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [0, y],
-                  })
-                },
-              ],
+              transform: [{ translateX }, { translateY }],
+              opacity: animValue,
             },
           ]}
         >
           <TouchableOpacity style={styles.botonMenuSecundario} onPress={() => navigation.navigate(boton.screen)}>
+            <Ionicons name={boton.icon} size={24} color="#fff" style={{ marginBottom: 5 }} />
             <Text style={styles.botonTexto}>{boton.label}</Text>
           </TouchableOpacity>
         </Animated.View>
@@ -163,10 +161,10 @@ export default function HomeScreen({ navigation }) {
 
   const renderPlaylistCreada = ({ item }) => {
     const defaultImage = require('../assets/darkraul.jpg');
-    const imageSource = (item.lista && item.lista.Portada && item.lista.Portada !== "URL_por_defecto")
-      ? { uri: item.lista.Portada }
-      : defaultImage;
-
+    const imageSource =
+      item.lista && item.lista.Portada && item.lista.Portada !== "URL_por_defecto"
+        ? { uri: item.lista.Portada }
+        : defaultImage;
     return (
       <View style={styles.playlistItem}>
         <Image source={imageSource} style={styles.playlistImage} />
@@ -177,14 +175,11 @@ export default function HomeScreen({ navigation }) {
 
   const renderRecomendationsItem = ({ item }) => {
     const defaultImage = require('../assets/darkraul.jpg');
-    const imageSource = (item.FotoGenero && item.FotoGenero !== "URL_por_defecto")
-      ? { uri: item.ForoGenero }
-      : defaultImage;
-    const nameGenero = (item.NombreGenero && item.NombreGenero !== "NULL")
-      ? item.NombreGenero
-      : '####';
-
-
+    const imageSource =
+      item.FotoGenero && item.FotoGenero !== "URL_por_defecto"
+        ? { uri: item.ForoGenero }
+        : defaultImage;
+    const nameGenero = (item.NombreGenero && item.NombreGenero !== "NULL") ? item.NombreGenero : '####';
     return (
       <View style={styles.recomendationsItem}>
         <Image source={imageSource} style={styles.recomendationsImage} />
@@ -208,21 +203,13 @@ export default function HomeScreen({ navigation }) {
           },
         ]}
       />
-      <View 
-        pointerEvents={menuAbierto ? 'none' : 'auto'} 
-        style={{ flex: 1 }}
-      >
+      <View pointerEvents={menuAbierto ? 'none' : 'auto'} style={{ flex: 1 }}>
         <View style={styles.headerContainer}>
           <Text style={styles.greeting}>Hola 😄, {userName}</Text>
           <TouchableOpacity onPress={() => navigation.navigate('ProfileScreen')}>
-            <Image
-              // Completar con API de la imagen del usuario
-              source={require('../assets/favicon.png')}
-              style={styles.profileImage}
-            />
+            <Image source={require('../assets/favicon.png')} style={styles.profileImage} />
           </TouchableOpacity>
         </View>
-
         <Text style={styles.subTitle}>Tus Listas</Text>
         <FlatList
           data={playlistCreadas}
@@ -233,7 +220,6 @@ export default function HomeScreen({ navigation }) {
           contentContainerStyle={styles.playlistList}
           style={styles.playlistCreadasSlider}
         />
-
         <Text style={styles.subTitle}>Recomendaciones</Text>
         <FlatList
           data={recomendations}
@@ -242,39 +228,28 @@ export default function HomeScreen({ navigation }) {
           numColumns={2}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.recomendationsList}
-          columnWrapperStyle={ styles.recomendationsList }
+          columnWrapperStyle={styles.recomendationsList}
           style={styles.recomendationsSlider}
         />
       </View>
-
       <View style={styles.bottomContainer}>
         {renderBotonesMenu()}
-        <TouchableOpacity 
-          style={styles.halfCircleButton} 
-          onPress={toggleMenu}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.buttonText}>
-            {menuAbierto ? 'x' : '. . .'}
-          </Text>
+        <TouchableOpacity style={styles.halfCircleButton} onPress={toggleMenu} activeOpacity={0.8}>
+          <Text style={styles.buttonText}>{menuAbierto ? 'x' : '. . .'}</Text>
         </TouchableOpacity>
-
         {cancionSonando && (
           <Animated.View
-            pointerEvents={menuAbierto ? 'none' : 'auto'} // Bloquea interacción al abrir el menú
+            pointerEvents={menuAbierto ? 'none' : 'auto'}
             style={{
               opacity: blurAnimation.interpolate({
                 inputRange: [0, 1],
-                outputRange: [1, 0.2], // Difumina el icono cuando se abre el menú
+                outputRange: [1, 0.2],
               }),
+              zIndex: 4,
             }}
           >
             <TouchableOpacity onPress={() => navigation.navigate('MusicPlayer')}>
-              <AnimatedImage
-                width={65}
-                height={65}
-                marginTop={5}
-                marginRight={20}
+              <Animated.Image
                 source={require('../assets/favicon.png')}
                 style={[styles.discIcon, { transform: [{ rotate: spin }] }]}
               />
@@ -361,7 +336,7 @@ const styles = StyleSheet.create({
   },
   recomendationsItem: {
     width: width / 2.5 - 15,
-    marginBottom: 15, 
+    marginBottom: 15,
     alignItems: 'center',
   },
   recomendationsImage: {
@@ -411,9 +386,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   botonMenuSecundario: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
     backgroundColor: '#f2ab55',
     justifyContent: 'center',
     alignItems: 'center',
@@ -421,6 +396,8 @@ const styles = StyleSheet.create({
   botonTexto: {
     color: '#fff',
     fontWeight: 'bold',
+    fontSize: 12,
+    textAlign: 'center',
   },
   discIcon: {
     width: 50,

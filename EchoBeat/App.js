@@ -3,6 +3,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import Login_Register from './screens/Login_Register';
 import Register from './screens/Register';
+import Welcome from './screens/Welcome';
 import HomeScreen from './screens/HomeScreen';
 import ProfileScreen from './screens/ProfileScreen';
 import ForgottenPswd from './screens/ForgottenPswd';
@@ -21,6 +22,7 @@ export default function App() {
       <Stack.Navigator initialRouteName="Login_Register">
         <Stack.Screen name="Login_Register" component={Login_Register} options={{ headerShown: false }} />
         <Stack.Screen name="Register" component={Register} />
+        <Stack.Screen name="Welcome" component={Welcome} />
         <Stack.Screen name="HomeScreen" component={HomeScreen} />
         <Stack.Screen name="ProfileScreen" component={ProfileScreen} />
         <Stack.Screen name="ForgottenPswd" component={ForgottenPswd} />
