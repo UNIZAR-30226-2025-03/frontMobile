@@ -2,6 +2,7 @@ import React, { useState, useEffect, useLayoutEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Image, Alert } from 'react-native';
 import { Audio } from 'expo-av';
 import Slider from '@react-native-community/slider';
+import { goBack } from 'expo-router/build/global-state/routing';
 
 
 export default function MusicPlayer({ navigation }) {
@@ -100,7 +101,7 @@ export default function MusicPlayer({ navigation }) {
 
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.navigate('HomeScreen')}>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
           <Text style={styles.headerButton}>←</Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={() => Alert.alert('Info', 'Información de la canción')}>
