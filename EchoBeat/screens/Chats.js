@@ -8,7 +8,6 @@ export default function ChatScreen({ navigation }) {
   const [cancionSonando, setCancionSonando] = useState(true);
   const rotation = useRef(new Animated.Value(0)).current;
 
-  // 🔹 Simulación de amigos y chats
   const amigos = [
     { id: '1', nickname: 'Pedro', ultimaCancion: 'Bohemian Rhapsody', fotoPerfil: require('../assets/thanos1.jpg') },
     { id: '2', nickname: 'Lucía', ultimaCancion: 'Rolling in the Deep', fotoPerfil: require('../assets/jordi.jpg') },
@@ -35,7 +34,6 @@ export default function ChatScreen({ navigation }) {
     outputRange: ['0deg', '360deg'],
   });
 
-  // 🔹 Renderizar cada amigo como un chat en la lista
   const renderChatItem = ({ item }) => (
     <TouchableOpacity style={styles.chatItem} onPress={() => navigation.navigate('ChatScreen', { friend: item })}>
       <Image source={item.fotoPerfil} style={styles.profileImage} />
@@ -49,10 +47,8 @@ export default function ChatScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      {/* 🔹 Encabezado */}
       <Text style={styles.title}>Chats con amigos</Text>
 
-      {/* 🔹 Lista de chats */}
       <FlatList
         data={amigos}
         renderItem={renderChatItem}
@@ -60,7 +56,6 @@ export default function ChatScreen({ navigation }) {
         contentContainerStyle={styles.chatList}
       />
 
-      {/* 🔹 Icono rotatorio (acceso al reproductor musical) */}
       {cancionSonando && (
         <TouchableOpacity onPress={() => navigation.navigate('MusicPlayer')} style={styles.musicIconContainer}>
           <Animated.Image

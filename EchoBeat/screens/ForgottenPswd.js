@@ -30,7 +30,7 @@ export default function ForgottenPswd({ navigation }) {
     setLoading(true);
 
     try {
-      const response = await fetch("http://48.209.24.188:3000/auth/forgot-password", {
+      const response = await fetch("https://echobeatapi.duckdns.org/auth/forgot-password", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

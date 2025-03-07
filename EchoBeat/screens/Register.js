@@ -44,7 +44,7 @@ export default function Register({ navigation }) {
 
   const handleRegister = async () => {
     try {
-      const response = await fetch("http://192.168.1.52:3000/users/register", {
+      const response = await fetch("https://echobeatapi.duckdns.org/users/register", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

@@ -31,7 +31,7 @@ export default function HomeScreen({ navigation }) {
         return;
       }
       setUserEmail(email);
-      const response = await fetch(`http://48.209.24.188:3000/users/nick?userEmail=${email}`);
+      const response = await fetch(`https://echobeatapi.duckdns.org/users/nick?userEmail=${email}`);
       const data = await response.json();
       if (!response.ok) {
         throw new Error(data.message || "Error al obtener el nombre del usuario");
@@ -46,7 +46,7 @@ export default function HomeScreen({ navigation }) {
 
   const obtenerPlaylistsCreadas = async (email) => {
     try {
-      const response = await fetch(`http://48.209.24.188:3000/playlists/user?userEmail=${email}`);
+      const response = await fetch("https://echobeatapi.duckdns.org/playlists/user?userEmail=${email}");
       const data = await response.json();
       setPlaylistCreadas(data);
     } catch (error) {
@@ -56,7 +56,7 @@ export default function HomeScreen({ navigation }) {
 
   const obtenerRecomendaciones = async (email) => {
     try {
-      const response = await fetch(`http://48.209.24.188:3000/genero/preferencia?userEmail=${email}`);
+      const response = await fetch("https://echobeatapi.duckdns.org/genero/preferencia?userEmail=${email}");
       const data = await response.json();
       if (!response.ok) {
         throw new Error(data.message || "Error al obtener recomendaciones");
@@ -248,7 +248,7 @@ export default function HomeScreen({ navigation }) {
               zIndex: 4,
             }}
           >
-            <TouchableOpacity onPress={() => navigation.navigate('MusicPlayer')}>
+            <TouchableOpacity onPress={() => navigation.navigate('MusicPlayer')} style={styles.musicIconContainer}>
               <Animated.Image
                 source={require('../assets/favicon.png')}
                 style={[styles.discIcon, { transform: [{ rotate: spin }] }]}
@@ -398,6 +398,11 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 12,
     textAlign: 'center',
+  },
+  musicIconContainer: {
+    position: 'absolute',
+    bottom: 20,
+    right: 20,
   },
   discIcon: {
     width: 50,

@@ -20,8 +20,8 @@ export default function MusicPlayer({ navigation }) {
       audio: require('../assets/japo.mp3'),
     },
     {
-      title: 'Canción 2',
-      artist: 'Artista 2',
+      title: 'The Definitive Gossip',
+      artist: 'The Lías & JoG',
       image: require('../assets/eliasgossip.jpg'),
       audio: require('../assets/24.mp3'),
     },
@@ -117,7 +117,7 @@ export default function MusicPlayer({ navigation }) {
       <Text style={styles.songArtist}>{songList[songIndex].artist}</Text>
 
       <TouchableOpacity style={styles.saveButton} onPress={saveToList}>
-        <Text style={styles.saveButtonText}>Guardar en Lista</Text>
+        <Text style={styles.saveInListText}>Guardar en Lista</Text>
       </TouchableOpacity>
 
       {/* Barra de progreso */}
@@ -164,7 +164,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     width: '100%',
     height: '100%',
-    opacity: 0.3,
+    opacity: 0.15,
   },
   header: {
     position: 'absolute',
@@ -179,10 +179,11 @@ const styles = StyleSheet.create({
     color: '#ffffff',
   },
   albumArt: {
-    width: 300,
-    height: 300,
+    width: 250,
+    height: 250,
     borderRadius: 20,
-    marginBottom: 20,
+    marginTop: 10,
+    marginBottom: 12,
   },
   songTitle: {
     fontSize: 24,
@@ -192,12 +193,13 @@ const styles = StyleSheet.create({
   songArtist: {
     fontSize: 18,
     color: '#aaaaaa',
+    marginTop: 5,
     marginBottom: 20,
   },
   slider: {
     width: '80%',
     marginBottom: 20,
-    marginTop: 180,
+    marginTop: 170,
   },
   controls: {
     flexDirection: 'row',
@@ -205,26 +207,23 @@ const styles = StyleSheet.create({
     marginBottom: -70,
   },
   controlButton: {
-    width: 40,
-    height: 40,
-    tintColor: '#ffffff',
+    width: 60,
+    height: 60,
+    tintColor: '#f2ab55',
   },
   playPauseButton: {
     width: 60,
     height: 60,
-    tintColor: '#ffffff',
+    tintColor: '#f2ab55',
     marginHorizontal: 30,
   },
   saveButton: {
-    backgroundColor: '#f2ab55',
-    padding: 15,
-    borderRadius: 8,
-    alignItems: 'center',
-    width: '60%',
+    alignSelf: "center",
+    marginTop: -12,
   },
-  saveButtonText: {
-    color: '#ffffff',
+  saveInListText: {
+    color: "#f2ab55",
     fontSize: 16,
-    fontWeight: 'bold',
+    textDecorationLine: "underline",
   },
 });

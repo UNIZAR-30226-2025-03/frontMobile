@@ -19,7 +19,7 @@ export default function Welcome({ navigation }) {
           navigation.replace('Login_Register');
           return;
         }
-        const response = await fetch(`http://48.209.24.188:3000/users/nick?userEmail=${email}`);
+        const response = await fetch(`https://echobeatapi.duckdns.org/users/nick?userEmail=${email}`);
         const data = await response.json();
         if (!response.ok) {
           throw new Error(data.message || "Error al obtener el nombre del usuario");

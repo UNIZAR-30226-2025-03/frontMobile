@@ -10,7 +10,7 @@ export default function Login_Register({ navigation }) {
 
   const handleLogin = async () => {
     try {
-      const response = await fetch("http://48.209.24.188:3000/auth/login", {
+      const response = await fetch("https://echobeatapi.duckdns.org/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ Email: email, Password: password }),
