@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useLayoutEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView, Alert, Image } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
+import * as ImagePicker from 'expo-image-picker'
+import * as FileSystem from 'expo-file-system';
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function ProfileScreen({ navigation }) {
@@ -20,7 +22,19 @@ export default function ProfileScreen({ navigation }) {
 
   useEffect(() => {
     obtenerDatosUsuario();
+    (async () => {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert("Permiso requerido", "Se necesita permiso para acceder a la galería.");
+      }
+    })();
   }, []);
+
+  const PRIVACIDAD_MAP = {
+    publico: "Público",
+    privado: "Privado",
+    protegido: "Protegido"
+  };
 
   const obtenerDatosUsuario = async () => {
     try {
@@ -46,9 +60,7 @@ export default function ProfileScreen({ navigation }) {
         fechaNacimientoFormateada = fecha.toLocaleDateString('es-ES', { year: 'numeric', month: '2-digit', day: '2-digit' });
       }
 
-      // 🔹 Convertir BooleanPrivacidad a texto legible
-      const privacidadTexto = data.BooleanPrivacidad === "true" ? "Privado" : "Público";
-
+      const privacidadTexto = PRIVACIDAD_MAP[data.Privacidad] || "Desconocido";
       setUserName(data.Nick || 'Desconocido');
       setProfilePic(data.LinkFoto || '../assets/logo.png');
       setFechaNacimiento(fechaNacimientoFormateada);
@@ -61,41 +73,62 @@ export default function ProfileScreen({ navigation }) {
 
 
   const seleccionarImagen = async () => {
-    // Solicitar permisos de acceso a la galería
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permiso denegado', 'Se necesita acceso a la galería para seleccionar una imagen.');
-      return;
-    }
-
-    // Abrir la galería
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1], // Relación de aspecto cuadrada
-      quality: 1,
-    });
-
-    if (!result.canceled) {
-      setProfilePic(result.assets[0].uri);
-      actualizarFotoPerfil(result.assets[0].uri);
+    console.log("Botón de cambiar imagen presionado");
+  
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      console.log("Estado del permiso:", status);
+  
+      if (status !== 'granted') {
+        Alert.alert('Permiso denegado', 'Se necesita acceso a la galería para seleccionar una imagen.');
+        return;
+      }
+  
+      console.log("Abriendo la galería...");
+  
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Image,
+        allowsEditing: true,
+        aspect: [1, 1], // Relación de aspecto cuadrada
+        quality: 1,
+      });
+  
+      console.log("Imagen seleccionada:", result);
+  
+      if (!result.canceled && result.assets.length > 0) {
+        setProfilePic(result.assets[0].uri);
+        actualizarFotoPerfil(result.assets[0].uri);
+      }
+    } catch (error) {
+      console.error("Error al abrir la galería:", error);
+      Alert.alert("Error", "No se pudo abrir la galería.");
     }
   };
+  
 
   const actualizarFotoPerfil = async (imageUri) => {
     try {
-      const formData = new FormData();
-      formData.append('profileImage', {
-        uri: imageUri,
-        name: 'profile.jpg',
-        type: 'image/jpeg',
+      const base64Image = await FileSystem.readAsStringAsync(imageUri, {
+        encoding: FileSystem.EncodingType.Base64,
       });
+      const formData = new FormData();
+      formData.append('userEmail', userEmail);
+      formData.append('file', base64Image);
+      console.log("📸 URI de la imagen seleccionada:", imageUri);
 
-      const response = await fetch(`https://echobeatapi.duckdns.org/users/update-profile-pic`, {
+      console.log("📢 Enviando FormData:");
+      for (let pair of formData.entries()) {
+        console.log(pair[0] + ', ' + JSON.stringify(pair[1]));
+      }
+      console.log("Enviando imagen al servidor...");
+      const response = await fetch(`https://echobeatapi.duckdns.org/users/update-photo`, {
         method: "POST",
         headers: { "Content-Type": "multipart/form-data" },
         body: formData,
       });
+
+      const data = await response.json();
+      console.log(data);
 
       if (!response.ok) {
         throw new Error("No se pudo actualizar la imagen de perfil");
@@ -115,7 +148,7 @@ export default function ProfileScreen({ navigation }) {
         return;
       }
 
-      const response = await fetch(`https://echobeatapi.duckdns.org/users/change-nick?userEmail=${userEmail}&Nick=${newNick}"`, {
+      const response = await fetch(`https://echobeatapi.duckdns.org/users/change-nick?userEmail=${userEmail}&Nick=${newNick}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
       });
@@ -144,7 +177,7 @@ export default function ProfileScreen({ navigation }) {
         throw new Error("Error al actualizar la privacidad.");
       }
 
-      setPrivacidad(nuevaPrivacidad);
+      setPrivacidad(PRIVACIDAD_MAP[nuevaPrivacidad]);
       Alert.alert("Éxito", "Privacidad actualizada correctamente.");
     } catch (error) {
       Alert.alert("Error", error.message);
@@ -169,7 +202,7 @@ export default function ProfileScreen({ navigation }) {
       {/* Datos del usuario */}
       <View style={styles.infoContainer}>
         <Image source={{ uri: profilePic }} style={styles.profileImage} />
-        <TouchableOpacity style={styles.backButton} onPress={seleccionarImagen}>
+        <TouchableOpacity style={styles.changeImageButton} onPress={seleccionarImagen}>
           <Text style={styles.backButtonText}>Cambiar Imagen</Text>
         </TouchableOpacity>
         <Text style={styles.InfoText}>Nick: {userName}</Text>
@@ -198,9 +231,9 @@ export default function ProfileScreen({ navigation }) {
           style={styles.picker}
           onValueChange={(itemValue) => setNuevaPrivacidad(itemValue)}
         >
-          <Picker.Item label="Público" value="Público" />
-          <Picker.Item label="Privado" value="Privado" />
-          <Picker.Item label="Protegido" value="Protegido" />
+          <Picker.Item label="Público" value="publico" />
+          <Picker.Item label="Privado" value="privado" />
+          <Picker.Item label="Protegido" value="protegido" />
         </Picker>
         <TouchableOpacity style={styles.boton} onPress={actualizarPrivacidad}>
           <Text style={styles.botonTexto}>Aplicar</Text>
@@ -234,6 +267,10 @@ const styles = StyleSheet.create({
     alignSelf: "flex-start",
     marginBottom: 10,
   },
+  changeImageButton: {
+    alignSelf: "center",
+    marginBottom: 10,
+  },
   backButtonText: {
     color: "#f2ab55",
     fontSize: 16,
@@ -259,6 +296,13 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 18,
     marginBottom: 15,
+  },
+  profileImage: {
+    width: 180,
+    height: 180,
+    borderRadius: 100, // Hace que sea circular
+    alignSelf: "center",
+    marginBottom: 20, // Espacio debajo de la imagen
   },
   row: {
     flexDirection: "row",
@@ -301,6 +345,6 @@ const styles = StyleSheet.create({
     padding: 15,
     borderRadius: 8,
     alignItems: "center",
-    marginTop: 260,
+    marginTop: 70,
   },
 });
