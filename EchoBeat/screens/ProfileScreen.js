@@ -108,12 +108,23 @@ export default function ProfileScreen({ navigation }) {
 
   const actualizarFotoPerfil = async (imageUri) => {
     try {
-      const base64Image = await FileSystem.readAsStringAsync(imageUri, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
+      const fileExtension = imageUri.split('.').pop();
+      const mimeTypes = {
+        jpg: 'image/jpeg',
+        jpeg: 'image/jpeg',
+        png: 'image/png',
+        webp: 'image/webp',
+      };
+
+      const fileType = mimeTypes[fileExtension.toLowerCase()] || 'image/jpeg';
+
       const formData = new FormData();
-      formData.append('userEmail', userEmail);
-      formData.append('file', base64Image);
+      formData.append('Email', userEmail);
+      formData.append('file', {
+        uri: imageUri,
+        name: `profile.${fileExtension}`,
+        type: fileType,
+      });
       console.log("📸 URI de la imagen seleccionada:", imageUri);
 
       console.log("📢 Enviando FormData:");

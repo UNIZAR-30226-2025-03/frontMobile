@@ -46,7 +46,7 @@ export default function HomeScreen({ navigation }) {
 
   const obtenerPlaylistsCreadas = async (email) => {
     try {
-      const response = await fetch("https://echobeatapi.duckdns.org/playlists/user?userEmail=${email}");
+      const response = await fetch(`https://echobeatapi.duckdns.org/playlists/user?userEmail=${email}`);
       const data = await response.json();
       setPlaylistCreadas(data);
     } catch (error) {
@@ -56,7 +56,7 @@ export default function HomeScreen({ navigation }) {
 
   const obtenerRecomendaciones = async (email) => {
     try {
-      const response = await fetch("https://echobeatapi.duckdns.org/genero/preferencia?userEmail=${email}");
+      const response = await fetch(`https://echobeatapi.duckdns.org/genero/preferencia?userEmail=${email}`);
       const data = await response.json();
       if (!response.ok) {
         throw new Error(data.message || "Error al obtener recomendaciones");
