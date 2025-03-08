@@ -19,12 +19,12 @@ export default function Welcome({ navigation }) {
           navigation.replace('Login_Register');
           return;
         }
-        const response = await fetch(`https://echobeatapi.duckdns.org/users/nick?userEmail=${email}`);
+        const response = await fetch(`https://echobeatapi.duckdns.org/users/get-user?userEmail=${email}`);
         const data = await response.json();
         if (!response.ok) {
           throw new Error(data.message || "Error al obtener el nombre del usuario");
         }
-        setUserName(data.Nick || 'Usuario');
+        setUserName(data.NombreCompleto || 'Usuario');
       } catch (error) {
         Alert.alert("Error", error.message);
       }
@@ -42,7 +42,7 @@ export default function Welcome({ navigation }) {
   return (
     <View style={styles.container}>
       <Text style={styles.welcomeText}>
-        Bienvenido a <Text style={styles.goBeatText}>GoBeat</Text>,{'\n'}{userName}
+        Bienvenido a <Text style={styles.goBeatText}>EchoBeat!</Text>{'\n'}{userName}
       </Text>
     </View>
   );

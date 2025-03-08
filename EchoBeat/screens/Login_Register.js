@@ -23,7 +23,7 @@ export default function Login_Register({ navigation }) {
         await AsyncStorage.setItem("token", data.accessToken);
         await AsyncStorage.setItem("email", email);
         // Redirige a Welcome sin animación especial
-        navigation.navigate("Welcome");
+        navigation.replace("Welcome");
       }
     } catch (error) {
       setErrorMessage(error.message);
@@ -39,7 +39,7 @@ export default function Login_Register({ navigation }) {
           style={styles.logo}
           resizeMode="contain"
         />
-        <Text style={styles.titulo}>Bienvenido a GoBeat</Text>
+        <Text style={styles.titulo}>Bienvenido a EchoBeat</Text>
 
         <View style={styles.inputContainer}>
           <Text style={styles.label}>Correo Electrónico</Text>
