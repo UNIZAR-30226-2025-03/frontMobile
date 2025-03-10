@@ -1,4 +1,4 @@
-import React, { useState, useLayoutEffect } from "react";
+import React, { useState, useEffect, useLayoutEffect } from "react";
 import {
   View,
   Text,
@@ -6,26 +6,14 @@ import {
   StyleSheet,
   Alert,
   ScrollView,
+  ActivityIndicator,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function GeneroPreferencesScreen({ navigation }) {
-  const generosDisponibles = [
-    "Rock",
-    "Pop",
-    "Jazz",
-    "Blues",
-    "Hip-Hop",
-    "Reggaeton",
-    "Salsa",
-    "Electrónica",
-    "Metal",
-    "Clásica",
-    "Genero 1",
-    "Genero 2",
-    "Genero 3",
-  ];
-
-  const [generosSeleccionados, setGenerosSeleccionados] = useState([]);
+  const [generos, setGeneros] = useState([]); 
+  const [cargando, setCargando] = useState(true);
+  const [userEmail, setUserEmail] = useState(null);
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -33,38 +21,105 @@ export default function GeneroPreferencesScreen({ navigation }) {
     });
   }, [navigation]);
 
-  const toggleGenero = (genero) => {
-    if (generosSeleccionados.includes(genero)) {
-      setGenerosSeleccionados(generosSeleccionados.filter((g) => g !== genero));
-    } else {
-      setGenerosSeleccionados([...generosSeleccionados, genero]);
+  useEffect(() => {
+    obtenerEmailUsuario();
+  }, []);
+
+  useEffect(() => {
+    if (userEmail) {
+      console.log("🔍 Email del usuario obtenido:", userEmail);
+      obtenerGeneros();
+    }
+  }, [userEmail]);
+
+  // 🔹 Obtener el email del usuario desde AsyncStorage
+  const obtenerEmailUsuario = async () => {
+    try {
+      const email = await AsyncStorage.getItem("email");
+      if (email) {
+        console.log("📧 Email del usuario:", email);
+        setUserEmail(email);
+      } else {
+        Alert.alert("Error", "No se pudo obtener el email del usuario.");
+      }
+    } catch (error) {
+      console.error("❌ Error al obtener el email:", error);
     }
   };
 
+  // 🔹 Obtener los géneros desde la API y asegurarse de marcar los seleccionados
+  const obtenerGeneros = async () => {
+    if (!userEmail) return;
+
+    try {
+      console.log("📡 Haciendo solicitud a la API de géneros...");
+      const response = await fetch(`https://echobeatapi.duckdns.org/genero?userEmail=${userEmail}`);
+      const data = await response.json();
+
+      console.log("📩 Géneros recibidos de la API:", JSON.stringify(data, null, 2));
+
+      if (!response.ok) {
+        throw new Error("Error al obtener los géneros");
+      }
+
+      // 🔹 Mapeamos los datos asegurando que los valores de "Seleccionado" se reflejan correctamente
+      const generosFormateados = data.map((genero) => ({
+        nombre: genero.NombreGenero,
+        seleccionado: genero.Seleccionado === true,  // **Si es true, debe verse como botón marcado**
+      }));
+
+      console.log("✅ Géneros después de procesarlos:", JSON.stringify(generosFormateados, null, 2));
+
+      setGeneros(generosFormateados);
+      setCargando(false);
+    } catch (error) {
+      console.error("❌ Error al obtener géneros:", error);
+      Alert.alert("Error", "No se pudieron cargar los géneros.");
+      setCargando(false);
+    }
+  };
+
+  // 🔹 Función para alternar selección de géneros
+  const toggleGenero = (nombre) => {
+    setGeneros((prevGeneros) =>
+      prevGeneros.map((genero) =>
+        genero.nombre === nombre ? { ...genero, seleccionado: !genero.seleccionado } : genero
+      )
+    );
+  };
+
+  // 🔹 Enviar géneros seleccionados a la API en el formato correcto
   const enviarGeneros = async () => {
+    const generosSeleccionados = generos
+      .filter((genero) => genero.seleccionado)
+      .map((genero) => genero.nombre);
+
     if (generosSeleccionados.length < 3) {
       Alert.alert("Error", "Debes seleccionar al menos 3 géneros.");
       return;
     }
 
-    const generosString = generosSeleccionados.join(";");
+    const requestBody = {
+      userEmail: userEmail,
+      generos: generosSeleccionados,
+    };
 
-    console.log("🎵 Enviando géneros seleccionados:", generosString);
+    console.log("🎵 Enviando géneros seleccionados:", JSON.stringify(requestBody, null, 2));
 
     try {
       const response = await fetch(
-        "https://echobeatapi.duckdns.org/users/update-genres",
+        "https://echobeatapi.duckdns.org/genero/add",
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ generos: generosString }),
+          body: JSON.stringify(requestBody),
         }
       );
 
       const data = await response.json();
-      console.log("📩 Respuesta del servidor:", data);
+      console.log("📩 Respuesta del servidor:", JSON.stringify(data, null, 2));
 
       if (!response.ok) {
         throw new Error(data.message || "Error al guardar los géneros.");
@@ -88,24 +143,27 @@ export default function GeneroPreferencesScreen({ navigation }) {
       {/* Texto de instrucciones */}
       <Text style={styles.titulo}>Elige tus géneros favoritos (al menos 3)</Text>
 
-      {/* Lista de botones de géneros en un slider vertical */}
-      <ScrollView 
-        showsVerticalScrollIndicator={false} 
-        contentContainerStyle={styles.scrollViewContainer}
-      >
-        {generosDisponibles.map((genero) => (
-          <TouchableOpacity
-            key={genero}
-            style={[
-              styles.botonGenero,
-              generosSeleccionados.includes(genero) ? styles.botonSeleccionado : styles.botonNoSeleccionado,
-            ]}
-            onPress={() => toggleGenero(genero)}
-          >
-            <Text style={styles.textoGenero}>{genero}</Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+      {cargando ? (
+        <ActivityIndicator size="large" color="#f2ab55" />
+      ) : (
+        <ScrollView 
+          showsVerticalScrollIndicator={false} 
+          contentContainerStyle={styles.scrollViewContainer}
+        >
+          {generos.map((genero) => (
+            <TouchableOpacity
+              key={genero.nombre}
+              style={[
+                styles.botonGenero,
+                genero.seleccionado ? styles.botonSeleccionado : styles.botonNoSeleccionado,
+              ]}
+              onPress={() => toggleGenero(genero.nombre)}
+            >
+              <Text style={styles.textoGenero}>{genero.nombre}</Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      )}
 
       {/* Botón de guardar cambios */}
       <TouchableOpacity style={styles.botonGuardar} onPress={enviarGeneros}>
@@ -139,11 +197,11 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   scrollViewContainer: {
-    alignItems: "center", // Alinea los botones en el centro
+    alignItems: "center",
     paddingBottom: 20,
   },
   botonGenero: {
-    width: "80%",  // Ajusta los botones para que sean anchos
+    width: "80%",
     paddingVertical: 15,
     paddingHorizontal: 20,
     borderRadius: 10,
