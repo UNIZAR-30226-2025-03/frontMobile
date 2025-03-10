@@ -13,6 +13,7 @@ import Favorites from './screens/Favorites';
 import Settings from './screens/Settings';
 import MyLists from './screens/MyLists';
 import MusicPlayer from './screens/MusicPlayer';
+import GeneroPreferences from './screens/GeneroPreferences';
 
 const Stack = createNativeStackNavigator();
 
@@ -32,6 +33,7 @@ export default function App() {
         <Stack.Screen name="Settings" component={Settings} />
         <Stack.Screen name="MyLists" component={MyLists} />
         <Stack.Screen name="MusicPlayer" component={MusicPlayer} />
+        <Stack.Screen name="GeneroPreferences" component={GeneroPreferences} />
       </Stack.Navigator>
     </NavigationContainer>
   );
