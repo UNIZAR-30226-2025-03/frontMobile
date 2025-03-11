@@ -31,6 +31,13 @@ export default function Login_Register({ navigation }) {
     }
   };
 
+  const handleGoogleLogin = async() => {
+    // HAY QUE ACABARLO
+    const backendUrl = "https://www.google.com"
+    //const backendUrl = "https://echobeatapi.duckdns.org/auth/google?platform=mobile";
+    Linking.openURL(backendUrl);
+  };
+
   return (
     <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
       <SafeAreaView style={styles.container}>
@@ -69,12 +76,26 @@ export default function Login_Register({ navigation }) {
           </TouchableOpacity>
         </View>
 
+        {/* Botón de INICIA SESIÓN */}
         <TouchableOpacity
           style={[styles.boton, loading && styles.botonDeshabilitado]}
           onPress={handleLogin}
           disabled={loading}
         >
           <Text style={styles.botonTexto}>{loading ? 'Cargando...' : 'INICIA SESIÓN'}</Text>
+        </TouchableOpacity>
+
+        {/* Botón de Iniciar con Google */}
+        <TouchableOpacity 
+          style={styles.googleButton} 
+          onPress={handleGoogleLogin}
+        >
+          <Text style={styles.googleButtonText}>Iniciar con </Text>
+          <Image 
+            source={require('../assets/logo_google.png')} 
+            style={styles.googleLogo} 
+            resizeMode="contain" 
+          />
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -153,5 +174,24 @@ const styles = StyleSheet.create({
   },
   botonDeshabilitado: {
     backgroundColor: '#b1b1b1',
+  },
+  googleButton: {
+    flexDirection: 'row',
+    backgroundColor: '#fff',
+    paddingVertical: 15,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 20,
+  },
+  googleButtonText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#000',
+  },
+  googleLogo: {
+    width: 24,
+    height: 24,
+    marginLeft: 8,
   },
 });
