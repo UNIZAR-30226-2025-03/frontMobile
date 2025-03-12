@@ -2,6 +2,7 @@
   "expo": {
     "name": "EchoBeat",
     "slug": "EchoBeat",
+    "scheme": "EchoBeat",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -13,7 +14,8 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.anonymous.EchoBeat"
     },
     "android": {
       "adaptiveIcon": {
@@ -24,6 +26,9 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      "expo-router"
+    ]
   }
 }

@@ -1,12 +1,38 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView, Image, Alert, TouchableWithoutFeedback, Keyboard } from 'react-native';
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as WebBrowser from 'expo-web-browser';
+import { useAuthRequest, makeRedirectUri } from 'expo-auth-session/providers/google';
+
+WebBrowser.maybeCompleteAuthSession();
 
 export default function Login_Register({ navigation }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Configuración de la petición de autenticación con Google
+  const [request, response, promptAsync] = useAuthRequest({
+    clientId: '726836881808-tho26qmoe5sp996bebnl0vh26f9l9amv.apps.googleusercontent.com', // Reemplaza con el Client ID obtenido en Google Cloud Console
+    redirectUri: makeRedirectUri({
+      // En desarrollo, se usará el proxy de Expo; en producción, si defines un scheme en app.json, se usará ese.
+      useProxy: true,
+    }),
+  });
+
+  // Maneja la respuesta de autenticación de Google
+  useEffect(() => {
+    if (response?.type === 'success') {
+      const { authentication } = response;
+      console.log('Autenticación exitosa con Google', authentication);
+      // Puedes almacenar el token y navegar a la pantalla principal
+      AsyncStorage.setItem("token", authentication.accessToken);
+      navigation.replace("Welcome");
+    } else if (response?.type === 'error') {
+      Alert.alert("Error", "No se pudo autenticar con Google.");
+    }
+  }, [response]);
 
   const handleLogin = async () => {
     try {
@@ -22,7 +48,6 @@ export default function Login_Register({ navigation }) {
       if (data.accessToken) {
         await AsyncStorage.setItem("token", data.accessToken);
         await AsyncStorage.setItem("email", email);
-        // Redirige a Welcome sin animación especial
         navigation.replace("Welcome");
       }
     } catch (error) {
@@ -31,11 +56,9 @@ export default function Login_Register({ navigation }) {
     }
   };
 
-  const handleGoogleLogin = async() => {
-    // HAY QUE ACABARLO
-    const backendUrl = "https://www.google.com"
-    //const backendUrl = "https://echobeatapi.duckdns.org/auth/google?platform=mobile";
-    Linking.openURL(backendUrl);
+  // Función que activa el flujo de autenticación con Google
+  const handleGoogleLogin = async () => {
+    promptAsync();
   };
 
   return (
@@ -89,6 +112,7 @@ export default function Login_Register({ navigation }) {
         <TouchableOpacity 
           style={styles.googleButton} 
           onPress={handleGoogleLogin}
+          disabled={!request} // Deshabilita el botón si no se ha configurado la petición
         >
           <Text style={styles.googleButtonText}>Iniciar con </Text>
           <Image 
