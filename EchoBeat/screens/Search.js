@@ -1,31 +1,46 @@
-import React, { useState, useLayoutEffect } from 'react';
-import { View, Text, TouchableOpacity, TextInput, StyleSheet, TouchableWithoutFeedback, Keyboard } from 'react-native';
+import React, { useState, useLayoutEffect, useEffect } from 'react';
+import { 
+  View, 
+  Text, 
+  TouchableOpacity, 
+  TextInput, 
+  StyleSheet, 
+  TouchableWithoutFeedback, 
+  Keyboard 
+} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
-export default function Search({ navigation }) {
-  // Estados para el texto ingresado, opción seleccionada y mensaje de error
+export default function Search({ navigation, route }) {
   const [searchText, setSearchText] = useState('');
   const [selectedOption, setSelectedOption] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
 
   // Opciones disponibles
-  const options = ["Canción", "Playlist", "Género", "Autor", "Album"];
+  const options = ["Canción", "Playlist", "Autor", "Album"];
 
   useLayoutEffect(() => {
     navigation.setOptions({ headerShown: false });
   }, [navigation]);
 
-  // Función para manejar la selección de una opción
+  // Si se ha pasado el parámetro defaultFilter, se asigna al montar
+  useEffect(() => {
+    if (route.params && route.params.defaultFilter) {
+      setSelectedOption(route.params.defaultFilter);
+    }
+  }, [route.params]);
+
+  // Al pulsar una opción, si ya está seleccionada se deselecciona; de lo contrario, se selecciona
   const handleOptionPress = (option) => {
-    setSelectedOption(option);
+    if (selectedOption === option) {
+      setSelectedOption(null);
+    } else {
+      setSelectedOption(option);
+    }
     setErrorMessage('');
   };
 
-  // Función para simular la llamada a la API de búsqueda
+  // Al buscar, ya no se exige tener un filtro seleccionado
   const handleSearch = () => {
-    if (!selectedOption) {
-      setErrorMessage("Por favor, seleccione una opción");
-      return;
-    }
     setErrorMessage('');
     console.log("Buscar:", searchText, "|| Opción:", selectedOption);
     // Aquí se llamaría a la API de búsqueda (aún no implementada)
@@ -34,11 +49,11 @@ export default function Search({ navigation }) {
   return (
     <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
       <View style={styles.container}>
-        {/* Sección superior: barra de búsqueda */}
+        {/* Barra de búsqueda con flecha de retroceso */}
         <View style={styles.topContainer}>
           <View style={styles.topBar}>
             <TouchableOpacity onPress={() => navigation.goBack()}>
-              <Text style={styles.backArrow}>←</Text>
+              <Ionicons name="arrow-back" size={24} color="#f2ab55" />
             </TouchableOpacity>
             <TextInput
               style={styles.searchInput}
@@ -50,10 +65,10 @@ export default function Search({ navigation }) {
           </View>
         </View>
 
-        {/* Sección intermedia: recuadro de opciones y botón de buscar */}
+        {/* Opciones y botón de búsqueda */}
         <View style={styles.middleContainer}>
           <View style={styles.optionsCard}>
-            <Text style={styles.selectionTitle}>¿Qué quieres buscar?</Text>
+            <Text style={styles.selectionTitle}>¿Quieres buscar algo en concreto?</Text>
             <View style={styles.optionsContainer}>
               {options.map((option) => (
                 <TouchableOpacity
@@ -103,18 +118,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  backArrow: {
-    fontSize: 24,
-    color: '#fff',
-    marginRight: 16,
-  },
   searchInput: {
     flex: 1,
     backgroundColor: '#333',
     borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     color: '#fff',
+    fontSize: 18,
   },
   middleContainer: {
     flex: 1,

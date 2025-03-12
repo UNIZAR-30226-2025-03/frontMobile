@@ -165,12 +165,14 @@ export default function HomeScreen({ navigation }) {
       item.lista && item.lista.Portada && item.lista.Portada !== "URL_por_defecto"
         ? { uri: item.lista.Portada }
         : defaultImage;
-    return (
-      <View style={styles.playlistItem}>
-        <Image source={imageSource} style={styles.playlistImage} />
-        <Text style={styles.playlistTitle}>{item.lista ? item.lista.Nombre : '####'}</Text>
-      </View>
-    );
+        return (
+          <TouchableOpacity onPress={() => navigation.navigate("PlaylistDetail", { playlist: item.lista })}>
+            <View style={styles.playlistItem}>
+              <Image source={imageSource} style={styles.playlistImage} />
+              <Text style={styles.playlistTitle}>{item.lista ? item.lista.Nombre : '####'}</Text>
+            </View>
+          </TouchableOpacity>
+        );
   };
 
   const renderRecomendationsItem = ({ item }) => {

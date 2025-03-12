@@ -32,10 +32,7 @@ export default function Login_Register({ navigation }) {
   };
 
   const handleGoogleLogin = async() => {
-    // HAY QUE ACABARLO
-    const backendUrl = "https://www.google.com"
-    //const backendUrl = "https://echobeatapi.duckdns.org/auth/google?platform=mobile";
-    Linking.openURL(backendUrl);
+    // POR COMPLETAR
   };
 
   return (
