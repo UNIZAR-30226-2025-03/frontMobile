@@ -52,6 +52,7 @@ export default function MyLists({ navigation }) {
       onPress={() => navigation.navigate("PlaylistDetail", { playlist: item.lista })}
     >
       <Image 
+        // Quitar la seleccion de imagen por defecto -> Siempre va a haber una imagen -> Se encarga el Back (Diego)
         source={ item.lista.Portada ? { uri: item.lista.Portada } : require('../assets/default_playlist_portada.jpg') }
         style={styles.playlistImage}
       />
@@ -63,7 +64,7 @@ export default function MyLists({ navigation }) {
     <SafeAreaView style={styles.container}>
       {/* Header con flecha de retroceso y título */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+        <TouchableOpacity onPress={() => navigation.replace("HomeScreen")} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#f2ab55" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Mis Listas</Text>

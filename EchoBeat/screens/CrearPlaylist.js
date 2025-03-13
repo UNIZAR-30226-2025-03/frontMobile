@@ -53,14 +53,12 @@ export default function CrearPlaylist({ navigation }) {
       quality: 1,
     });
 
+    console.log("Imagen: ", result);
+
     if (!result.canceled && result.assets && result.assets.length > 0) {
       const uri = result.assets[0].uri;
       try {
-        // Leer la imagen como base64
-        const base64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
-        // Opcional: puedes agregar el prefijo MIME si lo requiere la API
-        const base64Image = `data:image/jpeg;base64,${base64}`;
-        setImage(base64Image);
+        setImage(uri);
       } catch (error) {
         console.error("Error al leer la imagen:", error);
         Alert.alert("Error", "No se pudo procesar la imagen seleccionada.");
@@ -85,34 +83,49 @@ export default function CrearPlaylist({ navigation }) {
         setLoading(false);
         return;
       }
-      // Si no se selecciona imagen, se envía una cadena vacía.
-      const file = image ? image : "";
-
+      
+      // Crear el objeto FormData
+      let formData = new FormData();
+      formData.append('emailUsuario', emailUsuario);
+      formData.append('nombrePlaylist', playlistName);
+      formData.append('descripcionPlaylist', description);
+      formData.append('tipoPrivacidad', privacy);
+      
+      if (image) {
+        const fileExtension = image.split('.').pop();
+        const mimeTypes = {
+          jpg: 'image/jpeg',
+          jpeg: 'image/jpeg',
+          png: 'image/png',
+          webp: 'image/webp',
+        };
+        const fileType = mimeTypes[fileExtension.toLowerCase()] || 'image/jpeg';
+        formData.append('file', {
+          uri: image,
+          name: `playlist.${fileExtension}`,
+          type: fileType,
+        });
+      } else {
+        formData.append('file', '');
+      }
+  
       const response = await fetch('https://echobeatapi.duckdns.org/playlists/create', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          emailUsuario,
-          nombrePlaylist: playlistName,
-          descripcionPlaylist: description,
-          tipoPrivacidad: privacy,
-          file
-        })
+        body: formData,
       });
       const data = await response.json();
+      console.log("Respuesta:", data);
       if (!response.ok) {
         throw new Error(data.message || "Error al crear la playlist");
       }
       Alert.alert('Éxito', 'Playlist creada correctamente');
-      navigation.goBack();
+      navigation.replace("MyLists");
     } catch (error) {
       Alert.alert('Error', error.message);
     } finally {
       setLoading(false);
     }
-  };
+  };  
 
   return (
     <SafeAreaView style={styles.container}>

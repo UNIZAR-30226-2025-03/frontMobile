@@ -56,16 +56,26 @@ export default function PlaylistDetail({ navigation, route }) {
 
   const eliminarPlaylist = async () => {
     try {
-      const response = await fetch(`https://echobeatapi.duckdns.org/playlists/${playlist.Id}`, {
-        method: "DELETE",
+      const response = await fetch(`https://echobeatapi.duckdns.org/playlists/delete?idLista=${playlist.Id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
       });
-      const data = await response.json();
+      const responseText = await response.text();
+      let data = {};
+      try {
+        data = JSON.parse(responseText);
+      } catch (e) {
+        console.log("Respuesta no es JSON:", responseText);
+      }
       if (!response.ok) {
         throw new Error(data.message || "Error al eliminar la playlist");
       }
-      navigation.replace("Welcome");
+      navigation.replace("HomeScreen");
     } catch (error) {
       console.error("Error en eliminarPlaylist:", error);
+      Alert.alert("Error", error.message);
     }
   };
 
