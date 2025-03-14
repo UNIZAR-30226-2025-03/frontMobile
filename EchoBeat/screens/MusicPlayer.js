@@ -1,87 +1,135 @@
-import React, { useState, useEffect, useLayoutEffect } from 'react';
+import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Image, Alert } from 'react-native';
 import { Audio } from 'expo-av';
 import Slider from '@react-native-community/slider';
-import { goBack } from 'expo-router/build/global-state/routing';
-
+import { io } from 'socket.io-client';
 
 export default function MusicPlayer({ navigation }) {
   const [sound, setSound] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [songIndex, setSongIndex] = useState(0);
   const [position, setPosition] = useState(0);
   const [duration, setDuration] = useState(1);
-
-  const songList = [
-    {
-      title: 'Canción 1',
-      artist: 'Artista 1',
-      image: require('../assets/thanos1.jpg'),
-      audio: require('../assets/japo.mp3'),
-    },
-    {
-      title: 'The Definitive Gossip',
-      artist: 'The Lías & JoG',
-      image: require('../assets/eliasgossip.jpg'),
-      audio: require('../assets/24.mp3'),
-    },
-  ];
+  const [currentSong, setCurrentSong] = useState('');
+  const [socket, setSocket] = useState(null);
+  
+  const audioChunksRef = useRef([]);
+  const currentSongRef = useRef('');
 
   useLayoutEffect(() => {
-      navigation.setOptions({
-        headerShown: false,
-      });
-    }, [navigation]);
-  
+        navigation.setOptions({
+          headerShown: false,
+        });
+      }, [navigation]);
+
   useEffect(() => {
-    loadSong();
-    return () => {
-      if (sound) {
-        sound.unloadAsync();
-      }
-    };
-  }, [songIndex]);
+    const setupSocket = () => {
+      const newSocket = io(`https://echobeatapi.duckdns.org`, {
+        transports: ['websocket'],
+      });
 
-  const loadSong = async () => {
-    if (sound) {
-      await sound.unloadAsync();
-    }
+      newSocket.on('connect', () => {
+        console.log('Conectado al servidor WebSocket');
+      });
 
-    const { sound: newSound } = await Audio.Sound.createAsync(songList[songIndex].audio, {
-      shouldPlay: isPlaying,
-    });
-
-    setSound(newSound);
-
-    newSound.setOnPlaybackStatusUpdate((status) => {
-      if (status.isLoaded) {
-        setPosition(status.positionMillis);
-        setDuration(status.durationMillis);
-        if (status.didJustFinish) {
-          nextSong();
+      newSocket.on('audioChunk', (data) => {
+        if (currentSongRef.current !== data.filename) {
+          audioChunksRef.current = [];
+          currentSongRef.current = data.filename;
+          setCurrentSong(data.filename);
         }
-      }
-    });
-  };
+        audioChunksRef.current.push(data.data);
+        console.log('Recibido chunk de audio');
+      });
+
+      newSocket.on('streamComplete', async () => {
+        const fullBase64 = audioChunksRef.current.join(''); // Mantén la estructura, pero verifica la integridad del Base64
+        if (!fullBase64) {
+          console.error("No se ha recibido ningún audio en Base64");
+          return;
+        }
+        else{
+          console.log("Audio recibido en Base64");
+        }
+        console.log(`Longitud del Base64 recibido: ${fullBase64.length}`);
+
+
+        audioChunksRef.current = [];
+        console.log('Transmisión de audio completada');
+        try {
+          if (sound) {
+            try {
+              await sound.unloadAsync();
+            } catch (error) {
+              console.error("Error descargando el audio anterior", error);
+            }
+            setSound(null);
+          }
+          try {
+            const uri = `data:audio/mp3;base64,${fullBase64}`; // Define la URI correctamente
+            console.log("🎵 URI generada:", uri);
+
+            console.log("🔄 Intentando cargar el audio...");
+            const { sound: newSound } = await Audio.Sound.createAsync(
+              { uri },
+              { shouldPlay: false }
+            );
+            console.log("✅ Audio cargado correctamente");
+            setSound(newSound);
+          } catch (error) {
+            console.error("🚨 Error en Audio.Sound.createAsync:", error);
+          }
+          
+          
+          newSound.setOnPlaybackStatusUpdate(status => {
+            if (status.isLoaded) {
+              setPosition(status.positionMillis);
+              setDuration(status.durationMillis);
+              setIsPlaying(status.isPlaying);
+              console.log(`🎵 Posición: ${status.positionMillis} / Duración: ${status.durationMillis}`);
+              if (status.didJustFinish) {
+                newSound.unloadAsync();
+                setIsPlaying(false);
+              }
+            }
+          });
+          console.log("🎵 Reproducción iniciada correctamente");
+          await newSound.playAsync();
+          setIsPlaying(true);
+        } catch (error) {
+          Alert.alert('Error', 'Error al reproducir el audio');
+        }
+      });
+
+      newSocket.on('error', (error) => {
+        Alert.alert('Error', error.message || 'Error de conexión');
+      });
+
+      setSocket(newSocket);
+    };
+
+    setupSocket();
+
+    return () => {
+      if (socket) socket.disconnect();
+      if (sound) sound.unloadAsync();
+    };
+  }, []);
 
   const togglePlayPause = async () => {
-    if (!sound) return;
+    if (!socket) return;
 
-    if (isPlaying) {
-      await sound.pauseAsync();
+    if (sound) {
+      if (isPlaying) {
+        await sound.pauseAsync();
+      } else {
+        await sound.playAsync();
+      }
+      setIsPlaying(!isPlaying);
+      console.log('Toggled play/pause');
     } else {
-      await sound.playAsync();
+      // Iniciar transmisión de una canción específica
+      socket.emit('startStream', { songName: 'New_Bitch' });
     }
-
-    setIsPlaying(!isPlaying);
-  };
-
-  const nextSong = () => {
-    setSongIndex((prevIndex) => (prevIndex + 1) % songList.length);
-  };
-
-  const prevSong = () => {
-    setSongIndex((prevIndex) => (prevIndex - 1 + songList.length) % songList.length);
   };
 
   const handleSeek = async (value) => {
@@ -90,37 +138,21 @@ export default function MusicPlayer({ navigation }) {
     }
   };
 
-  const saveToList = () => {
-    Alert.alert('Guardado', 'Canción guardada en tu lista.');
-  };
-
   return (
     <View style={styles.container}>
-      {/* Fondo con imagen de la canción */}
-      <Image source={songList[songIndex].image} style={styles.backgroundImage} />
+      <Image 
+        source={require('../assets/mujerona.jpg')} 
+        style={styles.backgroundImage} 
+      />
 
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Text style={styles.headerButton}>←</Text>
         </TouchableOpacity>
-        <TouchableOpacity onPress={() => Alert.alert('Info', 'Información de la canción')}>
-          <Text style={styles.headerButton}>ℹ️</Text>
-        </TouchableOpacity>
       </View>
 
-      {/* Imagen de la Canción */}
-      <Image source={songList[songIndex].image} style={styles.albumArt} />
-
-      {/* Info de la canción */}
-      <Text style={styles.songTitle}>{songList[songIndex].title}</Text>
-      <Text style={styles.songArtist}>{songList[songIndex].artist}</Text>
-
-      <TouchableOpacity style={styles.saveButton} onPress={saveToList}>
-        <Text style={styles.saveInListText}>Guardar en Lista</Text>
-      </TouchableOpacity>
-
-      {/* Barra de progreso */}
+      <Text style={styles.songTitle}>{currentSong}</Text>
+      
       <Slider
         style={styles.slider}
         minimumValue={0}
@@ -132,21 +164,14 @@ export default function MusicPlayer({ navigation }) {
         thumbTintColor="#f2ab55"
       />
 
-      {/* Controles */}
       <View style={styles.controls}>
-        <TouchableOpacity onPress={prevSong}>
-          <Image source={require('../assets/prev.png')} style={styles.controlButton} />
-        </TouchableOpacity>
-
         <TouchableOpacity onPress={togglePlayPause}>
           <Image
-            source={isPlaying ? require('../assets/pause.png') : require('../assets/play.png')}
+            source={isPlaying 
+              ? require('../assets/pause.png') 
+              : require('../assets/play.png')}
             style={styles.playPauseButton}
           />
-        </TouchableOpacity>
-
-        <TouchableOpacity onPress={nextSong}>
-          <Image source={require('../assets/next.png')} style={styles.controlButton} />
         </TouchableOpacity>
       </View>
     </View>
@@ -170,30 +195,16 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 50,
     width: '100%',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
     paddingHorizontal: 20,
   },
   headerButton: {
     fontSize: 24,
     color: '#ffffff',
   },
-  albumArt: {
-    width: 250,
-    height: 250,
-    borderRadius: 20,
-    marginTop: 10,
-    marginBottom: 12,
-  },
   songTitle: {
     fontSize: 24,
     color: '#ffffff',
     fontWeight: 'bold',
-  },
-  songArtist: {
-    fontSize: 18,
-    color: '#aaaaaa',
-    marginTop: 5,
     marginBottom: 20,
   },
   slider: {
@@ -206,24 +217,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: -70,
   },
-  controlButton: {
-    width: 60,
-    height: 60,
-    tintColor: '#f2ab55',
-  },
   playPauseButton: {
     width: 60,
     height: 60,
     tintColor: '#f2ab55',
     marginHorizontal: 30,
-  },
-  saveButton: {
-    alignSelf: "center",
-    marginTop: -12,
-  },
-  saveInListText: {
-    color: "#f2ab55",
-    fontSize: 16,
-    textDecorationLine: "underline",
   },
 });
