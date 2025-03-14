@@ -1,12 +1,25 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView, Image, Alert, TouchableWithoutFeedback, Keyboard } from 'react-native';
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as Google from 'expo-auth-session';  
 
 export default function Login_Register({ navigation }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Configuración de Google Login
+  /*const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
+    clientId: '726836881808-tho26qmoe5sp996bebnl0vh26f9l9amv.apps.googleusercontent.com',
+  });*/
+
+  useEffect(() => {
+    /*if (response?.type === 'success') {
+      const { id_token } = response.params;
+      loginWithGoogle(id_token);
+    }*/
+  }, [/*response*/]);
 
   const handleLogin = async () => {
     try {
@@ -27,6 +40,31 @@ export default function Login_Register({ navigation }) {
       }
     } catch (error) {
       setErrorMessage(error.message);
+      Alert.alert("Error", error.message);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    promptAsync(); // Llamamos a promptAsync para abrir la ventana de login de Google
+  };
+
+  const loginWithGoogle = async (idToken) => {
+    try {
+      const response = await fetch("https://echobeatapi.duckdns.org/auth/google/mobile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idToken }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error("No autorizado: El usuario no tiene cuenta registrada");
+      }
+      if (data.accessToken) {
+        await AsyncStorage.setItem("token", data.accessToken);
+        await AsyncStorage.setItem("email", data.user.email);
+        navigation.replace("Welcome");
+      }
+    } catch (error) {
       Alert.alert("Error", error.message);
     }
   };
@@ -69,12 +107,26 @@ export default function Login_Register({ navigation }) {
           </TouchableOpacity>
         </View>
 
+        {/* Botón de INICIA SESIÓN */}
         <TouchableOpacity
           style={[styles.boton, loading && styles.botonDeshabilitado]}
           onPress={handleLogin}
           disabled={loading}
         >
-          <Text style={styles.botonTexto}>{loading ? 'Cargando...' : 'INICIA SESIÓN'}</Text>
+          <Text style={styles.botonTexto}>{loading ? 'Cargando...' : 'INICIAR SESIÓN'}</Text>
+        </TouchableOpacity>
+
+        {/* Botón de Iniciar con Google */}
+        <TouchableOpacity 
+          style={styles.googleButton} 
+          onPress={handleGoogleLogin}
+        >
+          <Text style={styles.googleButtonText}>INICIAR CON </Text>
+          <Image 
+            source={require('../assets/logo_google.png')} 
+            style={styles.googleLogo} 
+            resizeMode="contain" 
+          />
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -153,5 +205,24 @@ const styles = StyleSheet.create({
   },
   botonDeshabilitado: {
     backgroundColor: '#b1b1b1',
+  },
+  googleButton: {
+    flexDirection: 'row',
+    backgroundColor: '#fff',
+    paddingVertical: 15,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 20,
+  },
+  googleButtonText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#000',
+  },
+  googleLogo: {
+    width: 24,
+    height: 24,
+    marginLeft: 8,
   },
 });

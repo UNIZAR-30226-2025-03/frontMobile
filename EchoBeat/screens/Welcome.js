@@ -4,7 +4,7 @@ import { View, Text, StyleSheet, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function Welcome({ navigation }) {
-  const [userName, setUserName] = useState('');
+  const [userName, setUserName] = useState('user');
 
   useLayoutEffect(() => {
     navigation.setOptions({ headerShown: false });
@@ -42,7 +42,7 @@ export default function Welcome({ navigation }) {
   return (
     <View style={styles.container}>
       <Text style={styles.welcomeText}>
-        Bienvenido a <Text style={styles.goBeatText}>EchoBeat!</Text>{'\n'}{userName}
+        Bienvenido a <Text style={styles.echoBeatText}>EchoBeat!</Text>{'\n'}{userName}
       </Text>
     </View>
   );
@@ -51,7 +51,7 @@ export default function Welcome({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#121111', // Fondo negro
+    backgroundColor: '#121111',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -61,12 +61,12 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontWeight: 'bold',
   },
-  goBeatText: {
-    color: '#fd7407', // Naranja para resaltar
+  echoBeatText: {
+    color: '#fd7407',
     fontSize: 32,
     fontWeight: 'bold',
     letterSpacing: 2,
-    textShadowColor: '#ffb723', // Sombra amarilla opcional
+    textShadowColor: '#ffb723',
     textShadowOffset: { width: 2, height: 2 },
     textShadowRadius: 3,
   },

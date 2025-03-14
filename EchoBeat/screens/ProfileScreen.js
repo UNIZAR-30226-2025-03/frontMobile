@@ -4,6 +4,7 @@ import { Picker } from '@react-native-picker/picker';
 import * as ImagePicker from 'expo-image-picker'
 import * as FileSystem from 'expo-file-system';
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Ionicons } from '@expo/vector-icons';
 
 export default function ProfileScreen({ navigation }) {
   const [userEmail, setUserEmail] = useState('');
@@ -204,8 +205,8 @@ export default function ProfileScreen({ navigation }) {
   return (
     <SafeAreaView style={styles.container}>
       {/* Botón para volver al Home */}
-      <TouchableOpacity style={styles.backButton} onPress={() => navigation.navigate("HomeScreen")}>
-        <Text style={styles.backButtonText}>← Volver</Text>
+      <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <Ionicons name="arrow-back" size={24} color="#f2ab55" />
       </TouchableOpacity>
 
       <Text style={styles.titulo}>Perfil</Text>
