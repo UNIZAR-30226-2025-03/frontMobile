@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useLayoutEffect } from 'react';
 import { View, Text, FlatList, StyleSheet, TouchableOpacity, Image, Modal, TouchableWithoutFeedback, TextInput, Keyboard } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function SearchResults({ route, navigation }) {
   const { initialResults, initialSearchText, initialSelectedOption } = route.params || {};
@@ -9,6 +10,9 @@ export default function SearchResults({ route, navigation }) {
   const [results, setResults] = useState(initialResults || {});
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
+  const [showPlaylists, setShowPlaylists] = useState(false);
+  const [playlists, setPlaylists] = useState([]);
+  const [email, setEmail] = useState('');
 
   useLayoutEffect(() => {
       navigation.setOptions({ headerShown: false });
@@ -58,7 +62,17 @@ export default function SearchResults({ route, navigation }) {
     if (initialSearchText) {
       handleSearch();
     }
+    rellenarEmail();
   }, []);
+
+  const rellenarEmail = async () => {
+    try {
+      const emailUsuario = await AsyncStorage.getItem('email');
+      setEmail(emailUsuario);
+    } catch (error) {
+      console.error("Error al obtener el email del usuario:", error);
+    }
+  };
 
   // Combinar álbumes y listas de álbumes
   const combinedAlbums = [
@@ -84,13 +98,7 @@ export default function SearchResults({ route, navigation }) {
 // Obtener las playlists del usuario desde AsyncStorage y la API
   const fetchPlaylists = async () => {
     try {
-      const userEmail = await AsyncStorage.getItem('userEmail'); // Obtener el correo del usuario
-      if (!userEmail) {
-        console.error("No se encontró el correo del usuario en AsyncStorage");
-        return;
-      }
-
-      const response = await fetch(`https://echobeatapi.duckdns.org/playlists/user/${userEmail}`);
+      const response = await fetch(`https://echobeatapi.duckdns.org/playlists/user/${email}`);
       if (!response.ok) {
         console.error("Error al obtener las playlists del usuario");
         return;
@@ -150,7 +158,14 @@ export default function SearchResults({ route, navigation }) {
               style={styles.modalOption}
               onPress={() => setShowPlaylists(!showPlaylists)}
             >
-              <Text style={styles.modalOptionText}>Añadir a Playlist</Text>
+              <View style={styles.playlistOptionContainer}>
+                <Text style={styles.modalOptionText}>Añadir a Playlist</Text>
+                <Ionicons
+                  name={showPlaylists ? 'chevron-up' : 'chevron-down'}
+                  size={20}
+                  color="#fff"
+                />
+              </View>
             </TouchableOpacity>
             {showPlaylists && (
               <View style={styles.playlistList}>
@@ -344,6 +359,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 16,
+    paddingHorizontal: 16, // Añadir margen a la izquierda
   },
   itemImage: {
     width: 60,
@@ -396,14 +412,40 @@ const styles = StyleSheet.create({
     backgroundColor: '#333',
     borderRadius: 8,
     padding: 16,
-    width: '80%',
+    width: '90%', // Modal más grande
   },
   closeButton: {
     alignSelf: 'flex-end',
   },
-  modalText: {
+  modalOption: {
+    paddingVertical: 12,
+  },
+  modalOptionText: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: 18, // Letras más grandes
+  },
+  playlistOptionContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  playlistList: {
     marginTop: 8,
+  },
+  playlistItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingLeft: 16, // Sangría hacia la derecha
+  },
+  playlistImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 4,
+    marginRight: 8,
+  },
+  playlistItemText: {
+    color: '#fff',
+    fontSize: 16, // Letras más grandes
   },
 });

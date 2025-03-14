@@ -1,14 +1,7 @@
 import React, { useState, useLayoutEffect, useEffect } from 'react';
-import { 
-  View, 
-  Text, 
-  TouchableOpacity, 
-  TextInput, 
-  StyleSheet, 
-  TouchableWithoutFeedback, 
-  Keyboard 
-} from 'react-native';
+import { View, Text, TouchableOpacity, TextInput, StyleSheet, TouchableWithoutFeedback, Keyboard } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function Search({ navigation, route }) {
   const [searchText, setSearchText] = useState('');
