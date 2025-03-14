@@ -1,16 +1,5 @@
 import React, { useState, useEffect, useLayoutEffect } from 'react';
-import {
-  View,
-  Text,
-  FlatList,
-  StyleSheet,
-  TouchableOpacity,
-  Image,
-  Modal,
-  TouchableWithoutFeedback,
-  TextInput,
-  Keyboard,
-} from 'react-native';
+import { View, Text, FlatList, StyleSheet, TouchableOpacity, Image, Modal, TouchableWithoutFeedback, TextInput, Keyboard } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function SearchResults({ route, navigation }) {
@@ -92,10 +81,103 @@ export default function SearchResults({ route, navigation }) {
     return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
   };
 
+// Obtener las playlists del usuario desde AsyncStorage y la API
+  const fetchPlaylists = async () => {
+    try {
+      const userEmail = await AsyncStorage.getItem('userEmail'); // Obtener el correo del usuario
+      if (!userEmail) {
+        console.error("No se encontró el correo del usuario en AsyncStorage");
+        return;
+      }
+
+      const response = await fetch(`https://echobeatapi.duckdns.org/playlists/user/${userEmail}`);
+      if (!response.ok) {
+        console.error("Error al obtener las playlists del usuario");
+        return;
+      }
+
+      const data = await response.json();
+      setPlaylists(data);
+    } catch (error) {
+      console.error("Error al obtener las playlists:", error);
+    }
+  };
+
+  const addSongToPlaylist = async (idLista, songId) => {
+    try {
+      const response = await fetch(`https://echobeatapi.duckdns.org/playlists/add-song/${idLista}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ idLista, songId }),
+      });
+
+      if (response.ok) {
+        console.log("Canción añadida correctamente a la playlist");
+      } else {
+        console.error("Error al añadir la canción a la playlist");
+      }
+    } catch (error) {
+      console.error("Error al realizar la solicitud:", error);
+    }
+  };
+
   // Función para abrir el modal con los tres puntos
   const openModal = (item) => {
     setSelectedItem(item);
     setModalVisible(true);
+    if (item.type === 'song') {
+      fetchPlaylists(); // Cargar las playlists al abrir el modal para una canción
+    }
+  };
+
+  // Renderizar el modal con las opciones específicas
+  const renderModalContent = () => {
+    if (!selectedItem) return null;
+
+    switch (selectedItem.type) {
+      case 'song':
+        return (
+          <View>
+            <TouchableOpacity
+              style={styles.modalOption}
+              onPress={() => console.log("Añadir a Favoritos")}
+            >
+              <Text style={styles.modalOptionText}>Añadir a Favoritos</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.modalOption}
+              onPress={() => setShowPlaylists(!showPlaylists)}
+            >
+              <Text style={styles.modalOptionText}>Añadir a Playlist</Text>
+            </TouchableOpacity>
+            {showPlaylists && (
+              <View style={styles.playlistList}>
+                {playlists.map((playlist) => (
+                  <TouchableOpacity
+                    key={playlist.Id}
+                    style={styles.playlistItem}
+                    onPress={() => {
+                      addSongToPlaylist(playlist.Id, selectedItem.Id);
+                      setModalVisible(false);
+                    }}
+                  >
+                    <Image
+                      source={{ uri: playlist.lista.Portada }}
+                      style={styles.playlistImage}
+                    />
+                    <Text style={styles.playlistItemText}>{playlist.lista.Nombre}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </View>
+        );
+
+      default:
+        return null;
+    }
   };
 
   // Renderizar cada elemento según su tipo
@@ -193,7 +275,7 @@ export default function SearchResults({ route, navigation }) {
               placeholderTextColor="#ccc"
               value={searchText}
               onChangeText={setSearchText}
-              onSubmitEditing={handleSearch} // Buscar al presionar "Intro"
+              onSubmitEditing={handleSearch}
               returnKeyType="search"
             />
           </View>
@@ -222,8 +304,7 @@ export default function SearchResults({ route, navigation }) {
                 >
                   <Ionicons name="close" size={24} color="#fff" />
                 </TouchableOpacity>
-                <Text style={styles.modalText}>Opciones para: {selectedItem?.Nombre}</Text>
-                {/* Aquí puedes añadir más opciones */}
+                {renderModalContent()}
               </View>
             </View>
           </TouchableWithoutFeedback>
