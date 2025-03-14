@@ -17,6 +17,7 @@ import MusicPlayer from './screens/MusicPlayer';
 import GeneroPreferences from './screens/GeneroPreferences';
 import PlaylistDetail from '../screens/PlaylistDetails';
 import CrearPlaylist from '../screens/CrearPlaylist';
+import SearchResults from '../screens/SearchResults';
 
 const Stack = createNativeStackNavigator();
 
@@ -42,6 +43,7 @@ export default function StackNavigator() {
         <Stack.Screen name="GeneroPreferences" component={GeneroPreferences} />
         <Stack.Screen name="PlaylistDetail" component={PlaylistDetail} />
         <Stack.Screen name="CrearPlaylist" component={CrearPlaylist} />
+        <Stack.Screen name="SearchResults" component={SearchResults} />
       </Stack.Navigator>
     </NavigationContainer>
   );

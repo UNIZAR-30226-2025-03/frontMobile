@@ -1,14 +1,8 @@
 import React, { useState, useLayoutEffect, useEffect } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  SafeAreaView, 
-  TouchableOpacity, 
-  Image, 
-  FlatList 
-} from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Image, FlatList, Dimensions} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+
+const { width } = Dimensions.get('window');
 
 export default function PlaylistDetail({ navigation, route }) {
   const { playlist } = route.params;
@@ -56,7 +50,7 @@ export default function PlaylistDetail({ navigation, route }) {
 
   const eliminarPlaylist = async () => {
     try {
-      const response = await fetch(`https://echobeatapi.duckdns.org/playlists/delete?idLista=${playlist.Id}`, {
+      const response = await fetch(`https://echobeatapi.duckdns.org/playlists/delete/${playlist.Id}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
@@ -64,6 +58,8 @@ export default function PlaylistDetail({ navigation, route }) {
       });
       const responseText = await response.text();
       let data = {};
+      console.log("Respuesta:", responseText);
+      console.log("Puticas");
       try {
         data = JSON.parse(responseText);
       } catch (e) {
@@ -180,10 +176,10 @@ export default function PlaylistDetail({ navigation, route }) {
             ) : (
               <Text style={styles.infoText}>Cargando información...</Text>
             )}
-            <TouchableOpacity style={styles.editButton} onPress={() => eliminarPlaylist()}>
+            <TouchableOpacity style={styles.editButton} onPress={() => {}}>
               <Text style={styles.editButtonText}>Editar playlist</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.deleteButton} onPress={() => {}}>
+            <TouchableOpacity style={styles.deleteButton} onPress={() => eliminarPlaylist()}>
               <Text style={styles.deleteButtonText}>Eliminar playlist</Text>
             </TouchableOpacity>
           </View>
@@ -198,6 +194,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#121111',
+    marginTop: 30,
   },
   header: {
     flexDirection: 'row',
@@ -207,7 +204,6 @@ const styles = StyleSheet.create({
     paddingTop: 30,
   },
   headerButton: {
-    // Ambos botones se verán en el mismo nivel
   },
   headerContent: {
     paddingHorizontal: 20,

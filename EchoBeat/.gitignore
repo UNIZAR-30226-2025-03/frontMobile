@@ -36,4 +36,7 @@ yarn-error.*
 *.tsbuildinfo
 
 # android studio
-android/
+android
+ios
+
+echobeat-key.keystore

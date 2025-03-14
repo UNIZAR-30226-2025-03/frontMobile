@@ -1,14 +1,5 @@
 import React, { useState, useLayoutEffect } from 'react';
-import { 
-  View, 
-  Text, 
-  TextInput, 
-  TouchableOpacity, 
-  StyleSheet, 
-  SafeAreaView, 
-  Alert,
-  Image
-} from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView, Alert, Image, TouchableWithoutFeedback, Keyboard } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { Picker } from '@react-native-picker/picker';
@@ -128,80 +119,87 @@ export default function CrearPlaylist({ navigation }) {
   };  
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Header con flecha de retroceso */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={handleBackPress} style={styles.headerButton}>
-          <Ionicons name="arrow-back" size={24} color="#f2ab55" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Crear Playlist</Text>
-      </View>
-
-      {/* Formulario */}
-      <View style={styles.form}>
-        {/* Selector de imagen en círculo */}
-        <TouchableOpacity style={styles.imagePicker} onPress={handleImageUpload}>
-          <Image 
-            source={ image ? { uri: image } : require('../assets/default_playlist_portada.jpg') } 
-            style={styles.image} 
-          />
-          <View style={styles.editIconContainer}>
-            <Ionicons name="pencil" size={20} color="#fff" />
-          </View>
-        </TouchableOpacity>
-
-        <Text style={styles.label}>Nombre de la Playlist *</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="Nombre de la Playlist"
-          placeholderTextColor="#888"
-          value={playlistName}
-          onChangeText={setPlaylistName}
-        />
-
-        <Text style={styles.label}>Privacidad *</Text>
-        <View style={styles.pickerContainer}>
-          <Picker
-            selectedValue={privacy}
-            onValueChange={(itemValue) => setPrivacy(itemValue)}
-            style={styles.picker}
-          >
-            <Picker.Item label="Público" value="publico" />
-            <Picker.Item label="Privado" value="privado" />
-            <Picker.Item label="Protegido" value="protegido" />
-          </Picker>
+    <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
+      <SafeAreaView style={styles.container}>
+        {/* Header con flecha de retroceso */}
+        <View style={styles.header}>
+          <TouchableOpacity onPress={handleBackPress} style={styles.headerButton}>
+            <Ionicons name="arrow-back" size={24} color="#f2ab55" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Crear Playlist</Text>
         </View>
 
-        <Text style={styles.label}>Descripción (opcional, máximo 150 caracteres)</Text>
-        <TextInput
-          style={[styles.input, styles.multilineInput]}
-          placeholder="Descripción de la playlist"
-          placeholderTextColor="#888"
-          value={description}
-          onChangeText={setDescription}
-          maxLength={150}
-          multiline
-        />
-      </View>
+        {/* Formulario */}
+        <View style={styles.form}>
+          {/* Selector de imagen en círculo */}
+          <TouchableOpacity style={styles.imagePicker} onPress={handleImageUpload}>
+            <Image 
+              source={ image ? { uri: image } : require('../assets/default_playlist_portada.jpg') } 
+              style={styles.image} 
+            />
+            <View style={styles.editIconContainer}>
+              <Ionicons name="pencil" size={20} color="#fff" />
+            </View>
+          </TouchableOpacity>
 
-      {/* Botón de Confirmar */}
-      <TouchableOpacity style={styles.submitButton} onPress={handleSubmit} disabled={loading}>
-        <Text style={styles.submitButtonText}>{loading ? "Creando..." : "Confirmar"}</Text>
-      </TouchableOpacity>
-    </SafeAreaView>
+          <Text style={styles.label}>Nombre de la Playlist *</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Nombre de la Playlist"
+            placeholderTextColor="#888"
+            value={playlistName}
+            onChangeText={setPlaylistName}
+          />
+
+          <Text style={styles.label}>Privacidad *</Text>
+          <View style={styles.pickerContainer}>
+            <Picker
+              selectedValue={privacy}
+              onValueChange={(itemValue) => setPrivacy(itemValue)}
+              style={styles.picker}
+            >
+              <Picker.Item label="Público" value="publico" />
+              <Picker.Item label="Privado" value="privado" />
+              <Picker.Item label="Protegido" value="protegido" />
+            </Picker>
+          </View>
+
+          <Text style={styles.label}>Descripción (opcional, máximo 150 caracteres)</Text>
+          <TextInput
+            style={[styles.input, styles.multilineInput]}
+            placeholder="Descripción de la playlist"
+            placeholderTextColor="#888"
+            value={description}
+            onChangeText={setDescription}
+            maxLength={150}
+            multiline
+          />
+          {/* Botón de Confirmar */}
+          <TouchableOpacity style={styles.submitButton} onPress={handleSubmit} disabled={loading}>
+            <Text style={styles.submitButtonText}>{loading ? "Creando..." : "Confirmar"}</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    </TouchableWithoutFeedback>
   );
 }
 
 const styles = StyleSheet.create({
+  container1: {
+    flex: 1,
+    backgroundColor: '#121111',
+  },
   container: {
     flex: 1,
     backgroundColor: '#121111',
-    padding: 20,
+    paddingHorizontal: 20,
+    marginTop: 30,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 20,
+    paddingTop: 20,
   },
   headerButton: {
     marginRight: 10,
@@ -267,6 +265,8 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
     marginBottom: 20,
+    marginHorizontal: 20,
+    marginTop: 'auto',
   },
   submitButtonText: {
     color: '#fff',

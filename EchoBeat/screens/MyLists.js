@@ -1,14 +1,5 @@
 import React, { useState, useEffect, useLayoutEffect } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  SafeAreaView, 
-  TouchableOpacity, 
-  Image, 
-  FlatList, 
-  ActivityIndicator 
-} from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Image, FlatList, ActivityIndicator } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -32,13 +23,17 @@ export default function MyLists({ navigation }) {
         return;
       }
       // Llamada a la API para obtener las playlists del usuario
-      const response = await fetch(`https://echobeatapi.duckdns.org/playlists/user?userEmail=${email}`);
+      const response = await fetch(`https://echobeatapi.duckdns.org/playlists/user/${email}`);
       const data = await response.json();
       if (!response.ok) {
         throw new Error(data.message || "Error al obtener las playlists");
       }
       // Se espera que la API retorne un array de playlists
-      setPlaylists(data);
+      if (data.playlists) {
+        setPlaylists(data.playlists); // Si es un objeto, usar la propiedad "playlists"
+      } else {
+        setPlaylists(data); // Si es un array, usarlo directamente
+      }
     } catch (error) {
       console.error("Error al obtener playlists:", error);
     } finally {
@@ -71,6 +66,10 @@ export default function MyLists({ navigation }) {
       </View>
       {loading ? (
         <ActivityIndicator size="large" color="#f2ab55" style={{ marginTop: 20 }} />
+      ) : playlists.length === 0 ? (
+        <View style={styles.emptyMessageContainer}>
+          <Text style={styles.emptyMessageText}>No has creado ninguna playlist aún {'\n'} ¡Créala presionando el botón de abajo!</Text>
+        </View>
       ) : (
         <FlatList 
           data={playlists}
@@ -95,6 +94,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#121111',
+    marginTop: 30,
   },
   header: {
     flexDirection: 'row',
@@ -110,6 +110,18 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     color: '#f2ab55',
+  },
+  emptyMessageContainer: {
+    marginTop: 30,
+    alignItems: 'center',
+    height: '80%',
+    justifyContent: 'center',
+  },
+  emptyMessageText: {
+    fontSize: 24,
+    color: '#fff',
+    textAlign: 'center',
+    marginTop: 10,
   },
   listContent: {
     paddingHorizontal: 20,

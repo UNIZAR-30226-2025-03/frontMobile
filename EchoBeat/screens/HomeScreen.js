@@ -46,9 +46,13 @@ export default function HomeScreen({ navigation }) {
 
   const obtenerPlaylistsCreadas = async (email) => {
     try {
-      const response = await fetch(`https://echobeatapi.duckdns.org/playlists/user?userEmail=${email}`);
+      const response = await fetch(`https://echobeatapi.duckdns.org/playlists/user/${email}`);
       const data = await response.json();
-      setPlaylistCreadas(data);
+      if (data.playlists) {
+        setPlaylistCreadas(data.playlists); // Si es un objeto, usar la propiedad "playlists"
+      } else {
+        setPlaylistCreadas(data); // Si es un array, usarlo directamente
+      }
     } catch (error) {
       Alert.alert("Error", error.message);
     }
@@ -212,27 +216,46 @@ export default function HomeScreen({ navigation }) {
             <Image source={require('../assets/favicon.png')} style={styles.profileImage} />
           </TouchableOpacity>
         </View>
-        <Text style={styles.subTitle}>Tus Listas</Text>
-        <FlatList
-          data={playlistCreadas}
-          renderItem={renderPlaylistCreada}
-          keyExtractor={(item, index) => index.toString()}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.playlistList}
-          style={styles.playlistCreadasSlider}
-        />
-        <Text style={styles.subTitle}>Recomendaciones</Text>
-        <FlatList
-          data={recomendations}
-          renderItem={renderRecomendationsItem}
-          keyExtractor={(item, index) => index.toString()}
-          numColumns={2}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.recomendationsList}
-          columnWrapperStyle={styles.recomendationsList}
-          style={styles.recomendationsSlider}
-        />
+
+        {/* Primer contenedor: "Tus Listas" */}
+        <View>
+          <Text style={styles.subTitle}>Tus Listas</Text>
+          {playlistCreadas.length === 0 ? (
+            // Mostrar botón si no hay playlists
+            <TouchableOpacity
+              style={styles.createFirstPlaylistButton}
+              onPress={() => navigation.navigate("CrearPlaylist")}
+            >
+              <Text style={styles.createFirstPlaylistButtonText}> Crea tu 1ª Playlist! </Text>
+            </TouchableOpacity>
+          ) : (
+            // Mostrar FlatList si hay playlists
+            <FlatList
+              data={playlistCreadas}
+              renderItem={renderPlaylistCreada}
+              keyExtractor={(item, index) => index.toString()}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.playlistList}
+              style={styles.playlistCreadasSlider}
+            />
+          )}
+        </View>
+
+        {/* Segundo contenedor: "Recomendaciones" */}
+        <View style={{ flex: 1 }}>
+          <Text style={styles.subTitle}>Recomendaciones</Text>
+          <FlatList
+            data={recomendations}
+            renderItem={renderRecomendationsItem}
+            keyExtractor={(item, index) => index.toString()}
+            numColumns={2}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.recomendationsList}
+            columnWrapperStyle={styles.recomendationsList}
+            style={styles.recomendationsSlider}
+          />
+        </View>
       </View>
       <View style={styles.bottomContainer}>
         {renderBotonesMenu()}
@@ -299,13 +322,13 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#f2ab55',
     marginTop: 10,
-    marginBottom: 10,
+    marginBottom: 5,
     marginLeft: 20,
   },
   playlistCreadasSlider: {
-    flex: 1,
     width: width * 0.9,
     alignSelf: 'center',
+    marginTop: 10,
   },
   playlistList: {
     paddingHorizontal: 5,
@@ -398,7 +421,7 @@ const styles = StyleSheet.create({
   botonTexto: {
     color: '#fff',
     fontWeight: 'bold',
-    fontSize: 12,
+    fontSize: 11,
     textAlign: 'center',
   },
   musicIconContainer: {
@@ -412,5 +435,20 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 15,
     right: -200,
+  },
+  createFirstPlaylistButton: {
+    backgroundColor: '#ffb723',
+    paddingVertical: 15,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 20,
+    marginBottom: 20,
+    alignSelf: 'center',
+  },
+  createFirstPlaylistButtonText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#fff',
   },
 });

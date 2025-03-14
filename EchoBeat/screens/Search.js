@@ -17,6 +17,12 @@ export default function Search({ navigation, route }) {
 
   // Opciones disponibles
   const options = ["Canción", "Playlist", "Autor", "Album"];
+  const optionMap = {
+    "Canción": "canciones",
+    "Playlist": "listas",
+    "Autor": "artistas",
+    "Album": "albums"
+  };
 
   useLayoutEffect(() => {
     navigation.setOptions({ headerShown: false });
@@ -40,10 +46,43 @@ export default function Search({ navigation, route }) {
   };
 
   // Al buscar, ya no se exige tener un filtro seleccionado
-  const handleSearch = () => {
+  const handleSearch = async () => {
     setErrorMessage('');
-    console.log("Buscar:", searchText, "|| Opción:", selectedOption);
-    // Aquí se llamaría a la API de búsqueda (aún no implementada)
+    const tipo = selectedOption ? optionMap[selectedOption] : '';
+  
+    // Si se selecciona "Playlist", excluimos los álbumes
+    const excludeAlbums = selectedOption === "Playlist";
+  
+    const url = `https://echobeatapi.duckdns.org/search?q=${encodeURIComponent(searchText)}${tipo ? `&tipo=${tipo}` : ''}`;
+  
+    try {
+      const response = await fetch(url);
+      const data = await response.json();
+  
+      // Filtrar los resultados según la opción seleccionada
+      let filteredResults = { ...data };
+  
+      if (selectedOption === "Playlist") {
+        // Excluir álbumes de las listas
+        filteredResults.listas = (data.listas || []).filter((item) => item.TipoLista !== 'Album');
+      } else if (selectedOption === "Álbum") {
+        // Solo incluir álbumes
+        filteredResults = {
+          albums: data.albums || [],
+          listas: (data.listas || []).filter((item) => item.TipoLista === 'Album'),
+        };
+      }
+  
+      console.log("Resultados filtrados:", filteredResults);
+      navigation.navigate('SearchResults', {
+        initialResults: data,
+        initialSearchText: searchText,
+        initialSelectedOption: selectedOption,
+      });
+    } catch (error) {
+      console.error("Error al realizar la búsqueda:", error);
+      setErrorMessage('Error al realizar la búsqueda. Por favor, intenta de nuevo.');
+    }
   };
 
   return (
@@ -122,6 +161,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#333',
     borderRadius: 8,
+    marginLeft: 12,
     paddingHorizontal: 16,
     paddingVertical: 12,
     color: '#fff',
