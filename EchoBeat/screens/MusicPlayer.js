@@ -4,6 +4,7 @@ import { Audio } from 'expo-av';
 import Slider from '@react-native-community/slider';
 import { io } from 'socket.io-client';
 import * as FileSystem from 'expo-file-system';
+import { decode } from 'base64-arraybuffer'; // Importar decodificador
 
 export default function MusicPlayer({ navigation }) {
   const [sound, setSound] = useState(null);
@@ -15,6 +16,12 @@ export default function MusicPlayer({ navigation }) {
   
   const audioChunksRef = useRef([]);
   const currentSongRef = useRef('');
+
+  const isBase64 = (str) => {
+    const regex = /^[A-Za-z0-9+/]+={0,2}$/; // Expresión regular para Base64
+    return regex.test(str);
+  };
+
 
   const saveAudioToFile = async (base64) => {
     try {
@@ -57,84 +64,74 @@ export default function MusicPlayer({ navigation }) {
 
       newSocket.on('audioChunk', (data) => {
         console.log(`📦 Chunk recibido #${audioChunksRef.current.length + 1}, Tamaño: ${data.data.length} bytes`);
+        console.log(`🔍 Primeros 100 caracteres del chunk: ${data.data.substring(0, 100)}`);
+        let chunkBase64 = data.data.trim(); // Asegurar que no haya espacios en blanco
       
-        if (currentSongRef.current !== data.filename) {
-          console.log(`🎶 Nueva canción detectada: ${data.filename}`);
-          audioChunksRef.current = []; // Reiniciar chunks al cambiar de canción
-          currentSongRef.current = data.filename;
-          setCurrentSong(data.filename);
-        }
-      
-        // 🔴 Evitar duplicaciones verificando si el chunk ya está en la lista
-        if (audioChunksRef.current.includes(data.data)) {
-          console.warn("⚠️ Chunk duplicado detectado, ignorando...");
+        if (!isBase64(chunkBase64)) {
+          console.error("🚨 Error: Chunk recibido no es Base64 válido, ignorando...");
           return;
         }
       
-        audioChunksRef.current.push(data.data);
+        console.log("🎵 Chunk recibido es Base64 válido");
+        audioChunksRef.current.push(chunkBase64);
       });
+
       
       
 
       newSocket.on('streamComplete', async () => {
         console.log(`📥 Total de chunks recibidos: ${audioChunksRef.current.length}`);
-
-        const fullBase64 = audioChunksRef.current.join('');
-        audioChunksRef.current = []; // Limpiar el buffer para liberar memoria
-
+      
+        // 🔥 Concatenar los chunks eliminando caracteres inválidos y saltos de línea
+        let fullBase64 = audioChunksRef.current.join('').replace(/[^A-Za-z0-9+/=]/g, '').replace(/\r?\n|\r/g, '');
+        audioChunksRef.current = []; // Limpiar buffer
+      
         console.log(`🔍 Base64 total recibido: ${fullBase64.length} caracteres`);
-
-        if (fullBase64.length > 3000000) {
-          console.error("⚠️ ¡Base64 demasiado grande! Posible problema en los datos.");
-          return;
+        console.log(`🔍 Primeros 100 caracteres: ${fullBase64.substring(0, 100)}`);
+        console.log(`🔍 Últimos 100 caracteres: ${fullBase64.slice(-100)}`);
+      
+        // 🔹 Asegurar que el Base64 tenga el padding correcto
+        while (fullBase64.length % 4 !== 0) {
+          fullBase64 += '=';
         }
-
-        console.log('🎵 Guardando audio en archivo...');
-        const fileUri = await saveAudioToFile(fullBase64);
-
-        if (!fileUri) {
-          Alert.alert('Error', 'No se pudo guardar el archivo de audio');
-          return;
-        }
-
-        console.log('🎵 Archivo guardado en:', fileUri);
-
-        // Descargar el sonido anterior si existe
-        if (sound) {
-          try {
-            await sound.unloadAsync();
-          } catch (error) {
-            console.error('Error descargando el audio anterior', error);
-          }
-          setSound(null);
-        }
-
+      
+        console.log(`✅ Base64 corregido con padding: ${fullBase64.length} caracteres`);
+      
         try {
-          console.log('🎵 Cargando audio desde archivo...');
-          const { sound: newSound } = await Audio.Sound.createAsync(
-            { uri: fileUri }, // 📌 Aquí cambiamos Base64 por una ruta de archivo
-            { shouldPlay: true }
-          );
-
-          newSound.setOnPlaybackStatusUpdate(status => {
-            if (status.isLoaded) {
-              setPosition(status.positionMillis);
-              setDuration(status.durationMillis);
-              setIsPlaying(status.isPlaying);
-              if (status.didJustFinish) {
-                newSound.unloadAsync();
-                setIsPlaying(false);
-              }
-            }
-          });
-
-          setSound(newSound);
+          // 🔹 Decodificar Base64 a un buffer de bytes
+          const binaryData = decode(fullBase64);
+          console.log("✅ Base64 decodificado correctamente en ArrayBuffer.");
+      
+          // 📂 Guardar el archivo en binario en lugar de Base64
+          const fileUri = FileSystem.cacheDirectory + 'audio.mp3';
+          await FileSystem.writeAsBytesAsync(fileUri, new Uint8Array(binaryData));
+      
+          console.log('🎵 Archivo guardado en:', fileUri);
+      
+          // 🎵 Cargar y reproducir el audio
+          try {
+            console.log('🎵 Cargando audio desde archivo...');
+            const { sound: newSound } = await Audio.Sound.createAsync(
+              { uri: fileUri },
+              { shouldPlay: true }
+            );
+      
+            setSound(newSound);
+          } catch (error) {
+            console.error('🚨 Error en Audio.Sound.createAsync:', error);
+            Alert.alert('Error', 'No se pudo reproducir el audio');
+          }
         } catch (error) {
-          console.error('🚨 Error en Audio.Sound.createAsync:', error);
-          Alert.alert('Error', 'No se pudo reproducir el audio');
+          console.error("🚨 Error al decodificar Base64 o escribir el archivo:", error);
+          Alert.alert("Error", "Los datos de audio no son válidos");
         }
       });
-
+      
+      
+      
+      
+    
+      
 
       newSocket.on('error', (error) => {
         Alert.alert('Error', error.message || 'Error de conexión');
