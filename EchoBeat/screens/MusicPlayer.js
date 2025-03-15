@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, Image, Alert } from 'react-na
 import { Audio } from 'expo-av';
 import Slider from '@react-native-community/slider';
 import { io } from 'socket.io-client';
+import * as FileSystem from 'expo-file-system';
 
 export default function MusicPlayer({ navigation }) {
   const [sound, setSound] = useState(null);
@@ -14,6 +15,29 @@ export default function MusicPlayer({ navigation }) {
   
   const audioChunksRef = useRef([]);
   const currentSongRef = useRef('');
+
+  const saveAudioToFile = async (base64) => {
+    try {
+      const fileUri = FileSystem.cacheDirectory + 'audio.mp3';
+  
+      // Escribir el archivo en caché
+      await FileSystem.writeAsStringAsync(fileUri, base64, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+  
+      // Verificar si el archivo fue creado correctamente
+      const fileInfo = await FileSystem.getInfoAsync(fileUri);
+      if (!fileInfo.exists) {
+        throw new Error('El archivo de audio no se guardó correctamente.');
+      }
+  
+      console.log(`✅ Archivo guardado en: ${fileUri}`);
+      return fileUri;
+    } catch (error) {
+      console.error('🚨 Error guardando archivo de audio:', error);
+      return null;
+    }
+  };
 
   useLayoutEffect(() => {
         navigation.setOptions({
@@ -32,73 +56,85 @@ export default function MusicPlayer({ navigation }) {
       });
 
       newSocket.on('audioChunk', (data) => {
+        console.log(`📦 Chunk recibido #${audioChunksRef.current.length + 1}, Tamaño: ${data.data.length} bytes`);
+      
         if (currentSongRef.current !== data.filename) {
-          audioChunksRef.current = [];
+          console.log(`🎶 Nueva canción detectada: ${data.filename}`);
+          audioChunksRef.current = []; // Reiniciar chunks al cambiar de canción
           currentSongRef.current = data.filename;
           setCurrentSong(data.filename);
         }
-        audioChunksRef.current.push(data.data);
-        console.log('Recibido chunk de audio');
-      });
-
-      newSocket.on('streamComplete', async () => {
-        const fullBase64 = audioChunksRef.current.join(''); // Mantén la estructura, pero verifica la integridad del Base64
-        if (!fullBase64) {
-          console.error("No se ha recibido ningún audio en Base64");
+      
+        // 🔴 Evitar duplicaciones verificando si el chunk ya está en la lista
+        if (audioChunksRef.current.includes(data.data)) {
+          console.warn("⚠️ Chunk duplicado detectado, ignorando...");
           return;
         }
-        else{
-          console.log("Audio recibido en Base64");
+      
+        audioChunksRef.current.push(data.data);
+      });
+      
+      
+
+      newSocket.on('streamComplete', async () => {
+        console.log(`📥 Total de chunks recibidos: ${audioChunksRef.current.length}`);
+
+        const fullBase64 = audioChunksRef.current.join('');
+        audioChunksRef.current = []; // Limpiar el buffer para liberar memoria
+
+        console.log(`🔍 Base64 total recibido: ${fullBase64.length} caracteres`);
+
+        if (fullBase64.length > 3000000) {
+          console.error("⚠️ ¡Base64 demasiado grande! Posible problema en los datos.");
+          return;
         }
-        console.log(`Longitud del Base64 recibido: ${fullBase64.length}`);
 
+        console.log('🎵 Guardando audio en archivo...');
+        const fileUri = await saveAudioToFile(fullBase64);
 
-        audioChunksRef.current = [];
-        console.log('Transmisión de audio completada');
-        try {
-          if (sound) {
-            try {
-              await sound.unloadAsync();
-            } catch (error) {
-              console.error("Error descargando el audio anterior", error);
-            }
-            setSound(null);
-          }
+        if (!fileUri) {
+          Alert.alert('Error', 'No se pudo guardar el archivo de audio');
+          return;
+        }
+
+        console.log('🎵 Archivo guardado en:', fileUri);
+
+        // Descargar el sonido anterior si existe
+        if (sound) {
           try {
-            const uri = `data:audio/mp3;base64,${fullBase64}`; // Define la URI correctamente
-            console.log("🎵 URI generada:", uri);
-
-            console.log("🔄 Intentando cargar el audio...");
-            const { sound: newSound } = await Audio.Sound.createAsync(
-              { uri },
-              { shouldPlay: false }
-            );
-            console.log("✅ Audio cargado correctamente");
-            setSound(newSound);
+            await sound.unloadAsync();
           } catch (error) {
-            console.error("🚨 Error en Audio.Sound.createAsync:", error);
+            console.error('Error descargando el audio anterior', error);
           }
-          
-          
+          setSound(null);
+        }
+
+        try {
+          console.log('🎵 Cargando audio desde archivo...');
+          const { sound: newSound } = await Audio.Sound.createAsync(
+            { uri: fileUri }, // 📌 Aquí cambiamos Base64 por una ruta de archivo
+            { shouldPlay: true }
+          );
+
           newSound.setOnPlaybackStatusUpdate(status => {
             if (status.isLoaded) {
               setPosition(status.positionMillis);
               setDuration(status.durationMillis);
               setIsPlaying(status.isPlaying);
-              console.log(`🎵 Posición: ${status.positionMillis} / Duración: ${status.durationMillis}`);
               if (status.didJustFinish) {
                 newSound.unloadAsync();
                 setIsPlaying(false);
               }
             }
           });
-          console.log("🎵 Reproducción iniciada correctamente");
-          await newSound.playAsync();
-          setIsPlaying(true);
+
+          setSound(newSound);
         } catch (error) {
-          Alert.alert('Error', 'Error al reproducir el audio');
+          console.error('🚨 Error en Audio.Sound.createAsync:', error);
+          Alert.alert('Error', 'No se pudo reproducir el audio');
         }
       });
+
 
       newSocket.on('error', (error) => {
         Alert.alert('Error', error.message || 'Error de conexión');
