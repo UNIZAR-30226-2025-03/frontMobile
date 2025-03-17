@@ -1,5 +1,5 @@
 import React, { useState, useLayoutEffect, useEffect } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Image, FlatList, Dimensions} from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Image, FlatList, Dimensions, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 const { width } = Dimensions.get('window');
@@ -59,7 +59,6 @@ export default function PlaylistDetail({ navigation, route }) {
       const responseText = await response.text();
       let data = {};
       console.log("Respuesta:", responseText);
-      console.log("Puticas");
       try {
         data = JSON.parse(responseText);
       } catch (e) {
@@ -77,14 +76,19 @@ export default function PlaylistDetail({ navigation, route }) {
 
   const renderSong = ({ item }) => (
     <View style={styles.songItem}>
-      <Image 
-        source={ item.portada === "URL" 
+      <TouchableOpacity 
+        style={{ flex: 1 }}
+        onPress={() => navigation.navigate('MusicPlayer', { songName: item.nombre })}
+      >
+        <Image 
+          source={ item.portada === "URL" 
             ? require('../assets/default_song_portada.jpg') 
             : { uri: item.portada } 
-        }
-        style={styles.songImage} 
-      />
-      <Text style={styles.songTitle} numberOfLines={1}>{item.nombre}</Text>
+          }
+          style={styles.songImage} 
+        />
+        <Text style={styles.songTitle} numberOfLines={1}>{item.nombre}</Text>
+      </TouchableOpacity>
       <TouchableOpacity 
         style={styles.songOptionsButton}
         onPress={() => {
@@ -203,8 +207,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 25,
     paddingTop: 30,
   },
-  headerButton: {
-  },
+  headerButton: {},
   headerContent: {
     paddingHorizontal: 20,
     paddingTop: 10,
@@ -286,7 +289,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
-  /* Overlay para opciones de canción */
   songOptionsOverlay: {
     position: 'absolute',
     top: 0,
@@ -388,6 +390,30 @@ const styles = StyleSheet.create({
   },
   deleteButtonText: {
     color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  errorContainer: {
+    flex: 1,
+    backgroundColor: '#121111',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  errorText: {
+    fontSize: 18,
+    color: '#fff',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  errorButton: {
+    backgroundColor: '#f2ab55',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+  },
+  errorButtonText: {
+    color: '#121111',
     fontSize: 16,
     fontWeight: 'bold',
   },

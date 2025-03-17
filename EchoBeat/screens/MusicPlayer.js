@@ -4,164 +4,160 @@ import { Audio } from 'expo-av';
 import Slider from '@react-native-community/slider';
 import { io } from 'socket.io-client';
 import * as FileSystem from 'expo-file-system';
-import { decode } from 'base64-arraybuffer'; // Importar decodificador
+import { decode, encode } from 'base64-arraybuffer';
 
-export default function MusicPlayer({ navigation }) {
+// Variables globales para conservar el sonido y el socket
+let globalSound = null;
+let globalSocket = null;
+
+export default function MusicPlayer({ navigation, route }) {
+  // Recibimos el nombre de la canción seleccionada desde la pantalla de lista
+  const { songName } = route.params || {};
   const [sound, setSound] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [position, setPosition] = useState(0);
   const [duration, setDuration] = useState(1);
-  const [currentSong, setCurrentSong] = useState('');
+  const [currentSong, setCurrentSong] = useState(songName || '');
   const [socket, setSocket] = useState(null);
   
   const audioChunksRef = useRef([]);
-  const currentSongRef = useRef('');
 
   const isBase64 = (str) => {
-    const regex = /^[A-Za-z0-9+/]+={0,2}$/; // Expresión regular para Base64
+    const regex = /^[A-Za-z0-9+/]+={0,2}$/;
     return regex.test(str);
   };
 
-
-  const saveAudioToFile = async (base64) => {
-    try {
-      const fileUri = FileSystem.cacheDirectory + 'audio.mp3';
-  
-      // Escribir el archivo en caché
-      await FileSystem.writeAsStringAsync(fileUri, base64, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
-  
-      // Verificar si el archivo fue creado correctamente
-      const fileInfo = await FileSystem.getInfoAsync(fileUri);
-      if (!fileInfo.exists) {
-        throw new Error('El archivo de audio no se guardó correctamente.');
-      }
-  
-      console.log(`✅ Archivo guardado en: ${fileUri}`);
-      return fileUri;
-    } catch (error) {
-      console.error('🚨 Error guardando archivo de audio:', error);
-      return null;
-    }
-  };
+  // Configurar el audio para background
+  useEffect(() => {
+    Audio.setAudioModeAsync({
+      allowsRecordingIOS: false,
+      staysActiveInBackground: true,
+      interruptionModeIOS: Audio.INTERRUPTION_MODE_IOS_DO_NOT_MIX,
+      playsInSilentModeIOS: true,
+      shouldDuckAndroid: false,
+      interruptionModeAndroid: Audio.INTERRUPTION_MODE_ANDROID_DO_NOT_MIX,
+      playThroughEarpieceAndroid: false,
+    });
+  }, []);
 
   useLayoutEffect(() => {
-        navigation.setOptions({
-          headerShown: false,
-        });
-      }, [navigation]);
+    navigation.setOptions({ headerShown: false });
+  }, [navigation]);
+
+  // Configuración del slider en base al estado del audio
+  const setupPlaybackStatusUpdate = (soundInstance) => {
+    soundInstance.setOnPlaybackStatusUpdate((status) => {
+      if (status.isLoaded) {
+        setPosition(status.positionMillis);
+        setDuration(status.durationMillis);
+      }
+    });
+  };
 
   useEffect(() => {
-    const setupSocket = () => {
-      const newSocket = io(`https://echobeatapi.duckdns.org`, {
-        transports: ['websocket'],
-      });
-
-      newSocket.on('connect', () => {
-        console.log('Conectado al servidor WebSocket');
-      });
-
-      newSocket.on('audioChunk', (data) => {
-        console.log(`📦 Chunk recibido #${audioChunksRef.current.length + 1}, Tamaño: ${data.data.length} bytes`);
-        console.log(`🔍 Primeros 100 caracteres del chunk: ${data.data.substring(0, 100)}`);
-        let chunkBase64 = data.data.trim(); // Asegurar que no haya espacios en blanco
-      
-        if (!isBase64(chunkBase64)) {
-          console.error("🚨 Error: Chunk recibido no es Base64 válido, ignorando...");
+    const initPlayer = async () => {
+      // Si ya existe un sonido global, comprobamos si es la misma canción
+      if (globalSound) {
+        if (globalSound.currentSong === songName) {
+          // Si es la misma, reutilizamos la instancia
+          setSound(globalSound);
+          if (globalSocket) setSocket(globalSocket);
+          setupPlaybackStatusUpdate(globalSound);
+          const status = await globalSound.getStatusAsync();
+          setIsPlaying(status.isPlaying);
           return;
+        } else {
+          // Si es una canción distinta, liberamos la instancia actual
+          await globalSound.unloadAsync();
+          globalSound = null;
         }
-      
-        console.log("🎵 Chunk recibido es Base64 válido");
-        audioChunksRef.current.push(chunkBase64);
-      });
+      }
 
-      
-      
+      const setupSocket = () => {
+        const newSocket = io(`https://echobeatapi.duckdns.org`, {
+          transports: ['websocket'],
+        });
 
-      newSocket.on('streamComplete', async () => {
-        console.log(`📥 Total de chunks recibidos: ${audioChunksRef.current.length}`);
-      
-        // 🔥 Concatenar los chunks eliminando caracteres inválidos y saltos de línea
-        let fullBase64 = audioChunksRef.current.join('').replace(/[^A-Za-z0-9+/=]/g, '').replace(/\r?\n|\r/g, '');
-        audioChunksRef.current = []; // Limpiar buffer
-      
-        console.log(`🔍 Base64 total recibido: ${fullBase64.length} caracteres`);
-        console.log(`🔍 Primeros 100 caracteres: ${fullBase64.substring(0, 100)}`);
-        console.log(`🔍 Últimos 100 caracteres: ${fullBase64.slice(-100)}`);
-      
-        // 🔹 Asegurar que el Base64 tenga el padding correcto
-        while (fullBase64.length % 4 !== 0) {
-          fullBase64 += '=';
-        }
-      
-        console.log(`✅ Base64 corregido con padding: ${fullBase64.length} caracteres`);
-      
-        try {
-          // 🔹 Decodificar Base64 a un buffer de bytes
-          const binaryData = decode(fullBase64);
-          console.log("✅ Base64 decodificado correctamente en ArrayBuffer.");
-      
-          // 📂 Guardar el archivo en binario en lugar de Base64
-          const fileUri = FileSystem.cacheDirectory + 'audio.mp3';
-          await FileSystem.writeAsBytesAsync(fileUri, new Uint8Array(binaryData));
-      
-          console.log('🎵 Archivo guardado en:', fileUri);
-      
-          // 🎵 Cargar y reproducir el audio
+        newSocket.on('connect', () => {
+          console.log('Conectado al servidor WebSocket');
+          // Emitir startStream con el nombre de la canción seleccionada
+          newSocket.emit('startStream', { songName: songName });
+        });
+
+        newSocket.on('audioChunk', (data) => {
+          console.log(`📦 Chunk recibido #${audioChunksRef.current.length + 1}`);
+          let chunkBase64 = data.data.trim();
+          if (!isBase64(chunkBase64)) {
+            console.error("🚨 Error: Chunk no es Base64 válido");
+            return;
+          }
+          audioChunksRef.current.push(chunkBase64);
+        });
+
+        newSocket.on('streamComplete', async () => {
+          console.log(`📥 Total de chunks recibidos: ${audioChunksRef.current.length}`);
           try {
-            console.log('🎵 Cargando audio desde archivo...');
+            const arrays = audioChunksRef.current.map(chunk => new Uint8Array(decode(chunk)));
+            const totalLength = arrays.reduce((acc, arr) => acc + arr.length, 0);
+            const combined = new Uint8Array(totalLength);
+            let offset = 0;
+            arrays.forEach(arr => {
+              combined.set(arr, offset);
+              offset += arr.length;
+            });
+            const base64Combined = encode(combined.buffer);
+            const fileUri = FileSystem.cacheDirectory + 'audio.mp3';
+            await FileSystem.writeAsStringAsync(fileUri, base64Combined, {
+              encoding: FileSystem.EncodingType.Base64,
+            });
+            console.log('🎵 Archivo guardado en:', fileUri);
             const { sound: newSound } = await Audio.Sound.createAsync(
               { uri: fileUri },
               { shouldPlay: true }
             );
-      
+            // Guardamos el nombre de la canción en la instancia del sonido
+            newSound.currentSong = songName;
             setSound(newSound);
+            setupPlaybackStatusUpdate(newSound);
+            setIsPlaying(true);
+            setCurrentSong(songName);
+            globalSound = newSound; // Guardamos el sonido globalmente
           } catch (error) {
-            console.error('🚨 Error en Audio.Sound.createAsync:', error);
-            Alert.alert('Error', 'No se pudo reproducir el audio');
+            console.error("🚨 Error al procesar el audio:", error);
+            Alert.alert("Error", "No se pudo procesar el audio");
+          } finally {
+            audioChunksRef.current = [];
           }
-        } catch (error) {
-          console.error("🚨 Error al decodificar Base64 o escribir el archivo:", error);
-          Alert.alert("Error", "Los datos de audio no son válidos");
-        }
-      });
-      
-      
-      
-      
-    
-      
+        });
 
-      newSocket.on('error', (error) => {
-        Alert.alert('Error', error.message || 'Error de conexión');
-      });
+        newSocket.on('error', (error) => {
+          Alert.alert('Error', error.message || 'Error de conexión');
+        });
 
-      setSocket(newSocket);
+        setSocket(newSocket);
+        globalSocket = newSocket;
+      };
+
+      setupSocket();
     };
 
-    setupSocket();
+    initPlayer();
 
+    // No desconectamos globalSound ni globalSocket para mantener la reproducción en background
     return () => {
-      if (socket) socket.disconnect();
-      if (sound) sound.unloadAsync();
+      // Se deja la instancia para futuras visitas
     };
-  }, []);
+  }, [songName]);
 
   const togglePlayPause = async () => {
-    if (!socket) return;
-
     if (sound) {
       if (isPlaying) {
         await sound.pauseAsync();
+        setIsPlaying(false);
       } else {
         await sound.playAsync();
+        setIsPlaying(true);
       }
-      setIsPlaying(!isPlaying);
-      console.log('Toggled play/pause');
-    } else {
-      // Iniciar transmisión de una canción específica
-      socket.emit('startStream', { songName: 'New_Bitch' });
     }
   };
 
@@ -173,19 +169,13 @@ export default function MusicPlayer({ navigation }) {
 
   return (
     <View style={styles.container}>
-      <Image 
-        source={require('../assets/mujerona.jpg')} 
-        style={styles.backgroundImage} 
-      />
-
+      <Image source={require('../assets/mujerona.jpg')} style={styles.backgroundImage} />
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Text style={styles.headerButton}>←</Text>
         </TouchableOpacity>
       </View>
-
       <Text style={styles.songTitle}>{currentSong}</Text>
-      
       <Slider
         style={styles.slider}
         minimumValue={0}
@@ -196,16 +186,21 @@ export default function MusicPlayer({ navigation }) {
         maximumTrackTintColor="#ffffff"
         thumbTintColor="#f2ab55"
       />
-
       <View style={styles.controls}>
-        <TouchableOpacity onPress={togglePlayPause}>
-          <Image
-            source={isPlaying 
-              ? require('../assets/pause.png') 
-              : require('../assets/play.png')}
-            style={styles.playPauseButton}
-          />
-        </TouchableOpacity>
+        {sound ? (
+          <TouchableOpacity onPress={togglePlayPause}>
+            <Image
+              source={isPlaying 
+                ? require('../assets/pause.png') 
+                : require('../assets/play.png')}
+              style={styles.playPauseButton}
+            />
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.disabledButton}>
+            <Text style={styles.disabledText}>...</Text>
+          </View>
+        )}
       </View>
     </View>
   );
@@ -255,5 +250,19 @@ const styles = StyleSheet.create({
     height: 60,
     tintColor: '#f2ab55',
     marginHorizontal: 30,
+  },
+  disabledButton: {
+    width: 60,
+    height: 60,
+    marginHorizontal: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(242,171,85,0.5)',
+    borderRadius: 30,
+  },
+  disabledText: {
+    color: '#ffffff',
+    fontSize: 24,
+    fontWeight: 'bold',
   },
 });
