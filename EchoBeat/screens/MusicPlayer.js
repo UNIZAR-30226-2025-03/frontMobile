@@ -5,13 +5,13 @@ import Slider from '@react-native-community/slider';
 import { io } from 'socket.io-client';
 import * as FileSystem from 'expo-file-system';
 import { decode, encode } from 'base64-arraybuffer';
+import AsyncStorage from '@react-native-async-storage/async-storage'; // ✅ Cambio
 
 // Variables globales para conservar el sonido y el socket
 let globalSound = null;
 let globalSocket = null;
 
 export default function MusicPlayer({ navigation, route }) {
-  // Recibimos el nombre de la canción seleccionada desde la pantalla de lista
   const { songName } = route.params || {};
   const [sound, setSound] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -20,7 +20,6 @@ export default function MusicPlayer({ navigation, route }) {
   const [currentSong, setCurrentSong] = useState(songName || '');
   const [socket, setSocket] = useState(null);
   
-  
   const audioChunksRef = useRef([]);
 
   const isBase64 = (str) => {
@@ -28,7 +27,6 @@ export default function MusicPlayer({ navigation, route }) {
     return regex.test(str);
   };
 
-  // Configurar el audio para background
   useEffect(() => {
     Audio.setAudioModeAsync({
       allowsRecordingIOS: false,
@@ -45,7 +43,6 @@ export default function MusicPlayer({ navigation, route }) {
     navigation.setOptions({ headerShown: false });
   }, [navigation]);
 
-  // Configuración del slider en base al estado del audio
   const setupPlaybackStatusUpdate = (soundInstance) => {
     soundInstance.setOnPlaybackStatusUpdate((status) => {
       if (status.isLoaded) {
@@ -57,10 +54,8 @@ export default function MusicPlayer({ navigation, route }) {
 
   useEffect(() => {
     const initPlayer = async () => {
-      // Si ya existe un sonido global, comprobamos si es la misma canción
       if (globalSound) {
         if (globalSound.currentSong === songName) {
-          // Si es la misma, reutilizamos la instancia
           setSound(globalSound);
           if (globalSocket) setSocket(globalSocket);
           setupPlaybackStatusUpdate(globalSound);
@@ -68,7 +63,6 @@ export default function MusicPlayer({ navigation, route }) {
           setIsPlaying(status.isPlaying);
           return;
         } else {
-          // Si es una canción distinta, liberamos la instancia actual
           await globalSound.unloadAsync();
           globalSound = null;
         }
@@ -81,7 +75,6 @@ export default function MusicPlayer({ navigation, route }) {
 
         newSocket.on('connect', () => {
           console.log('Conectado al servidor WebSocket');
-          // Emitir startStream con el nombre de la canción seleccionada
           newSocket.emit('startStream', { songName: songName });
         });
 
@@ -116,13 +109,16 @@ export default function MusicPlayer({ navigation, route }) {
               { uri: fileUri },
               { shouldPlay: true }
             );
-            // Guardamos el nombre de la canción en la instancia del sonido
             newSound.currentSong = songName;
             setSound(newSound);
             setupPlaybackStatusUpdate(newSound);
             setIsPlaying(true);
             setCurrentSong(songName);
-            globalSound = newSound; // Guardamos el sonido globalmente
+            globalSound = newSound;
+
+            // ✅ Cambio: Guardamos la última canción reproducida en AsyncStorage
+            await AsyncStorage.setItem('lastSong', songName);
+
           } catch (error) {
             console.error("🚨 Error al procesar el audio:", error);
             Alert.alert("Error", "No se pudo procesar el audio");
@@ -143,11 +139,6 @@ export default function MusicPlayer({ navigation, route }) {
     };
 
     initPlayer();
-
-    // No desconectamos globalSound ni globalSocket para mantener la reproducción en background
-    return () => {
-      // Se deja la instancia para futuras visitas
-    };
   }, [songName]);
 
   const togglePlayPause = async () => {
@@ -183,9 +174,6 @@ export default function MusicPlayer({ navigation, route }) {
         maximumValue={duration}
         value={position}
         onSlidingComplete={handleSeek}
-        minimumTrackTintColor="#f2ab55"
-        maximumTrackTintColor="#ffffff"
-        thumbTintColor="#f2ab55"
       />
       <View style={styles.controls}>
         {sound ? (
@@ -206,6 +194,7 @@ export default function MusicPlayer({ navigation, route }) {
     </View>
   );
 }
+
 
 const styles = StyleSheet.create({
   container: {
