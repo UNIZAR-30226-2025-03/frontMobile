@@ -194,6 +194,19 @@ export default function HomeScreen({ navigation }) {
     );
   };
 
+  const handleOpenMusicPlayer = async () => {
+    try {
+        const lastSong = await AsyncStorage.getItem('lastSong');
+        if (lastSong) {
+            navigation.navigate('MusicPlayer', { songName: lastSong });
+        } else {
+            Alert.alert("🔇 No hay ninguna canción en reproducción");
+        }
+    } catch (error) {
+        console.error("Error obteniendo la última canción:", error);
+    }
+  };
+
   return (
     <View style={styles.container}>
       <Animated.View
@@ -273,7 +286,7 @@ export default function HomeScreen({ navigation }) {
               zIndex: 4,
             }}
           >
-            <TouchableOpacity onPress={() => navigation.navigate('MusicPlayer')} style={styles.musicIconContainer}>
+            <TouchableOpacity onPress={handleOpenMusicPlayer} style={styles.musicIconContainer}>
               <Animated.Image
                 source={require('../assets/favicon.png')}
                 style={[styles.discIcon, { transform: [{ rotate: spin }] }]}

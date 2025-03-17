@@ -22,18 +22,24 @@ export default function MyLists({ navigation }) {
         setLoading(false);
         return;
       }
+
       // Llamada a la API para obtener las playlists del usuario
       const response = await fetch(`https://echobeatapi.duckdns.org/playlists/user/${email}`);
       const data = await response.json();
       if (!response.ok) {
         throw new Error(data.message || "Error al obtener las playlists");
       }
-      // Se espera que la API retorne un array de playlists
-      if (data.playlists) {
-        setPlaylists(data.playlists); // Si es un objeto, usar la propiedad "playlists"
-      } else {
-        setPlaylists(data); // Si es un array, usarlo directamente
-      }
+
+      let userPlaylists = data.playlists ? data.playlists : data; // Manejar si es array u objeto
+
+      // Agregar la playlist "Favoritos" como primera lista
+      const favoritosPlaylist = {
+        Nombre: "Favoritos",
+        Portada: "favoritos",
+        esFavoritos: true,
+      };
+
+      setPlaylists([favoritosPlaylist, ...userPlaylists]); // Insertar "Favoritos" en la primera posición
     } catch (error) {
       console.error("Error al obtener playlists:", error);
     } finally {
@@ -42,13 +48,21 @@ export default function MyLists({ navigation }) {
   };
 
   const renderPlaylist = ({ item }) => (
-    <TouchableOpacity 
-      style={styles.playlistItem} 
-      onPress={() => navigation.navigate("PlaylistDetail", { playlist: item.lista })}
+    <TouchableOpacity
+      style={styles.playlistItem}
+      onPress={() => {
+        if (item.esFavoritos) {
+          navigation.navigate("Favorites"); // Ir a la pantalla de favoritos
+        } else {
+          navigation.navigate("PlaylistDetail", { playlist: item });
+        }
+      }}
     >
-      <Image 
-        // Quitar la seleccion de imagen por defecto -> Siempre va a haber una imagen -> Se encarga el Back (Diego)
-        source={ item.lista.Portada ? { uri: item.lista.Portada } : require('../assets/default_playlist_portada.jpg') }
+      <Image
+        source={ item.esFavoritos
+          ? require('../assets/favorites.jpg') // Icono de favoritos
+          : item.Portada ? { uri: item.Portada } : require('../assets/default_playlist_portada.jpg')
+        }
         style={styles.playlistImage}
       />
       <Text style={styles.playlistTitle} numberOfLines={1}>{item.Nombre}</Text>
@@ -64,11 +78,14 @@ export default function MyLists({ navigation }) {
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Mis Listas</Text>
       </View>
+
       {loading ? (
         <ActivityIndicator size="large" color="#f2ab55" style={{ marginTop: 20 }} />
       ) : playlists.length === 0 ? (
         <View style={styles.emptyMessageContainer}>
-          <Text style={styles.emptyMessageText}>No has creado ninguna playlist aún {'\n'} ¡Créala presionando el botón de abajo!</Text>
+          <Text style={styles.emptyMessageText}>
+            No has creado ninguna playlist aún {'\n'} ¡Créala presionando el botón de abajo!
+          </Text>
         </View>
       ) : (
         <FlatList 
@@ -134,10 +151,9 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#333',
   },
-  // Se han aumentado las dimensiones de la imagen de la playlist
   playlistImage: {
-    width: 100,
-    height: 100,
+    width: 80,
+    height: 80,
     borderRadius: 8,
     marginRight: 10,
   },

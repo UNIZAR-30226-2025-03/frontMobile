@@ -20,6 +20,7 @@ export default function MusicPlayer({ navigation, route }) {
   const [currentSong, setCurrentSong] = useState(songName || '');
   const [socket, setSocket] = useState(null);
   
+  
   const audioChunksRef = useRef([]);
 
   const isBase64 = (str) => {
