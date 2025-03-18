@@ -4,8 +4,8 @@
     "slug": "EchoBeat",
     "version": "1.0.0",
     "newArchEnabled": true,
+    "scheme": "com.anonymous.EchoBeat",
     "android": {
-      "googleServicesFile": "./google-services.json",
       "package": "com.anonymous.EchoBeat"
     },
     "plugins": [
@@ -13,6 +13,14 @@
     ],
     "ios": {
       "bundleIdentifier": "com.anonymous.EchoBeat"
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "98a4faf7-f2cd-432c-9fe6-e474e6f6412b"
+      }
     }
   }
 }
