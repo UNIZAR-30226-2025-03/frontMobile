@@ -3,6 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView, Imag
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
+import Constants from 'expo-constants';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -12,9 +13,18 @@ export default function Login_Register({ navigation }) {
   const [errorMessage, setErrorMessage] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const isProduction = !Constants.expoConfig?.extra?.debug; // Usa Constants.expoConfig
+
+  const redirectUri = isProduction
+    ? 'echobeat://oauth2redirect' // URI de redirección en producción
+    : 'https://auth.expo.io/@rsoler19/EchoBeat'; // URI de redirección en desarrollo
+
+  console.log("URI de redirección:", redirectUri); // Verifica la URI que se está utilizando
+
   const config = {
     androidClientId: '726836881808-97h90fu5165ajmpp1a81ip1pdfs23cij.apps.googleusercontent.com',
     responseType: 'code',
+    redirectUri, // Usa la URI de redirección correcta según el entorno
   };
 
   // Configuración de Google Login
@@ -60,16 +70,18 @@ export default function Login_Register({ navigation }) {
 
   const loginWithGoogle = async (code) => {
     try {
-      const response = await fetch("https://echobeatapi.duckdns.org/auth/google/mobile", {
+      const response = await fetch("https://echobeatapi.duckdns.org/auth/google/code", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ code }),
       });
+      console.log("Codigo mandado: ", code);
       const data = await response.json();
       if (!response.ok) {
         throw new Error(data.message || "No autorizado: El usuario no tiene cuenta registrada");
       }
       if (data.accessToken) {
+        console.log("Token: ", data.accessToken);
         await AsyncStorage.setItem("token", data.accessToken);
         await AsyncStorage.setItem("email", data.user.email);
         navigation.replace("Welcome");

@@ -94,10 +94,10 @@ export default function GeneroPreferencesScreen({ navigation }) {
       .filter((genero) => genero.seleccionado)
       .map((genero) => genero.nombre);
 
-    if (generosSeleccionados.length < 3) {
-      Alert.alert("Error", "Debes seleccionar al menos 3 géneros.");
-      return;
-    }
+    //if (generosSeleccionados.length < 3) {
+    //  Alert.alert("Error", "Debes seleccionar al menos 3 géneros.");
+    //  return;
+    //}
 
     const requestBody = {
       userEmail: userEmail,

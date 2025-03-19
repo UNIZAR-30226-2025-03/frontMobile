@@ -258,6 +258,11 @@ export default function HomeScreen({ navigation }) {
         {/* Segundo contenedor: "Recomendaciones" */}
         <View style={{ flex: 1 }}>
           <Text style={styles.subTitle}>Recomendaciones</Text>
+          {recomendations.length === 0 ? (
+            <Text style={{ color: '#fff', textAlign: 'center', marginTop: 20 }}>
+              No hay recomendaciones disponibles
+            </Text>
+          ) : (
           <FlatList
             data={recomendations}
             renderItem={renderRecomendationsItem}
@@ -268,6 +273,7 @@ export default function HomeScreen({ navigation }) {
             columnWrapperStyle={styles.recomendationsList}
             style={styles.recomendationsSlider}
           />
+          )}
         </View>
       </View>
       <View style={styles.bottomContainer}>
