@@ -116,13 +116,12 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 20,
+    justifyContent: 'space-between',
+    paddingHorizontal: 25,
     paddingVertical: 10,
-    paddingTop: 20,
+    paddingTop: 30,
   },
-  backButton: {
-    marginRight: 10,
-  },
+  backButton: { },
   headerTitle: {
     fontSize: 24,
     fontWeight: 'bold',

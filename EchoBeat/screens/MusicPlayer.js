@@ -161,7 +161,7 @@ export default function MusicPlayer({ navigation, route }) {
 
   return (
     <View style={styles.container}>
-      <Image source={require('../assets/mujerona.jpg')} style={styles.backgroundImage} />
+      <Image source={require('../assets/jordi.jpg')} style={styles.backgroundImage} />
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Text style={styles.headerButton}>←</Text>

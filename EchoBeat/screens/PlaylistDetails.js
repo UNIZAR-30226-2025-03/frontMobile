@@ -1,6 +1,7 @@
-import React, { useState, useLayoutEffect, useEffect } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Image, FlatList, Dimensions, Alert } from 'react-native';
+import React, { useState, useLayoutEffect, useEffect, useCallback } from 'react';
+import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Image, FlatList, Dimensions, Alert, RefreshControl } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native'; 
 
 const { width } = Dimensions.get('window');
 
@@ -9,17 +10,29 @@ export default function PlaylistDetail({ navigation, route }) {
   const [songs, setSongs] = useState([]);
   const [playlistInfo, setPlaylistInfo] = useState(null);
   const [infoVisible, setInfoVisible] = useState(false);
-  // Estado para las opciones de la canción
   const [selectedSong, setSelectedSong] = useState(null);
   const [songOptionsVisible, setSongOptionsVisible] = useState(false);
+  const [refreshing, setRefreshing] = useState(false); // Estado para el pull-to-refresh
 
   useLayoutEffect(() => {
     navigation.setOptions({ headerShown: false });
   }, [navigation]);
 
+  // Función para cargar los datos
+  const loadData = async () => {
+    await obtenerCanciones();
+    await obtenerPlaylistInfo();
+  };
+
+  // Cargar datos cuando la pantalla recibe el foco
+  useFocusEffect(
+    useCallback(() => {
+      loadData();
+    }, [])
+  );
+
   useEffect(() => {
-    obtenerCanciones();
-    obtenerPlaylistInfo();
+    loadData();
   }, []);
 
   const obtenerCanciones = async () => {
@@ -74,11 +87,21 @@ export default function PlaylistDetail({ navigation, route }) {
     }
   };
 
+  // Función para manejar el pull-to-refresh
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadData();
+    setRefreshing(false);
+  };
+
   const renderSong = ({ item }) => (
     <View style={styles.songItem}>
       <TouchableOpacity 
-        style={{ flex: 1 }}
-        onPress={() => navigation.navigate('MusicPlayer', { songName: item.nombre })}
+        style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}
+        onPress={() => {
+          console.log("Información de la canción:", item); // Imprimir toda la información de la canción
+          //navigation.navigate('MusicPlayer', { songName: item.nombre }); // Navegar a MusicPlayer (opcional)
+        }}
       >
         <Image 
           source={ item.portada === "URL" 
@@ -144,6 +167,14 @@ export default function PlaylistDetail({ navigation, route }) {
         ListHeaderComponent={ListHeader}
         ListFooterComponent={ListFooter}
         contentContainerStyle={styles.flatListContent}
+        refreshControl={ // Añadir el refreshControl
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={['#f2ab55']} // Color del spinner
+            tintColor="#f2ab55" // Color del spinner (iOS)
+          />
+        }
       />
       {/* Overlay para opciones de la canción */}
       {songOptionsVisible && (
@@ -198,7 +229,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#121111',
-    marginTop: 30,
+    paddingTop: 30,
   },
   header: {
     flexDirection: 'row',
