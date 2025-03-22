@@ -4,15 +4,16 @@ import { Audio } from 'expo-av';
 import Slider from '@react-native-community/slider';
 import { io } from 'socket.io-client';
 import * as FileSystem from 'expo-file-system';
+import { Ionicons } from '@expo/vector-icons';
 import { decode, encode } from 'base64-arraybuffer';
-import AsyncStorage from '@react-native-async-storage/async-storage'; // ✅ Cambio
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Variables globales para conservar el sonido y el socket
 let globalSound = null;
 let globalSocket = null;
 
 export default function MusicPlayer({ navigation, route }) {
-  const { songName } = route.params || {};
+  const { songId, songName } = route.params || {};
   const [sound, setSound] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [position, setPosition] = useState(0);
@@ -48,6 +49,10 @@ export default function MusicPlayer({ navigation, route }) {
       if (status.isLoaded) {
         setPosition(status.positionMillis);
         setDuration(status.durationMillis);
+        if (status.didJustFinish) {
+          console.log("🔁 Canción terminada");
+          siguienteCancion();
+        }        
       }
     });
   };
@@ -75,7 +80,7 @@ export default function MusicPlayer({ navigation, route }) {
 
         newSocket.on('connect', () => {
           console.log('Conectado al servidor WebSocket');
-          newSocket.emit('startStream', { songName: songName });
+          newSocket.emit('startStream', { songId: songId });
         });
 
         newSocket.on('audioChunk', (data) => {
@@ -139,7 +144,77 @@ export default function MusicPlayer({ navigation, route }) {
     };
 
     initPlayer();
-  }, [songName]);
+  }, [songId, songName]);
+
+  const siguienteCancion = async () => {
+    try {
+      const email = await AsyncStorage.getItem('email');
+      if (!email) {
+        console.warn("No hay email disponible");
+        return;
+      }
+  
+      const response = await fetch(`https://echobeatapi.duckdns.org/cola-reproduccion/siguiente-cancion?userEmail=${encodeURIComponent(email)}`);
+      const data = await response.json();
+      console.log("🎵 Siguiente canción:", data);
+      if (!response.ok) {
+        console.error("❌ Error obteniendo siguiente canción:", data.message || "ID inválido");
+        Alert.alert("Error", data.message || "No se pudo cargar la siguiente canción");
+        return;
+      }
+      const response2 = await fetch(`https://echobeatapi.duckdns.org/playlists/song-details/${data.siguienteCancionId}`);
+      const data2 = await response2.json();
+      if (!response2.ok) {
+        console.error("❌ Error obteniendo nombre:", data2.message || "ID inválido");
+        Alert.alert("Error", data2.message || "No se pudo cargar la siguiente canción");
+        return;
+      }
+      console.log("➡️ Reproduciendo siguiente canción:", data);
+  
+      navigation.replace('MusicPlayer', {
+        songId: data.siguienteCancionId,
+        songName: data2.Nombre,
+      });
+    } catch (error) {
+      console.error("❌ Error en siguienteCancion:", error);
+      Alert.alert("Error", "No se pudo avanzar a la siguiente canción");
+    }
+  };
+
+  const anteriorCancion = async () => {
+    try {
+      const email = await AsyncStorage.getItem('email');
+      if (!email) {
+        console.warn("No hay email disponible");
+        return;
+      }
+  
+      const response = await fetch(`https://echobeatapi.duckdns.org/cola-reproduccion/anterior?userEmail=${encodeURIComponent(email)}`);
+      const data = await response.json();
+      console.log("🎵 Anterior canción:", data);
+      if (!response.ok) {
+        console.error("❌ Error obteniendo anterior canción:", data.message || "ID inválido");
+        Alert.alert("Error", data.message || "No se pudo cargar la anterior canción");
+        return;
+      }
+      const response2 = await fetch(`https://echobeatapi.duckdns.org/playlists/song-details/${data.cancionAnteriorId}`);
+      const data2 = await response2.json();
+      if (!response2.ok) {
+        console.error("❌ Error obteniendo nombre:", data2.message || "ID inválido");
+        Alert.alert("Error", data2.message || "No se pudo cargar la anterior canción");
+        return;
+      }
+      console.log("<- Reproduciendo anterior canción:", data);
+  
+      navigation.replace('MusicPlayer', {
+        songId: data.cancionAnteriorId,
+        songName: data2.Nombre,
+      });
+    } catch (error) {
+      console.error("❌ Error en anteriorCancion:", error);
+      Alert.alert("Error", "No se pudo avanzar a la anterior canción");
+    }
+  };
 
   const togglePlayPause = async () => {
     if (sound) {
@@ -163,8 +238,8 @@ export default function MusicPlayer({ navigation, route }) {
     <View style={styles.container}>
       <Image source={require('../assets/jordi.jpg')} style={styles.backgroundImage} />
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.headerButton}>←</Text>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerButton}>
+          <Ionicons name="arrow-back" size={24} color="#f2ab55" />
         </TouchableOpacity>
       </View>
       <Text style={styles.songTitle}>{currentSong}</Text>
@@ -176,12 +251,20 @@ export default function MusicPlayer({ navigation, route }) {
         onSlidingComplete={handleSeek}
       />
       <View style={styles.controls}>
+        {/* Botón anterior */}
+        <TouchableOpacity onPress={anteriorCancion}>
+          <Ionicons name="play-back" size={40} color="#f2ab55" />
+        </TouchableOpacity>
+
+        {/* Botón play/pause */}
         {sound ? (
           <TouchableOpacity onPress={togglePlayPause}>
             <Image
-              source={isPlaying 
-                ? require('../assets/pause.png') 
-                : require('../assets/play.png')}
+              source={
+                isPlaying
+                  ? require('../assets/pause.png')
+                  : require('../assets/play.png')
+              }
               style={styles.playPauseButton}
             />
           </TouchableOpacity>
@@ -190,6 +273,11 @@ export default function MusicPlayer({ navigation, route }) {
             <Text style={styles.disabledText}>...</Text>
           </View>
         )}
+
+        {/* Botón siguiente */}
+        <TouchableOpacity onPress={siguienteCancion}>
+          <Ionicons name="play-forward" size={40} color="#f2ab55" />
+        </TouchableOpacity>
       </View>
     </View>
   );

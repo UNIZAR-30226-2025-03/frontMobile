@@ -1,30 +1,54 @@
 import React, { useState, useLayoutEffect, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Image, FlatList, Dimensions, Alert, RefreshControl } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect } from '@react-navigation/native'; 
+import { useFocusEffect } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width } = Dimensions.get('window');
 
 export default function PlaylistDetail({ navigation, route }) {
   const { playlist } = route.params;
   const [songs, setSongs] = useState([]);
+  const [userEmail, setUserEmail] = useState('');
   const [playlistInfo, setPlaylistInfo] = useState(null);
   const [infoVisible, setInfoVisible] = useState(false);
   const [selectedSong, setSelectedSong] = useState(null);
   const [songOptionsVisible, setSongOptionsVisible] = useState(false);
-  const [refreshing, setRefreshing] = useState(false); // Estado para el pull-to-refresh
+  const [refreshing, setRefreshing] = useState(false);
+  const [favoritos, setFavoritos] = useState([]);
+  const [shuffle, setShuffle] = useState(false);
+  const [cola, setCola] = useState(null);
+
 
   useLayoutEffect(() => {
     navigation.setOptions({ headerShown: false });
   }, [navigation]);
 
-  // Función para cargar los datos
   const loadData = async () => {
-    await obtenerCanciones();
-    await obtenerPlaylistInfo();
+    try {
+      const email = await AsyncStorage.getItem('email');
+      console.log("Email recuperado:", `"${email}"`);
+      if (!email) return;
+  
+      const encodedEmail = encodeURIComponent(email);
+      setUserEmail(email); // aún útil para toggleFavorito()
+  
+      // ahora sí puedes usar el email directamente
+      const [cancionesData, playlistData, favoritosData] = await Promise.all([
+        fetch(`https://echobeatapi.duckdns.org/playlists/${playlist.Id}/songs`).then(res => res.json()),
+        fetch(`https://echobeatapi.duckdns.org/playlists/playlist/${playlist.Id}`).then(res => res.json()),
+        fetch(`https://echobeatapi.duckdns.org/cancion/favorites?email=${encodedEmail}`).then(res => res.json()),
+      ]);
+  
+      setCola(cancionesData);
+      setSongs(cancionesData.canciones || []);
+      setPlaylistInfo(playlistData);
+      setFavoritos((favoritosData.canciones || []).map(c => c.id));
+    } catch (error) {
+      console.error("Error en loadData:", error);
+    }
   };
 
-  // Cargar datos cuando la pantalla recibe el foco
   useFocusEffect(
     useCallback(() => {
       loadData();
@@ -35,51 +59,47 @@ export default function PlaylistDetail({ navigation, route }) {
     loadData();
   }, []);
 
-  const obtenerCanciones = async () => {
+  const toggleFavorito = async (songId) => {
+    if (!userEmail) {
+      console.warn("Email no disponible aún");
+      return;
+    }
+  
+    const esFavorita = favoritos.includes(songId);
+    const endpoint = esFavorita ? 'unlike' : 'like';
+    const method = esFavorita ? 'DELETE' : 'POST';
+    const encodedEmail = encodeURIComponent(userEmail);
+    const url = `https://echobeatapi.duckdns.org/cancion/${endpoint}/${encodedEmail}/${songId}`;
+  
     try {
-      const response = await fetch(`https://echobeatapi.duckdns.org/playlists/${playlist.Id}/songs`);
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.message || "Error al obtener las canciones");
-      }
-      setSongs(data.canciones || []);
+      const response = await fetch(url, { method });
+      const text = await response.text();
+      console.log(`Respuesta de favoritos para ${esFavorita ? 'unlike' : 'like'} canción ${songId}:`, text);
+  
+      if (!response.ok) throw new Error(text);
+  
+      setFavoritos(prev =>
+        esFavorita ? prev.filter(id => id !== songId) : [...prev, songId]
+      );
     } catch (error) {
-      console.error("Error en obtenerCanciones:", error);
+      console.error(`❌ Error al ${esFavorita ? 'quitar' : 'agregar'} favorito con ID ${songId}:`, error.message);
     }
   };
-
-  const obtenerPlaylistInfo = async () => {
-    try {
-      const response = await fetch(`https://echobeatapi.duckdns.org/playlists/playlist/${playlist.Id}`);
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.message || "Error al obtener la información de la playlist");
-      }
-      setPlaylistInfo(data);
-    } catch (error) {
-      console.error("Error en obtenerPlaylistInfo:", error);
-    }
-  };
-
+  
   const eliminarPlaylist = async () => {
     try {
       const response = await fetch(`https://echobeatapi.duckdns.org/playlists/delete/${playlist.Id}`, {
         method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
       });
       const responseText = await response.text();
       let data = {};
-      console.log("Respuesta:", responseText);
       try {
         data = JSON.parse(responseText);
       } catch (e) {
         console.log("Respuesta no es JSON:", responseText);
       }
-      if (!response.ok) {
-        throw new Error(data.message || "Error al eliminar la playlist");
-      }
+      if (!response.ok) throw new Error(data.message || "Error al eliminar la playlist");
       navigation.replace("HomeScreen");
     } catch (error) {
       console.error("Error en eliminarPlaylist:", error);
@@ -87,60 +107,169 @@ export default function PlaylistDetail({ navigation, route }) {
     }
   };
 
-  // Función para manejar el pull-to-refresh
   const onRefresh = async () => {
     setRefreshing(true);
     await loadData();
     setRefreshing(false);
   };
 
-  const renderSong = ({ item }) => (
-    <View style={styles.songItem}>
-      <TouchableOpacity 
-        style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}
-        onPress={() => {
-          console.log("Información de la canción:", item); // Imprimir toda la información de la canción
-          //navigation.navigate('MusicPlayer', { songName: item.nombre }); // Navegar a MusicPlayer (opcional)
-        }}
-      >
-        <Image 
-          source={ item.portada === "URL" 
-            ? require('../assets/default_song_portada.jpg') 
-            : { uri: item.portada } 
-          }
-          style={styles.songImage} 
-        />
-        <Text style={styles.songTitle} numberOfLines={1}>{item.nombre}</Text>
-      </TouchableOpacity>
-      <TouchableOpacity 
-        style={styles.songOptionsButton}
-        onPress={() => {
-          setSelectedSong(item);
-          setSongOptionsVisible(true);
-        }}
-      >
-        <Ionicons name="ellipsis-vertical" size={20} color="#fff" />
-      </TouchableOpacity>
-    </View>
-  );
+  const renderSong = ({ item }) => {
+    const esFavorita = favoritos.includes(item.id);
+
+    return (
+      <View style={styles.songItem}>
+        <TouchableOpacity
+          style={{ flex: 1 }}
+          onPress={() => iniciarReproduccionDesdeCancion(item, songs.findIndex(s => s.id === item.id))}
+        >
+          <Image
+            source={item.portada === "URL"
+              ? require('../assets/default_song_portada.jpg')
+              : { uri: item.portada }}
+            style={styles.songImage}
+          />
+          <Text style={styles.songTitle} numberOfLines={1}>{item.nombre}</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={() => toggleFavorito(item.id)}
+          style={{ marginRight: 10 }}
+        >
+          <Ionicons
+            name="heart"
+            size={22}
+            color={esFavorita ? "#f2ab55" : "#fff"}
+          />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.songOptionsButton}
+          onPress={() => {
+            setSelectedSong(item);
+            setSongOptionsVisible(true);
+          }}
+        >
+          <Ionicons name="ellipsis-vertical" size={20} color="#fff" />
+        </TouchableOpacity>
+      </View>
+    );
+  };
+
+  const iniciarReproduccion = async () => {
+    try {
+      const body = {
+        userEmail: userEmail,
+        reproduccionAleatoria: shuffle,
+        colaReproduccion: cola,
+      };
+  
+      const response = await fetch('https://echobeatapi.duckdns.org/cola-reproduccion/play-list', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      });
+  
+      const result = await response.json();
+  
+      if (!response.ok) {
+        console.error("❌ Error en reproducción:", result.message);
+        Alert.alert("Error", result.message || "No se pudo iniciar la reproducción");
+        return;
+      }
+  
+      if (songs.length > 0) {
+        navigation.navigate('MusicPlayer', {
+          songId: songs[0].id,
+          songName: songs[0].nombre,
+          // Puedes pasar `listaFinal` si el reproductor lo admite
+        });
+      }
+    } catch (error) {
+      console.error("❌ Error al iniciar reproducción:", error);
+      Alert.alert("Error", "Error inesperado al iniciar la reproducción");
+    }
+  };
+  
+  const iniciarReproduccionDesdeCancion = async (song, index) => {
+    try {
+      const body = {
+        userEmail: userEmail,
+        reproduccionAleatoria: shuffle,
+        posicionCola: index,
+        colaReproduccion: cola,
+      };
+  
+      console.log("📤 Enviando datos a la API:", JSON.stringify(body, null, 2));
+  
+      const response = await fetch('https://echobeatapi.duckdns.org/cola-reproduccion/play-list-by-position', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      });
+  
+      const result = await response.json();
+      console.log("✅ Respuesta de la API:", result);
+  
+      if (!response.ok) {
+        console.error("❌ Error al iniciar reproducción desde canción:", result.message);
+        Alert.alert("Error", result.message || "No se pudo iniciar la reproducción");
+        return;
+      }
+  
+      navigation.navigate('MusicPlayer', {
+        songId: songs[index].id,
+        songName: songs[index].nombre,
+      });
+    } catch (error) {
+      console.error("❌ Error inesperado:", error);
+      Alert.alert("Error", "Error al iniciar reproducción desde la canción seleccionada");
+    }
+  };
 
   const ListHeader = () => (
     <View style={styles.headerContent}>
-      <Image 
-        source={ playlist.Portada ? { uri: playlist.Portada } : require('../assets/default_playlist_portada.jpg') } 
-        style={styles.playlistImage} 
+      <Image
+        source={playlist.Portada ? { uri: playlist.Portada } : require('../assets/default_playlist_portada.jpg')}
+        style={styles.playlistImage}
       />
       <Text style={styles.playlistTitle}>{playlist.Nombre}</Text>
       <Text style={styles.playlistDescription}>{playlist.Descripcion}</Text>
+  
+      {/* 🎵 Botones de reproducción */}
+      <View style={styles.controlsRow}>
+        <TouchableOpacity
+          style={[styles.shuffleButton, shuffle && styles.shuffleActive]}
+          onPress={() => setShuffle(prev => !prev)}
+        >
+          <Ionicons name="shuffle" size={20} color={shuffle ? '#121111' : '#f2ab55'} />
+          <Text style={[styles.shuffleButtonText, shuffle && styles.shuffleButtonTextActive]}>
+            {shuffle ? "Aleatorio activado" : "Aleatorio desactivado"}
+          </Text>
+        </TouchableOpacity>
+  
+        <TouchableOpacity
+          style={styles.playButton}
+          onPress={() => {iniciarReproduccion()}}
+        >
+          <Ionicons name="play" size={20} color="#121111" />
+          <Text style={styles.playButtonText}>Reproducir</Text>
+        </TouchableOpacity>
+      </View>
+  
       <Text style={styles.sectionTitle}>Canciones</Text>
       {songs.length === 0 && (
         <Text style={styles.noSongsText}>No hay canciones en la lista.</Text>
       )}
     </View>
   );
+  
 
   const ListFooter = () => (
-    <TouchableOpacity 
+    <TouchableOpacity
       style={styles.addButton}
       onPress={() => navigation.navigate("Search", { defaultFilter: "Canción" })}
     >
@@ -150,7 +279,6 @@ export default function PlaylistDetail({ navigation, route }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header con flecha de retroceso e información */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerButton}>
           <Ionicons name="arrow-back" size={24} color="#f2ab55" />
@@ -167,36 +295,33 @@ export default function PlaylistDetail({ navigation, route }) {
         ListHeaderComponent={ListHeader}
         ListFooterComponent={ListFooter}
         contentContainerStyle={styles.flatListContent}
-        refreshControl={ // Añadir el refreshControl
+        refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={['#f2ab55']} // Color del spinner
-            tintColor="#f2ab55" // Color del spinner (iOS)
+            colors={['#f2ab55']}
+            tintColor="#f2ab55"
           />
         }
       />
-      {/* Overlay para opciones de la canción */}
       {songOptionsVisible && (
         <View style={styles.songOptionsOverlay}>
           <View style={styles.songOptionsContainer}>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.closeSongOptionsButton}
               onPress={() => setSongOptionsVisible(false)}
             >
               <Ionicons name="close" size={24} color="#000" />
             </TouchableOpacity>
             <Text style={styles.songOptionsTitle}>Opciones para la canción</Text>
-            {/* Aquí puedes agregar más botones o información para la canción */}
           </View>
           <View style={styles.songOptionsBlur} />
         </View>
       )}
-      {/* Overlay de información de la playlist */}
       {infoVisible && (
         <View style={styles.infoOverlay}>
           <View style={styles.infoContainer}>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.closeButton}
               onPress={() => setInfoVisible(false)}
             >
@@ -211,7 +336,7 @@ export default function PlaylistDetail({ navigation, route }) {
             ) : (
               <Text style={styles.infoText}>Cargando información...</Text>
             )}
-            <TouchableOpacity style={styles.editButton} onPress={() => {}}>
+            <TouchableOpacity style={styles.editButton} onPress={() => { }}>
               <Text style={styles.editButtonText}>Editar playlist</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.deleteButton} onPress={() => eliminarPlaylist()}>
@@ -448,4 +573,51 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
+  controlsRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 20,
+    flexWrap: 'wrap',
+  },
+  
+  shuffleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f2ab55',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  
+  shuffleButtonText: {
+    marginLeft: 6,
+    color: '#121111',
+    fontWeight: 'bold',
+  },
+  
+  shuffleActive: {
+    backgroundColor: '#fff',
+  },
+  
+  shuffleButtonTextActive: {
+    color: '#f2ab55',
+  },
+  
+  playButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f2ab55',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+    marginLeft: 10,
+  },
+  
+  playButtonText: {
+    marginLeft: 6,
+    color: '#121111',
+    fontWeight: 'bold',
+  },  
 });
