@@ -1,5 +1,5 @@
 import React, { useState, useLayoutEffect, useEffect, useRef } from 'react';
-import { View, Text, FlatList, Image, StyleSheet, Dimensions, TouchableOpacity, Animated, Alert } from 'react-native';
+import { View, Text, FlatList, Image, StyleSheet, Dimensions, TouchableOpacity, TouchableWithoutFeedback, Animated, Alert, Easing } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -7,7 +7,8 @@ const { width } = Dimensions.get('window');
 
 export default function HomeScreen({ navigation }) {
   const [playlistCreadas, setPlaylistCreadas] = useState([]);
-  const [cancionSonando, setCancionSonando] = useState(true);
+  const [cancionSonando, setCancionSonando] = useState(false);
+  const [estaReproduciendo, setEstaReproduciendo] = useState(false); // 🆕 estado
   const rotation = useRef(new Animated.Value(0)).current;
   const [menuAbierto, setMenuAbierto] = useState(false);
   const blurAnimation = useRef(new Animated.Value(0)).current;
@@ -21,7 +22,32 @@ export default function HomeScreen({ navigation }) {
 
   useEffect(() => {
     obtenerInfoUser();
+    checkSongPlaying();
   }, []);
+
+  // 🔁 Rotación controlada por ambos estados
+  useEffect(() => {
+    if (cancionSonando && estaReproduciendo) {
+      startRotationLoop();
+    } else {
+      stopRotation();
+    }
+  }, [cancionSonando, estaReproduciendo]);
+
+  const checkSongPlaying = async () => {
+    const lastSong = await AsyncStorage.getItem('lastSong');
+    const isPlaying = await AsyncStorage.getItem('isPlaying');
+
+    const hayCancion = !!lastSong;
+    const reproduciendo = isPlaying === 'true';
+
+    setCancionSonando(hayCancion);
+    setEstaReproduciendo(reproduciendo);
+
+    if (hayCancion && reproduciendo) {
+      startRotationLoop();
+    }
+  };
 
   const obtenerInfoUser = async () => {
     try {
@@ -33,9 +59,7 @@ export default function HomeScreen({ navigation }) {
       setUserEmail(email);
       const response = await fetch(`https://echobeatapi.duckdns.org/users/nick?userEmail=${email}`);
       const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.message || "Error al obtener el nombre del usuario");
-      }
+      if (!response.ok) throw new Error(data.message || "Error al obtener el nombre del usuario");
       setUserName(data.Nick || 'Usuario');
       await obtenerPlaylistsCreadas(email);
       await obtenerRecomendaciones(email);
@@ -48,11 +72,7 @@ export default function HomeScreen({ navigation }) {
     try {
       const response = await fetch(`https://echobeatapi.duckdns.org/playlists/user/${email}`);
       const data = await response.json();
-      if (data.playlists) {
-        setPlaylistCreadas(data.playlists); // Si es un objeto, usar la propiedad "playlists"
-      } else {
-        setPlaylistCreadas(data); // Si es un array, usarlo directamente
-      }
+      setPlaylistCreadas(data.playlists || data);
     } catch (error) {
       Alert.alert("Error", error.message);
     }
@@ -62,44 +82,34 @@ export default function HomeScreen({ navigation }) {
     try {
       const response = await fetch(`https://echobeatapi.duckdns.org/genero/preferencia?userEmail=${email}`);
       const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.message || "Error al obtener recomendaciones");
-      }
+      if (!response.ok) throw new Error(data.message || "Error al obtener recomendaciones");
       setRecomendations(data);
     } catch (error) {
       Alert.alert("Error", error.message);
     }
   };
 
-  // Crea un Animated.Value para cada uno de los 5 botones del menú
-  const menuButtonAnimValues = useRef([
-    new Animated.Value(0),
-    new Animated.Value(0),
-    new Animated.Value(0),
-    new Animated.Value(0),
-    new Animated.Value(0),
-  ]).current;
+  const menuButtonAnimValues = useRef([...Array(5)].map(() => new Animated.Value(0))).current;
 
   const toggleMenu = () => {
     if (!menuAbierto) {
-      // Abrir: animar cada botón de forma escalonada (izquierda a derecha)
       Animated.stagger(100, menuButtonAnimValues.map(anim =>
         Animated.timing(anim, {
           toValue: 1,
-          duration: 300,
+          duration: 200,
           useNativeDriver: true,
         })
       )).start();
     } else {
-      // Cerrar: animar en orden inverso (derecha a izquierda)
       Animated.stagger(100, menuButtonAnimValues.slice().reverse().map(anim =>
         Animated.timing(anim, {
           toValue: 0,
-          duration: 300,
+          duration: 150,
           useNativeDriver: true,
         })
       )).start();
     }
+
     setMenuAbierto(!menuAbierto);
     Animated.timing(blurAnimation, {
       toValue: menuAbierto ? 0 : 1,
@@ -119,17 +129,12 @@ export default function HomeScreen({ navigation }) {
 
     return botones.map((boton, index) => {
       const angle = (Math.PI / (botones.length - 1)) * index;
-      const x = Math.cos(angle) * 145;
-      const y = -Math.sin(angle) * 120;
+      const x = Math.cos(angle) * 140;
+      const y = -Math.sin(angle) * 130;
       const animValue = menuButtonAnimValues[index];
-      const translateX = animValue.interpolate({
-        inputRange: [0, 1],
-        outputRange: [0, x],
-      });
-      const translateY = animValue.interpolate({
-        inputRange: [0, 1],
-        outputRange: [0, y],
-      });
+      const translateX = animValue.interpolate({ inputRange: [0, 1], outputRange: [0, x] });
+      const translateY = animValue.interpolate({ inputRange: [0, 1], outputRange: [0, y] });
+
       return (
         <Animated.View
           key={boton.id}
@@ -141,7 +146,10 @@ export default function HomeScreen({ navigation }) {
             },
           ]}
         >
-          <TouchableOpacity style={styles.botonMenuSecundario} onPress={() => navigation.navigate(boton.screen)}>
+          <TouchableOpacity
+            style={styles.botonMenuSecundario}
+            onPress={() => navigation.navigate(boton.screen)}
+          >
             <Ionicons name={boton.icon} size={24} color="#fff" style={{ marginBottom: 5 }} />
             <Text style={styles.botonTexto}>{boton.label}</Text>
           </TouchableOpacity>
@@ -150,13 +158,23 @@ export default function HomeScreen({ navigation }) {
     });
   };
 
-  Animated.loop(
-    Animated.timing(rotation, {
-      toValue: 1,
-      duration: 4000,
-      useNativeDriver: true,
-    })
-  ).start();
+  const startRotationLoop = () => {
+    rotation.setValue(0);
+    Animated.loop(
+      Animated.timing(rotation, {
+        toValue: 1,
+        duration: 4000,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      })
+    ).start();
+  };
+
+  const stopRotation = () => {
+    rotation.stopAnimation(() => {
+      rotation.setValue(0);
+    });
+  };
 
   const spin = rotation.interpolate({
     inputRange: [0, 1],
@@ -164,85 +182,77 @@ export default function HomeScreen({ navigation }) {
   });
 
   const renderPlaylistCreada = ({ item }) => {
-    const defaultImage = require('../assets/darkraul.jpg');
     const imageSource =
-      item.lista && item.lista.Portada && item.lista.Portada !== "URL_por_defecto"
+      item.lista?.Portada && item.lista.Portada !== "URL_por_defecto"
         ? { uri: item.lista.Portada }
-        : defaultImage;
-        return (
-          <TouchableOpacity onPress={() => navigation.navigate("PlaylistDetail", { playlist: item.lista })}>
-            <View style={styles.playlistItem}>
-              <Image source={imageSource} style={styles.playlistImage} />
-              <Text style={styles.playlistTitle}>{item.lista ? item.lista.Nombre : '####'}</Text>
-            </View>
-          </TouchableOpacity>
-        );
+        : require('../assets/darkraul.jpg');
+
+    return (
+      <TouchableOpacity onPress={() => navigation.navigate("PlaylistDetail", { playlist: item.lista })}>
+        <View style={styles.playlistItem}>
+          <Image source={imageSource} style={styles.playlistImage} />
+          <Text style={styles.playlistTitle}>{item.lista?.Nombre || '####'}</Text>
+        </View>
+      </TouchableOpacity>
+    );
   };
 
   const renderRecomendationsItem = ({ item }) => {
-    const defaultImage = require('../assets/darkraul.jpg');
-    const imageSource =
-      item.FotoGenero && item.FotoGenero !== "URL_por_defecto"
-        ? { uri: item.ForoGenero }
-        : defaultImage;
-    const nameGenero = (item.NombreGenero && item.NombreGenero !== "NULL") ? item.NombreGenero : '####';
+    const imageSource = item.FotoGenero && item.FotoGenero !== "URL_por_defecto"
+      ? { uri: item.FotoGenero }
+      : require('../assets/darkraul.jpg');
     return (
       <View style={styles.recomendationsItem}>
         <Image source={imageSource} style={styles.recomendationsImage} />
-        <Text style={styles.recomendationsTitle}>{nameGenero}</Text>
+        <Text style={styles.recomendationsTitle}>{item.NombreGenero || '####'}</Text>
       </View>
     );
   };
 
   const handleOpenMusicPlayer = async () => {
     try {
-        const lastSong = await AsyncStorage.getItem('lastSong');
-        if (lastSong) {
-            navigation.navigate('MusicPlayer', { songName: lastSong });
-        } else {
-            Alert.alert("🔇 No hay ninguna canción en reproducción");
-        }
+      const lastSong = await AsyncStorage.getItem('lastSong');
+      if (lastSong) {
+        navigation.navigate('MusicPlayer', { songName: lastSong });
+      } else {
+        Alert.alert("🔇 No hay ninguna canción en reproducción");
+      }
     } catch (error) {
-        console.error("Error obteniendo la última canción:", error);
+      console.error("Error obteniendo la última canción:", error);
     }
   };
 
   return (
-    <View style={styles.container}>
-      <Animated.View
-        pointerEvents={menuAbierto ? 'auto' : 'none'}
-        style={[
-          styles.blurView,
-          {
-            opacity: blurAnimation.interpolate({
-              inputRange: [0, 1],
-              outputRange: [0, 0.7],
-            }),
-            zIndex: 1,
-          },
-        ]}
-      />
-      <View pointerEvents={menuAbierto ? 'none' : 'auto'} style={{ flex: 1 }}>
-        <View style={styles.headerContainer}>
-          <Text style={styles.greeting}>Hola 😄, {userName}</Text>
-          <TouchableOpacity onPress={() => navigation.navigate('ProfileScreen')}>
-            <Image source={require('../assets/favicon.png')} style={styles.profileImage} />
-          </TouchableOpacity>
-        </View>
+    <TouchableWithoutFeedback onPress={() => menuAbierto && toggleMenu()}>
+      <View style={styles.container}>
+        <Animated.View
+          pointerEvents={menuAbierto ? 'auto' : 'none'}
+          style={[
+            styles.blurView,
+            {
+              opacity: blurAnimation.interpolate({ inputRange: [0, 1], outputRange: [0, 0.7] }),
+              zIndex: 1,
+            },
+          ]}
+        />
 
-        {/* Primer contenedor: "Tus Listas" */}
-        <View>
+        <View pointerEvents={menuAbierto ? 'none' : 'auto'} style={{ flex: 1 }}>
+          <View style={styles.headerContainer}>
+            <Text style={styles.greeting}>Hola 😄, {userName}</Text>
+            <TouchableOpacity onPress={() => navigation.navigate('ProfileScreen')}>
+              <Image source={require('../assets/favicon.png')} style={styles.profileImage} />
+            </TouchableOpacity>
+          </View>
+
           <Text style={styles.subTitle}>Tus Listas</Text>
           {playlistCreadas.length === 0 ? (
-            // Mostrar botón si no hay playlists
             <TouchableOpacity
               style={styles.createFirstPlaylistButton}
               onPress={() => navigation.navigate("CrearPlaylist")}
             >
-              <Text style={styles.createFirstPlaylistButtonText}> Crea tu 1ª Playlist! </Text>
+              <Text style={styles.createFirstPlaylistButtonText}>Crea tu 1ª Playlist!</Text>
             </TouchableOpacity>
           ) : (
-            // Mostrar FlatList si hay playlists
             <FlatList
               data={playlistCreadas}
               renderItem={renderPlaylistCreada}
@@ -253,57 +263,46 @@ export default function HomeScreen({ navigation }) {
               style={styles.playlistCreadasSlider}
             />
           )}
-        </View>
 
-        {/* Segundo contenedor: "Recomendaciones" */}
-        <View style={{ flex: 1 }}>
           <Text style={styles.subTitle}>Recomendaciones</Text>
           {recomendations.length === 0 ? (
             <Text style={{ color: '#fff', textAlign: 'center', marginTop: 20 }}>
               No hay recomendaciones disponibles
             </Text>
           ) : (
-          <FlatList
-            data={recomendations}
-            renderItem={renderRecomendationsItem}
-            keyExtractor={(item, index) => index.toString()}
-            numColumns={2}
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.recomendationsList}
-            columnWrapperStyle={styles.recomendationsList}
-            style={styles.recomendationsSlider}
-          />
+            <FlatList
+              data={recomendations}
+              renderItem={renderRecomendationsItem}
+              keyExtractor={(item, index) => index.toString()}
+              numColumns={2}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.recomendationsList}
+              columnWrapperStyle={styles.recomendationsList}
+              style={styles.recomendationsSlider}
+            />
           )}
         </View>
-      </View>
-      <View style={styles.bottomContainer}>
-        {renderBotonesMenu()}
-        <TouchableOpacity style={styles.halfCircleButton} onPress={toggleMenu} activeOpacity={0.8}>
-          <Text style={styles.buttonText}>{menuAbierto ? 'x' : '. . .'}</Text>
-        </TouchableOpacity>
-        {cancionSonando && (
-          <Animated.View
-            pointerEvents={menuAbierto ? 'none' : 'auto'}
-            style={{
-              opacity: blurAnimation.interpolate({
-                inputRange: [0, 1],
-                outputRange: [1, 0.2],
-              }),
-              zIndex: 4,
-            }}
-          >
+
+        <View style={styles.bottomContainer}>
+          {renderBotonesMenu()}
+          <TouchableOpacity style={styles.halfCircleButton} onPress={toggleMenu} activeOpacity={0.8}>
+            <Text style={styles.buttonText}>{menuAbierto ? 'x' : '. . .'}</Text>
+          </TouchableOpacity>
+
+          {cancionSonando && !menuAbierto && (
             <TouchableOpacity onPress={handleOpenMusicPlayer} style={styles.musicIconContainer}>
               <Animated.Image
-                source={require('../assets/favicon.png')}
+                source={require('../assets/disc.png')}
                 style={[styles.discIcon, { transform: [{ rotate: spin }] }]}
               />
             </TouchableOpacity>
-          </Animated.View>
-        )}
+          )}
+        </View>
       </View>
-    </View>
+    </TouchableWithoutFeedback>
   );
 }
+
 
 const styles = StyleSheet.create({
   container: {
@@ -445,15 +444,20 @@ const styles = StyleSheet.create({
   },
   musicIconContainer: {
     position: 'absolute',
-    bottom: 20,
-    right: 20,
+    bottom: 15,
+    right: 16,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'transparent', // para que no tape nada visualmente
+    zIndex: 4,
   },
   discIcon: {
-    width: 50,
-    height: 50,
-    position: 'absolute',
-    bottom: 15,
-    right: -200,
+    width: 80,
+    height: 80,
+    borderRadius: 35,
   },
   createFirstPlaylistButton: {
     backgroundColor: '#ffb723',
