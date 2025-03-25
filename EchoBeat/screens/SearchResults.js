@@ -29,26 +29,25 @@ export default function SearchResults({ route, navigation }) {
   const handleSearch = async () => {
     const tipo = selectedOption ? optionMap[selectedOption] : '';
     const url = `https://echobeatapi.duckdns.org/search?q=${encodeURIComponent(searchText)}${tipo ? `&tipo=${tipo}` : ''}`;
-    console.log("Tipo de busqueda", tipo);
+    
     try {
       const response = await fetch(url);
       const data = await response.json();
 
-      let filteredResults = { ...data };
+      // Normalizar la estructura de resultados
+      const normalizedResults = {
+        canciones: data.canciones || [],
+        artistas: data.artistas || [],
+        albums: data.albums || [],
+        listas: data.listas || [],
+        playlists: data.playlists || []
+      };
 
-      if (selectedOption === "Playlist") {
-        filteredResults.listas = (data.listas || []).filter((item) => item.TipoLista !== 'Album');
-      } else if (selectedOption === "Álbum") {
-        filteredResults = {
-          albums: data.albums || [],
-          listas: (data.listas || []).filter((item) => item.TipoLista === 'Album'),
-        };
-      }
-
-      setResults(filteredResults);
+      setResults(normalizedResults);
       Keyboard.dismiss();
     } catch (error) {
       console.error("Error al realizar la búsqueda:", error);
+      Alert.alert("Error", "No se pudieron obtener los resultados de búsqueda");
     }
   };
 
@@ -68,19 +67,61 @@ export default function SearchResults({ route, navigation }) {
     }
   };
 
-  const combinedAlbums = [
-    ...(results.albums || []).map((item) => ({ ...item, type: 'album' })),
-    ...(results.listas || []).filter((item) => item.TipoLista === 'Album').map((item) => ({ ...item, type: 'album' })),
+  // Combinar y normalizar resultados
+  const combinedResults = [
+    ...(results.albums || []).map(item => ({ 
+      ...item, 
+      type: 'album',
+      id: item.id || item.Id,
+      nombre: item.nombre || item.Nombre,
+      portada: item.portada || item.Portada
+    })),
+    ...(results.artistas || []).map(item => ({ 
+      ...item, 
+      type: 'artist',
+      id: item.id || item.Id,
+      nombre: item.nombre || item.Nombre,
+      fotoPerfil: item.fotoPerfil || item.FotoPerfil
+    })),
+    ...(results.canciones || []).map(item => ({ 
+      ...item, 
+      type: 'song',
+      id: item.id || item.Id,
+      nombre: item.nombre || item.Nombre,
+      portada: item.portada || item.Portada
+    })),
+    ...(results.listas || []).map(item => ({ 
+      ...item, 
+      type: 'album', // Tratamos listas como álbumes si tienen TipoLista === 'Album'
+      id: item.id || item.Id,
+      nombre: item.nombre || item.Nombre,
+      portada: item.portada || item.Portada,
+      esAlbum: item.TipoLista === 'Album'
+    })),
+    ...(results.playlists || []).map(item => ({ 
+      ...item, 
+      type: 'playlist',
+      id: item.id || item.Id,
+      nombre: item.nombre || item.Nombre,
+      portada: item.portada || item.Portada
+    }))
   ];
 
-  const combinedResults = [
-    ...combinedAlbums,
-    ...(results.artistas || []).map((item) => ({ ...item, type: 'artist' })),
-    ...(results.canciones || []).map((item) => ({ ...item, type: 'song' })),
-    ...(results.listas || []).filter((item) => item.TipoLista !== 'Album').map((item) => ({ ...item, type: 'list' })),
-  ];
+  // Filtrar resultados según la opción seleccionada
+  const filteredResults = selectedOption 
+    ? combinedResults.filter(item => {
+        switch(selectedOption) {
+          case 'Canción': return item.type === 'song';
+          case 'Playlist': return item.type === 'playlist';
+          case 'Autor': return item.type === 'artist';
+          case 'Álbum': return item.type === 'album' || (item.type === 'list' && item.esAlbum);
+          default: return true;
+        }
+      })
+    : combinedResults;
 
   const formatDuration = (duration) => {
+    if (!duration) return '0:00';
     const minutes = Math.floor(duration / 60);
     const seconds = duration % 60;
     return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
@@ -89,10 +130,7 @@ export default function SearchResults({ route, navigation }) {
   const fetchPlaylists = async () => {
     try {
       const response = await fetch(`https://echobeatapi.duckdns.org/playlists/user/${email}`);
-      if (!response.ok) {
-        console.error("Error al obtener las playlists del usuario");
-        return;
-      }
+      if (!response.ok) throw new Error("Error al obtener playlists");
       const data = await response.json();
       setPlaylists(data);
     } catch (error) {
@@ -109,8 +147,10 @@ export default function SearchResults({ route, navigation }) {
       });
 
       if (!response.ok) throw new Error("No se pudo añadir la canción");
+      Alert.alert("Éxito", "Canción añadida a la playlist");
     } catch (error) {
-      console.error("Error al realizar la solicitud:", error);
+      console.error("Error al añadir canción:", error);
+      Alert.alert("Error", "No se pudo añadir la canción");
     }
   };
 
@@ -124,7 +164,7 @@ export default function SearchResults({ route, navigation }) {
 
   const renderModalContent = () => {
     if (!selectedItem) return null;
-  
+
     switch (selectedItem.type) {
       case 'song':
         return (
@@ -152,30 +192,29 @@ export default function SearchResults({ route, navigation }) {
               <View style={styles.playlistList}>
                 {playlists.map((playlist) => (
                   <TouchableOpacity
-                    key={playlist.Id}
+                    key={playlist.id || playlist.Id}
                     style={styles.playlistItem}
                     onPress={() => {
-                      addSongToPlaylist(playlist.Id, selectedItem.Id);
+                      addSongToPlaylist(playlist.id || playlist.Id, selectedItem.id || selectedItem.Id);
                       setModalVisible(false);
                     }}
                   >
                     <Image
-                      source={{ uri: playlist.lista.Portada }}
+                      source={{ uri: playlist.portada || playlist.lista?.Portada || 'https://via.placeholder.com/150' }}
                       style={styles.playlistImage}
                     />
-                    <Text style={styles.playlistItemText}>{playlist.lista.Nombre}</Text>
+                    <Text style={styles.playlistItemText}>{playlist.nombre || playlist.lista?.Nombre || 'Playlist sin nombre'}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
             )}
           </View>
         );
-  
+
       default:
         return null;
     }
   };
-  
 
   const playSingleSong = async (song) => {
     try {
@@ -188,12 +227,12 @@ export default function SearchResults({ route, navigation }) {
         posicionCola: 0,
         colaReproduccion: {
           canciones: [{
-            id: song.Id,
-            nombre: song.Nombre,
-            duracion: song.Duracion,
-            numReproducciones: song.NumReproducciones,
-            numFavoritos: song.NumFavoritos,
-            portada: song.Portada
+            id: song.id || song.Id,
+            nombre: song.nombre || song.Nombre,
+            duracion: song.duracion || song.Duracion,
+            numReproducciones: song.numReproducciones || song.NumReproducciones,
+            numFavoritos: song.numFavoritos || song.NumFavoritos,
+            portada: song.portada || song.Portada
           }]
         }
       };
@@ -205,8 +244,8 @@ export default function SearchResults({ route, navigation }) {
       });
 
       navigation.navigate('MusicPlayer', {
-        songId: song.Id,
-        songName: song.Nombre,
+        songId: song.id || song.Id,
+        songName: song.nombre || song.Nombre,
       });
 
     } catch (error) {
@@ -215,18 +254,18 @@ export default function SearchResults({ route, navigation }) {
   };
 
   const renderItem = ({ item }) => {
+    const imageSource = { uri: item.portada || item.Portada || 'https://via.placeholder.com/150' };
+
     switch (item.type) {
       case 'album':
+      case 'list':
         return (
           <View style={styles.itemContainer}>
-            <Image
-              source={{ uri: item.Portada || 'URL_por_defecto' }}
-              style={styles.itemImage}
-            />
+            <Image source={imageSource} style={styles.itemImage} />
             <View style={styles.itemTextContainer}>
-              <Text style={styles.itemTitle}>{item.Nombre}</Text>
+              <Text style={styles.itemTitle}>{item.nombre || item.Nombre}</Text>
               <Text style={styles.itemSubtitle}>
-                {item.NumCanciones} canciones • {item.FechaLanzamiento?.split('T')[0]}
+                {item.type === 'album' ? 'Álbum' : 'Playlist'} • {item.autor || item.EmailAutor || 'Desconocido'}
               </Text>
             </View>
             <TouchableOpacity onPress={() => openModal(item)}>
@@ -238,13 +277,10 @@ export default function SearchResults({ route, navigation }) {
       case 'artist':
         return (
           <View style={[styles.itemContainer, styles.artistContainer]}>
-            <Image
-              source={{ uri: item.FotoPerfil || 'URL_por_defecto' }}
-              style={styles.artistImage}
-            />
+            <Image source={imageSource} style={styles.artistImage} />
             <View style={styles.artistTextContainer}>
-              <Text style={styles.artistName}>{item.Nombre}</Text>
-              <Text style={styles.artistListeners}>{item.NumOyentesTotales || 0} oyentes</Text>
+              <Text style={styles.artistName}>{item.nombre || item.Nombre}</Text>
+              <Text style={styles.artistListeners}>{item.numOyentesTotales || item.NumOyentesTotales || 0} oyentes</Text>
             </View>
             <TouchableOpacity onPress={() => openModal(item)}>
               <Ionicons name="ellipsis-vertical" size={24} color="#fff" />
@@ -255,10 +291,12 @@ export default function SearchResults({ route, navigation }) {
       case 'song':
         return (
           <TouchableOpacity style={styles.itemContainer} onPress={() => playSingleSong(item)}>
-            <Image source={{ uri: item.Portada || 'URL_por_defecto' }} style={styles.itemImage} />
+            <Image source={imageSource} style={styles.itemImage} />
             <View style={styles.itemTextContainer}>
-              <Text style={styles.itemTitle}>{item.Nombre}</Text>
-              <Text style={styles.itemSubtitle}>{formatDuration(item.Duracion)} • {item.Genero}</Text>
+              <Text style={styles.itemTitle}>{item.nombre || item.Nombre}</Text>
+              <Text style={styles.itemSubtitle}>
+                {formatDuration(item.duracion || item.Duracion)} • {item.genero || item.Genero || 'Desconocido'}
+              </Text>
             </View>
             <TouchableOpacity onPress={() => openModal(item)}>
               <Ionicons name="ellipsis-vertical" size={24} color="#fff" />
@@ -266,22 +304,22 @@ export default function SearchResults({ route, navigation }) {
           </TouchableOpacity>
         );
 
-      case 'playlists':
+      case 'playlist':
         return (
           <View style={styles.itemContainer}>
-            <Image
-              source={{ uri: item.portada || 'URL_por_defecto' }}
-              style={styles.itemImage}
-            />
+            <Image source={imageSource} style={styles.itemImage} />
             <View style={styles.itemTextContainer}>
-              <Text style={styles.itemTitle}>{item.nombre}</Text>
-              <Text style={styles.itemSubtitle}>{item.numeroLikes} likes</Text>
+              <Text style={styles.itemTitle}>{item.nombre || item.Nombre}</Text>
+              <Text style={styles.itemSubtitle}>
+                Playlist • {item.numeroLikes || item.NumLikes || 0} likes
+              </Text>
             </View>
             <TouchableOpacity onPress={() => openModal(item)}>
               <Ionicons name="ellipsis-vertical" size={24} color="#fff" />
             </TouchableOpacity>
           </View>
         );
+
       default:
         return null;
     }
@@ -308,8 +346,8 @@ export default function SearchResults({ route, navigation }) {
         </View>
 
         <FlatList
-          data={combinedResults}
-          keyExtractor={(item) => `${item.type}-${item.Id}`}
+          data={filteredResults}
+          keyExtractor={(item) => `${item.type}-${item.id || item.Id}`}
           renderItem={renderItem}
           contentContainerStyle={styles.listContainer}
         />
@@ -322,7 +360,10 @@ export default function SearchResults({ route, navigation }) {
           <TouchableWithoutFeedback onPress={() => setModalVisible(false)}>
             <View style={styles.modalOverlay}>
               <View style={styles.modalContent}>
-                <TouchableOpacity style={styles.closeButton} onPress={() => setModalVisible(false)}>
+                <TouchableOpacity 
+                  style={styles.closeButton} 
+                  onPress={() => setModalVisible(false)}
+                >
                   <Ionicons name="close" size={24} color="#fff" />
                 </TouchableOpacity>
                 {renderModalContent()}
@@ -431,18 +472,27 @@ const styles = StyleSheet.create({
     fontSize: 18 
   },
   playlistOptionContainer: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    justifyContent: 'space-between',
   },
   playlistList: { 
     marginTop: 8 
   },
   playlistItem: {
-    flexDirection: 'row', alignItems: 'center', paddingVertical: 8, paddingLeft: 16,
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    paddingVertical: 8, 
+    paddingLeft: 16,
   },
   playlistImage: {
-    width: 40, height: 40, borderRadius: 4, marginRight: 8,
+    width: 40, 
+    height: 40, 
+    borderRadius: 4, 
+    marginRight: 8,
   },
   playlistItemText: {
-    color: '#fff', fontSize: 16,
+    color: '#fff', 
+    fontSize: 16,
   },
 });

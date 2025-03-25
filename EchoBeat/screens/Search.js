@@ -1,74 +1,56 @@
 import React, { useState, useLayoutEffect, useEffect } from 'react';
 import { View, Text, TouchableOpacity, TextInput, StyleSheet, TouchableWithoutFeedback, Keyboard } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function Search({ navigation, route }) {
   const [searchText, setSearchText] = useState('');
   const [selectedOption, setSelectedOption] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
 
-  // Opciones disponibles
-  const options = ["Canción", "Playlist", "Autor", "Album"];
+  const options = ["Canción", "Playlist", "Autor", "Álbum"];
   const optionMap = {
     "Canción": "canciones",
     "Playlist": "playlists",
     "Autor": "artistas",
-    "Album": "albums"
+    "Álbum": "albums"
   };
 
   useLayoutEffect(() => {
     navigation.setOptions({ headerShown: false });
   }, [navigation]);
 
-  // Si se ha pasado el parámetro defaultFilter, se asigna al montar
   useEffect(() => {
     if (route.params && route.params.defaultFilter) {
       setSelectedOption(route.params.defaultFilter);
     }
   }, [route.params]);
 
-  // Al pulsar una opción, si ya está seleccionada se deselecciona; de lo contrario, se selecciona
   const handleOptionPress = (option) => {
-    if (selectedOption === option) {
-      setSelectedOption(null);
-    } else {
-      setSelectedOption(option);
-    }
+    setSelectedOption(option === selectedOption ? null : option);
     setErrorMessage('');
   };
 
-  // Al buscar, ya no se exige tener un filtro seleccionado
   const handleSearch = async () => {
     setErrorMessage('');
+    
     const tipo = selectedOption ? optionMap[selectedOption] : '';
-  
-    // Si se selecciona "Playlist", excluimos los álbumes
-    const excludeAlbums = selectedOption === "Playlist";
-  
     const url = `https://echobeatapi.duckdns.org/search?q=${encodeURIComponent(searchText)}${tipo ? `&tipo=${tipo}` : ''}`;
   
     try {
       const response = await fetch(url);
       const data = await response.json();
-  
-      // Filtrar los resultados según la opción seleccionada
-      let filteredResults = { ...data };
-  
-      if (selectedOption === "Playlist") {
-        // Excluir álbumes de las listas
-        filteredResults.listas = (data.listas || []).filter((item) => item.TipoLista !== 'Album');
-      } else if (selectedOption === "Álbum") {
-        // Solo incluir álbumes
-        filteredResults = {
-          albums: data.albums || [],
-          listas: (data.listas || []).filter((item) => item.TipoLista === 'Album'),
-        };
-      }
-  
-      console.log("Resultados filtrados:", filteredResults);
+
+      // Normalizar la estructura de resultados
+      const normalizedResults = {
+        canciones: data.canciones || [],
+        artistas: data.artistas || [],
+        albums: data.albums || [],
+        listas: data.listas || [],
+        playlists: data.playlists || []
+      };
+
       navigation.navigate('SearchResults', {
-        initialResults: data,
+        initialResults: normalizedResults,
         initialSearchText: searchText,
         initialSelectedOption: selectedOption,
       });
@@ -81,7 +63,6 @@ export default function Search({ navigation, route }) {
   return (
     <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
       <View style={styles.container}>
-        {/* Barra de búsqueda con flecha de retroceso */}
         <View style={styles.topContainer}>
           <View style={styles.topBar}>
             <TouchableOpacity onPress={() => navigation.goBack()}>
@@ -93,11 +74,11 @@ export default function Search({ navigation, route }) {
               placeholderTextColor="#ccc"
               value={searchText}
               onChangeText={setSearchText}
+              onSubmitEditing={handleSearch}
             />
           </View>
         </View>
 
-        {/* Opciones y botón de búsqueda */}
         <View style={styles.middleContainer}>
           <View style={styles.optionsCard}>
             <Text style={styles.selectionTitle}>¿Quieres buscar algo en concreto?</Text>
