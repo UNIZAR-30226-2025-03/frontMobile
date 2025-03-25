@@ -110,13 +110,27 @@ export default function HomeScreen({ navigation }) {
   const obtenerRecomendaciones = async (email) => {
     try {
       const response = await fetch(`https://echobeatapi.duckdns.org/genero/preferencia?userEmail=${email}`);
+  
+      // Si no es un 2xx, intenta extraer el error pero de forma segura
+      if (!response.ok) {
+        const errorData = await response.text();
+        if (errorData.includes("No se encontraron géneros") || response.status === 500) {
+          console.warn("⚠️ No hay géneros preferidos definidos aún.");
+          setRecomendations([]); // simplemente muestra vacío
+          return;
+        }
+        throw new Error(errorData || "Error al obtener recomendaciones");
+      }
+  
       const data = await response.json();
-      if (!response.ok) throw new Error(data.message || "Error al obtener recomendaciones");
-      setRecomendations(data);
+      setRecomendations(Array.isArray(data) ? data : []);
     } catch (error) {
-      Alert.alert("Error", error.message);
+      console.error("❌ Error en obtenerRecomendaciones:", error.message);
+      Alert.alert("Error", "No se pudieron cargar recomendaciones.");
+      setRecomendations([]);
     }
   };
+  
 
   const menuButtonAnimValues = useRef([...Array(5)].map(() => new Animated.Value(0))).current;
 
@@ -212,10 +226,16 @@ export default function HomeScreen({ navigation }) {
 
   const renderPlaylistCreada = ({ item }) => {
     const imageSource = { uri: item.lista.Portada };
-
+    const normalizedPlaylist = {
+      Id: item.id || item.Id,
+      Nombre: item.nombre || item.Nombre || item.lista?.Nombre || 'Sin nombre',
+      Portada: item.lista?.Portada || item.Portada || '',
+      Descripcion: item.descripcion || item.Descripcion || '',
+    };
+    
     return (
       <TouchableOpacity 
-        onPress={() => navigation.navigate("PlaylistDetail", { playlist: item.lista })}
+        onPress={() => navigation.navigate("PlaylistDetails", { playlist: normalizedPlaylist })}
         style={styles.playlistItem}
       >
         <Image source={imageSource} style={styles.playlistImage} />

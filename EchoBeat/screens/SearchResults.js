@@ -162,6 +162,7 @@ export default function SearchResults({ route, navigation }) {
     }
   };
 
+  
   const renderModalContent = () => {
     if (!selectedItem) return null;
 
@@ -257,7 +258,34 @@ export default function SearchResults({ route, navigation }) {
     const imageSource = { uri: item.portada || item.Portada || 'https://via.placeholder.com/150' };
 
     switch (item.type) {
+      case 'album': 
       case 'album':
+        const normalizedAlbum = {
+          Id: item.id || item.Id,
+          Nombre: item.nombre || item.Nombre,
+          Portada: item.portada || item.Portada,
+          Descripcion: item.descripcion || item.Descripcion || '',
+        };
+
+        return (
+          <TouchableOpacity
+            style={styles.itemContainer}
+            onPress={() => {
+              console.log("🎧 Navegando a AlbumDetails con:", normalizedAlbum);
+              navigation.navigate('AlbumDetails', { playlist: normalizedAlbum });
+            }}
+          >
+            <Image source={{ uri: normalizedAlbum.Portada }} style={styles.itemImage} />
+            <View style={styles.itemTextContainer}>
+              <Text style={styles.itemTitle}>{normalizedAlbum.Nombre}</Text>
+              <Text style={styles.itemSubtitle}>Álbum</Text>
+            </View>
+            <TouchableOpacity onPress={() => openModal(item)}>
+              <Ionicons name="ellipsis-vertical" size={24} color="#fff" />
+            </TouchableOpacity>
+          </TouchableOpacity>
+        );
+
       case 'list':
         return (
           <View style={styles.itemContainer}>
@@ -305,8 +333,21 @@ export default function SearchResults({ route, navigation }) {
         );
 
       case 'playlist':
+        const normalizedPlaylist = {
+          Id: item.id || item.Id,
+          Nombre: item.nombre || item.Nombre,
+          Portada: item.portada || item.Portada,
+          Descripcion: item.descripcion || item.Descripcion || '',
+        };
         return (
-          <View style={styles.itemContainer}>
+          <TouchableOpacity 
+            style={styles.itemContainer} 
+            onPress={() => {
+              console.log('🔍 Navegando a PlaylistDetail con:', item);
+              navigation.navigate('PlaylistDetails', { playlist: normalizedPlaylist });
+            }}
+            
+          >
             <Image source={imageSource} style={styles.itemImage} />
             <View style={styles.itemTextContainer}>
               <Text style={styles.itemTitle}>{item.nombre || item.Nombre}</Text>
@@ -317,8 +358,9 @@ export default function SearchResults({ route, navigation }) {
             <TouchableOpacity onPress={() => openModal(item)}>
               <Ionicons name="ellipsis-vertical" size={24} color="#fff" />
             </TouchableOpacity>
-          </View>
+          </TouchableOpacity>
         );
+        
 
       default:
         return null;

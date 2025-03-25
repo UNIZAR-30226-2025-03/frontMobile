@@ -11,7 +11,7 @@ import {
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from '@expo/vector-icons';
 
-export default function GeneroPreferencesScreen({ navigation }) {
+export default function GeneroPreferencesInitScreen({ navigation }) {
   const [generos, setGeneros] = useState([]); 
   const [cargando, setCargando] = useState(true);
   const [userEmail, setUserEmail] = useState(null);
@@ -126,8 +126,8 @@ export default function GeneroPreferencesScreen({ navigation }) {
         throw new Error(data.message || "Error al guardar los géneros.");
       }
 
-      Alert.alert("Éxito", "Tus preferencias de género han sido guardadas.");
-      navigation.goBack();
+      Alert.alert("Éxito", "Tus preferencias de género han sido guardadas. Inicia sesión.");
+      navigation.navigate('Login_Register');
     } catch (error) {
       console.error("❌ Error al enviar géneros:", error);
       Alert.alert("Error", error.message);
@@ -136,13 +136,9 @@ export default function GeneroPreferencesScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      {/* Botón de volver */}
-      <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#f2ab55" />
-      </TouchableOpacity>
 
       {/* Texto de instrucciones */}
-      <Text style={styles.titulo}>Configura tus nuevos géneros favoritos (al menos 4)</Text>
+      <Text style={styles.titulo}>Elige tus géneros favoritos (al menos 4)</Text>
 
       {cargando ? (
         <ActivityIndicator size="large" color="#f2ab55" />
@@ -180,15 +176,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#121111",
     paddingHorizontal: 20,
     paddingTop: 50,
-  },
-  backButton: {
-    alignSelf: "flex-start",
-    marginBottom: 10,
-  },
-  backButtonText: {
-    color: "#f2ab55",
-    fontSize: 16,
-    textDecorationLine: "underline",
   },
   titulo: {
     fontSize: 17,

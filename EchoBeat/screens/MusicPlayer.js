@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Image, Alert } from 'react-native';
 import { Audio } from 'expo-av';
@@ -13,7 +12,7 @@ let globalSound = null;
 let globalSocket = null;
 
 export default function MusicPlayer({ navigation, route }) {
-  const { songId, songName } = route.params || {};
+  const { songId, songName, userEmail: passedEmail } = route.params || {};
   const [sound, setSound] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [position, setPosition] = useState(0);
@@ -21,13 +20,15 @@ export default function MusicPlayer({ navigation, route }) {
   const [currentSong, setCurrentSong] = useState(songName || '');
   const [socket, setSocket] = useState(null);
   const [colaUnica, setColaUnica] = useState(false);
-  
+  const [userEmail, setUserEmail] = useState(passedEmail || '');
+
   const audioChunksRef = useRef([]);
 
-  const isBase64 = (str) => {
-    const regex = /^[A-Za-z0-9+/]+={0,2}$/;
-    return regex.test(str);
-  };
+  const isBase64 = (str) => /^[A-Za-z0-9+/]+={0,2}$/.test(str);
+
+  useLayoutEffect(() => {
+    navigation.setOptions({ headerShown: false });
+  }, [navigation]);
 
   useEffect(() => {
     Audio.setAudioModeAsync({
@@ -41,10 +42,6 @@ export default function MusicPlayer({ navigation, route }) {
     });
   }, []);
 
-  useLayoutEffect(() => {
-    navigation.setOptions({ headerShown: false });
-  }, [navigation]);
-
   const setupPlaybackStatusUpdate = (soundInstance) => {
     soundInstance.setOnPlaybackStatusUpdate((status) => {
       if (status.isLoaded) {
@@ -53,100 +50,106 @@ export default function MusicPlayer({ navigation, route }) {
         if (status.didJustFinish) {
           console.log("🔁 Canción terminada");
           siguienteCancion();
-        }        
+        }
       }
     });
   };
 
   useEffect(() => {
     const initPlayer = async () => {
+      const email = passedEmail || await AsyncStorage.getItem('email');
+      if (!email) {
+        console.warn("❌ No se pudo obtener el email del usuario");
+        Alert.alert("Error", "No se pudo obtener el email del usuario.");
+        return;
+      }
+      setUserEmail(email);
+
       try {
-        const email = await AsyncStorage.getItem('email');
-        if (email) {
-          const response = await fetch(`https://echobeatapi.duckdns.org/cola-reproduccion/cola?userEmail=${encodeURIComponent(email)}`);
-          const data = await response.json();
-          if (Array.isArray(data.cola) && data.cola.length === 1) {
-            setColaUnica(true);
-          } else {
-            setColaUnica(false);
-          }
-        }
-      } catch (error) {
-        console.warn("No se pudo verificar la cola de reproducción:", error);
+        const response = await fetch(`https://echobeatapi.duckdns.org/cola-reproduccion/cola?userEmail=${encodeURIComponent(email)}`);
+        const data = await response.json();
+        setColaUnica(Array.isArray(data.cola) && data.cola.length === 1);
+      } catch (err) {
+        console.warn("❌ Error al verificar cola:", err);
       }
 
-      if (globalSound) {
-        if (globalSound.currentSong === songName) {
-          setSound(globalSound);
-          if (globalSocket) setSocket(globalSocket);
-          setupPlaybackStatusUpdate(globalSound);
-          const status = await globalSound.getStatusAsync();
-          setIsPlaying(status.isPlaying);
-          return;
-        } else {
-          await globalSound.unloadAsync();
-          globalSound = null;
-        }
+      if (globalSound && globalSound.currentSong === songName) {
+        setSound(globalSound);
+        setupPlaybackStatusUpdate(globalSound);
+        const status = await globalSound.getStatusAsync();
+        setIsPlaying(status.isPlaying);
+        return;
+      } else if (globalSound) {
+        await globalSound.unloadAsync();
+        globalSound = null;
       }
 
-      const setupSocket = () => {
-        const newSocket = io(`https://echobeatapi.duckdns.org`, {
-          transports: ['websocket'],
-        });
+      const setupSocket = (userEmail) => {
+        const newSocket = io(`https://echobeatapi.duckdns.org`, { transports: ['websocket'] });
 
         newSocket.on('connect', () => {
-          newSocket.emit('startStream', { songId: songId });
+          console.log('✅ WebSocket conectado');
+          console.log('📤 startStream ->', { songId, userId: userEmail, currentTime: duration });
+          newSocket.emit('startStream', { songId, userId: email, currentTime: duration });
         });
 
         newSocket.on('audioChunk', (data) => {
-          let chunkBase64 = data.data.trim();
-          if (!isBase64(chunkBase64)) return;
+          const chunkBase64 = data.data.trim();
+          if (!isBase64(chunkBase64)) {
+            console.warn('⚠️ Chunk no válido');
+            return;
+          }
           audioChunksRef.current.push(chunkBase64);
         });
 
         newSocket.on('streamComplete', async () => {
+          console.log('✅ Stream completo. Procesando...');
           try {
             const arrays = audioChunksRef.current.map(chunk => new Uint8Array(decode(chunk)));
             const totalLength = arrays.reduce((acc, arr) => acc + arr.length, 0);
             const combined = new Uint8Array(totalLength);
-            let offset = 0;
-            arrays.forEach(arr => {
+            arrays.reduce((offset, arr) => {
               combined.set(arr, offset);
-              offset += arr.length;
-            });
+              return offset + arr.length;
+            }, 0);
+
             const base64Combined = encode(combined.buffer);
             const fileUri = FileSystem.cacheDirectory + 'audio.mp3';
             await FileSystem.writeAsStringAsync(fileUri, base64Combined, {
               encoding: FileSystem.EncodingType.Base64,
             });
+
             const { sound: newSound } = await Audio.Sound.createAsync(
               { uri: fileUri },
               { shouldPlay: true }
             );
+
+            console.log('▶️ Reproduciendo audio');
             newSound.currentSong = songName;
             setSound(newSound);
             setupPlaybackStatusUpdate(newSound);
             setIsPlaying(true);
-            await AsyncStorage.setItem('isPlaying', 'true');
-            setCurrentSong(songName);
             globalSound = newSound;
             await AsyncStorage.setItem('lastSong', songName);
+            await AsyncStorage.setItem('isPlaying', 'true');
           } catch (error) {
+            console.error("❌ Error procesando audio:", error);
             Alert.alert("Error", "No se pudo procesar el audio");
           } finally {
             audioChunksRef.current = [];
           }
         });
 
-        newSocket.on('error', (error) => {
-          Alert.alert('Error', error.message || 'Error de conexión');
+        newSocket.on('error', (err) => {
+          console.error('❗ WebSocket Error:', err);
+          Alert.alert("Error", err.message || "Error de conexión");
         });
 
         setSocket(newSocket);
         globalSocket = newSocket;
       };
 
-      setupSocket();
+      setupSocket(email);
     };
 
     initPlayer();
@@ -155,50 +158,45 @@ export default function MusicPlayer({ navigation, route }) {
   const siguienteCancion = async () => {
     if (colaUnica) return;
     try {
-      const email = await AsyncStorage.getItem('email');
-      if (!email) return;
+      const email = userEmail || await AsyncStorage.getItem('email');
       const response = await fetch(`https://echobeatapi.duckdns.org/cola-reproduccion/siguiente-cancion?userEmail=${encodeURIComponent(email)}`);
       const data = await response.json();
       if (!response.ok) return;
-      const response2 = await fetch(`https://echobeatapi.duckdns.org/playlists/song-details/${data.siguienteCancionId}`);
-      const data2 = await response2.json();
-      if (!response2.ok) return;
+      const res2 = await fetch(`https://echobeatapi.duckdns.org/playlists/song-details/${data.siguienteCancionId}`);
+      const songData = await res2.json();
       navigation.replace('MusicPlayer', {
         songId: data.siguienteCancionId,
-        songName: data2.Nombre,
+        songName: songData.Nombre,
+        userEmail: email,
       });
-    } catch (error) {
+    } catch (err) {
       Alert.alert("Error", "No se pudo avanzar a la siguiente canción");
     }
   };
 
   const anteriorCancion = async () => {
     try {
-      if (position > duration * 0.2) {
-        if (sound) {
-          await sound.setPositionAsync(0);
-          if (!isPlaying) {
-            await sound.playAsync();
-            setIsPlaying(true);
-          }
+      if (position > duration * 0.2 && sound) {
+        await sound.setPositionAsync(0);
+        if (!isPlaying) {
+          await sound.playAsync();
+          setIsPlaying(true);
         }
         return;
       }
 
-      const email = await AsyncStorage.getItem('email');
-      if (!email) return;
+      const email = userEmail || await AsyncStorage.getItem('email');
       const response = await fetch(`https://echobeatapi.duckdns.org/cola-reproduccion/anterior?userEmail=${encodeURIComponent(email)}`);
       const data = await response.json();
-      if (!response.ok) return;
-      const response2 = await fetch(`https://echobeatapi.duckdns.org/playlists/song-details/${data.cancionAnteriorId}`);
-      const data2 = await response2.json();
-      if (!response2.ok) return;
+      const res2 = await fetch(`https://echobeatapi.duckdns.org/playlists/song-details/${data.cancionAnteriorId}`);
+      const songData = await res2.json();
       navigation.replace('MusicPlayer', {
         songId: data.cancionAnteriorId,
-        songName: data2.Nombre,
+        songName: songData.Nombre,
+        userEmail: email,
       });
-    } catch (error) {
-      Alert.alert("Error", "No se pudo avanzar a la anterior canción");
+    } catch (err) {
+      Alert.alert("Error", "No se pudo volver a la canción anterior");
     }
   };
 
@@ -224,7 +222,7 @@ export default function MusicPlayer({ navigation, route }) {
 
   return (
     <View style={styles.container}>
-      <Image source={require('../assets/jordi.jpg')} style={styles.backgroundImage} />
+      <Image source={require('../assets/favorites.jpg')} style={styles.backgroundImage} />
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerButton}>
           <Ionicons name="arrow-back" size={24} color="#f2ab55" />
@@ -237,34 +235,23 @@ export default function MusicPlayer({ navigation, route }) {
         maximumValue={duration}
         value={position}
         onSlidingComplete={handleSeek}
+        minimumTrackTintColor="#f2ab55"
+        maximumTrackTintColor="#ffffff"
+        thumbTintColor="#f2ab55"
       />
       <View style={styles.controls}>
         <TouchableOpacity onPress={anteriorCancion}>
           <Ionicons name="play-back" size={40} color="#f2ab55" />
         </TouchableOpacity>
-
-        {sound ? (
-          <TouchableOpacity onPress={togglePlayPause}>
-            <Image
-              source={isPlaying ? require('../assets/pause.png') : require('../assets/play.png')}
-              style={styles.playPauseButton}
-            />
-          </TouchableOpacity>
-        ) : (
-          <View style={styles.disabledButton}>
-            <Text style={styles.disabledText}>...</Text>
-          </View>
-        )}
-
-        {colaUnica ? (
-          <View style={styles.disabledButton}>
-            <Ionicons name="play-forward" size={30} color="#888" />
-          </View>
-        ) : (
-          <TouchableOpacity onPress={siguienteCancion}>
-            <Ionicons name="play-forward" size={40} color="#f2ab55" />
-          </TouchableOpacity>
-        )}
+        <TouchableOpacity onPress={togglePlayPause}>
+          <Image
+            source={isPlaying ? require('../assets/pause.png') : require('../assets/play.png')}
+            style={styles.playPauseButton}
+          />
+        </TouchableOpacity>
+        <TouchableOpacity onPress={siguienteCancion} disabled={colaUnica}>
+          <Ionicons name="play-forward" size={40} color={colaUnica ? "#888" : "#f2ab55"} />
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -303,6 +290,7 @@ const styles = StyleSheet.create({
     width: '80%',
     marginBottom: 20,
     marginTop: 170,
+    thumbTintColor: '#f2ab55',
   },
   controls: {
     flexDirection: 'row',

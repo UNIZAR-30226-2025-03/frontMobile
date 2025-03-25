@@ -14,7 +14,9 @@ import Settings from './screens/Settings';
 import MyLists from './screens/MyLists';
 import MusicPlayer from './screens/MusicPlayer';
 import GeneroPreferences from './screens/GeneroPreferences';
-import PlaylistDetail from './screens/PlaylistDetails';
+import GeneroPreferencesInit from './screens/GeneroPreferencesInit';
+import PlaylistDetails from './screens/PlaylistDetails';
+import AlbumDetails from './screens/AlbumDetails';
 import CrearPlaylist from './screens/CrearPlaylist';
 import SearchResults from './screens/SearchResults';
 
@@ -37,7 +39,9 @@ export default function App() {
         <Stack.Screen name="MyLists" component={MyLists} />
         <Stack.Screen name="MusicPlayer" component={MusicPlayer} />
         <Stack.Screen name="GeneroPreferences" component={GeneroPreferences} />
-        <Stack.Screen name="PlaylistDetail" component={PlaylistDetail} />
+        <Stack.Screen name="GeneroPreferencesInit" component={GeneroPreferencesInit} />
+        <Stack.Screen name="PlaylistDetails" component={PlaylistDetails} />
+        <Stack.Screen name="AlbumDetails" component={AlbumDetails} />
         <Stack.Screen name="CrearPlaylist" component={CrearPlaylist} />
         <Stack.Screen name="SearchResults" component={SearchResults} />
       </Stack.Navigator>

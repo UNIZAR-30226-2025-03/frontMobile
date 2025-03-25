@@ -49,29 +49,37 @@ export default function MyLists({ navigation }) {
     }
   };
 
-  const renderPlaylist = ({ item }) => (
-    <TouchableOpacity
-      style={styles.playlistItem}
-      onPress={() => {
-        /*if (item.esFavoritos) {
-          navigation.navigate("Favorites"); // Ir a la pantalla de favoritos
-        } else {
-          navigation.navigate("PlaylistDetail", { playlist: item });
-        }*/
-        navigation.navigate("PlaylistDetail", { playlist: item });
-      }}
-    >
-      <Image
-        /*source={ item.esFavoritos
-          ? require('../assets/favorites.jpg') // Icono de favoritos
-          : item.Portada ? { uri: item.Portada } : require('../assets/default_playlist_portada.jpg')
-        }*/
-        source={{ uri: item.lista.Portada }}
-        style={ styles.playlistImage }
-      />
-      <Text style={styles.playlistTitle} numberOfLines={1}>{item.Nombre}</Text>
-    </TouchableOpacity>
-  );
+  const renderPlaylist = ({ item }) => {
+    const normalizedPlaylist = {
+      Id: item.id || item.Id,
+      Nombre: item.nombre || item.Nombre || item.lista?.Nombre || 'Sin nombre',
+      Portada: item.lista?.Portada || item.Portada || '',
+      Descripcion: item.descripcion || item.Descripcion || '',
+    };
+  
+    return (
+      <TouchableOpacity
+        style={styles.playlistItem}
+        onPress={() => {
+          console.log('📀 Playlist enviada desde MyLists:', normalizedPlaylist);
+          navigation.navigate("PlaylistDetails", { playlist: normalizedPlaylist });
+        }}
+      >
+        <Image
+          source={
+            normalizedPlaylist.Portada
+              ? { uri: normalizedPlaylist.Portada }
+              : require('../assets/default_playlist_portada.jpg')
+          }
+          style={styles.playlistImage}
+        />
+        <Text style={styles.playlistTitle} numberOfLines={1}>
+          {normalizedPlaylist.Nombre}
+        </Text>
+      </TouchableOpacity>
+    );
+  };
+  
 
   return (
     <SafeAreaView style={styles.container}>

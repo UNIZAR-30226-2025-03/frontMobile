@@ -87,27 +87,6 @@ export default function PlaylistDetail({ navigation, route }) {
       console.error(`❌ Error al ${esFavorita ? 'quitar' : 'agregar'} favorito con ID ${songId}:`, error.message);
     }
   };
-  
-  const eliminarPlaylist = async () => {
-    try {
-      const response = await fetch(`https://echobeatapi.duckdns.org/playlists/delete/${playlist.Id}`, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-      });
-      const responseText = await response.text();
-      let data = {};
-      try {
-        data = JSON.parse(responseText);
-      } catch (e) {
-        console.log("Respuesta no es JSON:", responseText);
-      }
-      if (!response.ok) throw new Error(data.message || "Error al eliminar la playlist");
-      navigation.replace("HomeScreen");
-    } catch (error) {
-      console.error("Error en eliminarPlaylist:", error);
-      Alert.alert("Error", error.message);
-    }
-  };
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -270,16 +249,6 @@ export default function PlaylistDetail({ navigation, route }) {
       )}
     </View>
   );
-  
-
-  const ListFooter = () => (
-    <TouchableOpacity
-      style={styles.addButton}
-      onPress={() => navigation.navigate("Search", { defaultFilter: "Canción" })}
-    >
-      <Text style={styles.addButtonText}>+ Añadir canciones</Text>
-    </TouchableOpacity>
-  );
 
   return (
     <SafeAreaView style={styles.container}>
@@ -297,7 +266,6 @@ export default function PlaylistDetail({ navigation, route }) {
         keyExtractor={(item, index) => index.toString()}
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={ListHeader}
-        ListFooterComponent={ListFooter}
         contentContainerStyle={styles.flatListContent}
         refreshControl={
           <RefreshControl
@@ -340,12 +308,9 @@ export default function PlaylistDetail({ navigation, route }) {
             ) : (
               <Text style={styles.infoText}>Cargando información...</Text>
             )}
-            <TouchableOpacity style={styles.editButton} onPress={() => { }}>
-              <Text style={styles.editButtonText}>Editar playlist</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.deleteButton} onPress={() => eliminarPlaylist()}>
-              <Text style={styles.deleteButtonText}>Eliminar playlist</Text>
-            </TouchableOpacity>
+            <Text style={[styles.infoText, { marginTop: 20 }]}>
+                Este álbum no se puede editar ni eliminar
+            </Text>
           </View>
           <View style={styles.blurBackground} />
         </View>

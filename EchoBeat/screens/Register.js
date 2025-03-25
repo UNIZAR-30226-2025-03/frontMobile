@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView, Alert, Platform, } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const usuariosRegistrados = { // Ejemplos que se reemplazarán por llamada a API
   correos: ['usuario@example.com', 'test@test.com'],
@@ -73,8 +74,10 @@ export default function Register({ navigation }) {
         throw new Error(data.message || "Error al registrar usuario");
       }
   
-      Alert.alert("Éxito", "Registro exitoso! Inicie sesión.");
-      navigation.navigate("Login_Register");
+      await AsyncStorage.setItem("email", correo);
+      Alert.alert("Éxito", "Registro exitoso! Seleccione sus géneros preferidos e inicie sesión.");
+
+      navigation.navigate('GeneroPreferencesInit');
     } catch (error) {
       Alert.alert("Error", error.message);
     }
