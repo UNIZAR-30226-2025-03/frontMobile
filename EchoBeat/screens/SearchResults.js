@@ -21,7 +21,7 @@ export default function SearchResults({ route, navigation }) {
   const options = ["Canción", "Playlist", "Autor", "Álbum"];
   const optionMap = {
     "Canción": "canciones",
-    "Playlist": "listas",
+    "Playlist": "playlists",
     "Autor": "artistas",
     "Álbum": "albums",
   };
@@ -29,6 +29,7 @@ export default function SearchResults({ route, navigation }) {
   const handleSearch = async () => {
     const tipo = selectedOption ? optionMap[selectedOption] : '';
     const url = `https://echobeatapi.duckdns.org/search?q=${encodeURIComponent(searchText)}${tipo ? `&tipo=${tipo}` : ''}`;
+    console.log("Tipo de busqueda", tipo);
     try {
       const response = await fetch(url);
       const data = await response.json();
@@ -88,7 +89,10 @@ export default function SearchResults({ route, navigation }) {
   const fetchPlaylists = async () => {
     try {
       const response = await fetch(`https://echobeatapi.duckdns.org/playlists/user/${email}`);
-      if (!response.ok) return;
+      if (!response.ok) {
+        console.error("Error al obtener las playlists del usuario");
+        return;
+      }
       const data = await response.json();
       setPlaylists(data);
     } catch (error) {
@@ -212,6 +216,42 @@ export default function SearchResults({ route, navigation }) {
 
   const renderItem = ({ item }) => {
     switch (item.type) {
+      case 'album':
+        return (
+          <View style={styles.itemContainer}>
+            <Image
+              source={{ uri: item.Portada || 'URL_por_defecto' }}
+              style={styles.itemImage}
+            />
+            <View style={styles.itemTextContainer}>
+              <Text style={styles.itemTitle}>{item.Nombre}</Text>
+              <Text style={styles.itemSubtitle}>
+                {item.NumCanciones} canciones • {item.FechaLanzamiento?.split('T')[0]}
+              </Text>
+            </View>
+            <TouchableOpacity onPress={() => openModal(item)}>
+              <Ionicons name="ellipsis-vertical" size={24} color="#fff" />
+            </TouchableOpacity>
+          </View>
+        );
+
+      case 'artist':
+        return (
+          <View style={[styles.itemContainer, styles.artistContainer]}>
+            <Image
+              source={{ uri: item.FotoPerfil || 'URL_por_defecto' }}
+              style={styles.artistImage}
+            />
+            <View style={styles.artistTextContainer}>
+              <Text style={styles.artistName}>{item.Nombre}</Text>
+              <Text style={styles.artistListeners}>{item.NumOyentesTotales || 0} oyentes</Text>
+            </View>
+            <TouchableOpacity onPress={() => openModal(item)}>
+              <Ionicons name="ellipsis-vertical" size={24} color="#fff" />
+            </TouchableOpacity>
+          </View>
+        );
+
       case 'song':
         return (
           <TouchableOpacity style={styles.itemContainer} onPress={() => playSingleSong(item)}>
@@ -224,6 +264,23 @@ export default function SearchResults({ route, navigation }) {
               <Ionicons name="ellipsis-vertical" size={24} color="#fff" />
             </TouchableOpacity>
           </TouchableOpacity>
+        );
+
+      case 'playlists':
+        return (
+          <View style={styles.itemContainer}>
+            <Image
+              source={{ uri: item.portada || 'URL_por_defecto' }}
+              style={styles.itemImage}
+            />
+            <View style={styles.itemTextContainer}>
+              <Text style={styles.itemTitle}>{item.nombre}</Text>
+              <Text style={styles.itemSubtitle}>{item.numeroLikes} likes</Text>
+            </View>
+            <TouchableOpacity onPress={() => openModal(item)}>
+              <Ionicons name="ellipsis-vertical" size={24} color="#fff" />
+            </TouchableOpacity>
+          </View>
         );
       default:
         return null;
@@ -279,9 +336,18 @@ export default function SearchResults({ route, navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#000' },
-  topContainer: { padding: 16, marginTop: 40 },
-  topBar: { flexDirection: 'row', alignItems: 'center' },
+  container: { 
+    flex: 1, 
+    backgroundColor: '#000' 
+  },
+  topContainer: { 
+    padding: 16, 
+    marginTop: 40 
+  },
+  topBar: { 
+    flexDirection: 'row', 
+    alignItems: 'center' 
+  },
   searchInput: {
     flex: 1,
     backgroundColor: '#333',
@@ -292,7 +358,9 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 18,
   },
-  listContainer: { paddingBottom: 20 },
+  listContainer: { 
+    paddingBottom: 20 
+  },
   itemContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -305,11 +373,46 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginRight: 16,
   },
-  itemTextContainer: { flex: 1 },
-  itemTitle: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
-  itemSubtitle: { color: '#ccc', fontSize: 14 },
+  artistContainer: {
+    backgroundColor: '#222',
+    borderRadius: 8,
+    padding: 16,
+  },
+  artistImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 8,
+    marginRight: 16,
+  },
+  artistTextContainer: {
+    flex: 1,
+  },
+  artistName: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  artistListeners: {
+    color: '#ccc',
+    fontSize: 14,
+  },
+  itemTextContainer: { 
+    flex: 1 
+  },
+  itemTitle: { 
+    color: '#fff', 
+    fontSize: 16, 
+    fontWeight: 'bold' 
+  },
+  itemSubtitle: { 
+    color: '#ccc', 
+    fontSize: 14 
+  },
   modalOverlay: {
-    flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0, 0, 0, 0.5)'
+    flex: 1, 
+    justifyContent: 'center', 
+    alignItems: 'center', 
+    backgroundColor: 'rgba(0, 0, 0, 0.5)'
   },
   modalContent: {
     backgroundColor: '#333',
@@ -317,13 +420,22 @@ const styles = StyleSheet.create({
     padding: 16,
     width: '90%',
   },
-  closeButton: { alignSelf: 'flex-end' },
-  modalOption: { paddingVertical: 12 },
-  modalOptionText: { color: '#fff', fontSize: 18 },
+  closeButton: { 
+    alignSelf: 'flex-end' 
+  },
+  modalOption: { 
+    paddingVertical: 12 
+  },
+  modalOptionText: { 
+    color: '#fff', 
+    fontSize: 18 
+  },
   playlistOptionContainer: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
   },
-  playlistList: { marginTop: 8 },
+  playlistList: { 
+    marginTop: 8 
+  },
   playlistItem: {
     flexDirection: 'row', alignItems: 'center', paddingVertical: 8, paddingLeft: 16,
   },

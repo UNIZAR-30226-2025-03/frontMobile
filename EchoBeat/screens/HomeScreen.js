@@ -1,20 +1,36 @@
 import React, { useState, useLayoutEffect, useEffect, useRef } from 'react';
-import { View, Text, FlatList, Image, StyleSheet, Dimensions, TouchableOpacity, TouchableWithoutFeedback, Animated, Alert, Easing } from 'react-native';
+import { 
+  View, 
+  Text, 
+  FlatList, 
+  Image, 
+  StyleSheet, 
+  Dimensions, 
+  TouchableOpacity, 
+  TouchableWithoutFeedback, 
+  Animated, 
+  Alert, 
+  Easing,
+  RefreshControl,
+  ScrollView
+} from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 
 export default function HomeScreen({ navigation }) {
   const [playlistCreadas, setPlaylistCreadas] = useState([]);
   const [cancionSonando, setCancionSonando] = useState(false);
-  const [estaReproduciendo, setEstaReproduciendo] = useState(false); // 🆕 estado
+  const [estaReproduciendo, setEstaReproduciendo] = useState(false);
   const rotation = useRef(new Animated.Value(0)).current;
   const [menuAbierto, setMenuAbierto] = useState(false);
   const blurAnimation = useRef(new Animated.Value(0)).current;
   const [recomendations, setRecomendations] = useState([]);
   const [userEmail, setUserEmail] = useState('');
   const [userName, setUserName] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
+  const [profilePhoto, setProfilePhoto] = useState(null);
 
   useLayoutEffect(() => {
     navigation.setOptions({ headerShown: false });
@@ -25,7 +41,18 @@ export default function HomeScreen({ navigation }) {
     checkSongPlaying();
   }, []);
 
-  // 🔁 Rotación controlada por ambos estados
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await obtenerInfoUser();
+      await checkSongPlaying();
+    } catch (error) {
+      Alert.alert("Error", "No se pudo actualizar los datos");
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
   useEffect(() => {
     if (cancionSonando && estaReproduciendo) {
       startRotationLoop();
@@ -57,10 +84,12 @@ export default function HomeScreen({ navigation }) {
         return;
       }
       setUserEmail(email);
-      const response = await fetch(`https://echobeatapi.duckdns.org/users/nick?userEmail=${email}`);
+      const response = await fetch(`https://echobeatapi.duckdns.org/users/get-user?userEmail=${email}`);
       const data = await response.json();
+      
       if (!response.ok) throw new Error(data.message || "Error al obtener el nombre del usuario");
       setUserName(data.Nick || 'Usuario');
+      setProfilePhoto(data.LinkFoto);
       await obtenerPlaylistsCreadas(email);
       await obtenerRecomendaciones(email);
     } catch (error) {
@@ -182,17 +211,15 @@ export default function HomeScreen({ navigation }) {
   });
 
   const renderPlaylistCreada = ({ item }) => {
-    const imageSource =
-      item.lista?.Portada && item.lista.Portada !== "URL_por_defecto"
-        ? { uri: item.lista.Portada }
-        : require('../assets/darkraul.jpg');
+    const imageSource = { uri: item.lista.Portada };
 
     return (
-      <TouchableOpacity onPress={() => navigation.navigate("PlaylistDetail", { playlist: item.lista })}>
-        <View style={styles.playlistItem}>
-          <Image source={imageSource} style={styles.playlistImage} />
-          <Text style={styles.playlistTitle}>{item.lista?.Nombre || '####'}</Text>
-        </View>
+      <TouchableOpacity 
+        onPress={() => navigation.navigate("PlaylistDetail", { playlist: item.lista })}
+        style={styles.playlistItem}
+      >
+        <Image source={imageSource} style={styles.playlistImage} />
+        <Text style={styles.playlistTitle}>{item.lista?.Nombre || '####'}</Text>
       </TouchableOpacity>
     );
   };
@@ -202,10 +229,13 @@ export default function HomeScreen({ navigation }) {
       ? { uri: item.FotoGenero }
       : require('../assets/darkraul.jpg');
     return (
-      <View style={styles.recomendationsItem}>
+      <TouchableOpacity 
+        style={styles.recomendationsItem}
+        //onPress={() => navigation.navigate('GenreSongs', { genre: item.NombreGenero })}
+      >
         <Image source={imageSource} style={styles.recomendationsImage} />
         <Text style={styles.recomendationsTitle}>{item.NombreGenero || '####'}</Text>
-      </View>
+      </TouchableOpacity>
     );
   };
 
@@ -240,47 +270,64 @@ export default function HomeScreen({ navigation }) {
           <View style={styles.headerContainer}>
             <Text style={styles.greeting}>Hola 😄, {userName}</Text>
             <TouchableOpacity onPress={() => navigation.navigate('ProfileScreen')}>
-              <Image source={require('../assets/favicon.png')} style={styles.profileImage} />
+              <Image source={{uri: profilePhoto}} style={styles.profileImage} />
             </TouchableOpacity>
           </View>
 
-          <Text style={styles.subTitle}>Tus Listas</Text>
-          {playlistCreadas.length === 0 ? (
-            <TouchableOpacity
-              style={styles.createFirstPlaylistButton}
-              onPress={() => navigation.navigate("CrearPlaylist")}
-            >
-              <Text style={styles.createFirstPlaylistButtonText}>Crea tu 1ª Playlist!</Text>
-            </TouchableOpacity>
-          ) : (
-            <FlatList
-              data={playlistCreadas}
-              renderItem={renderPlaylistCreada}
-              keyExtractor={(item, index) => index.toString()}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.playlistList}
-              style={styles.playlistCreadasSlider}
-            />
-          )}
+          <ScrollView 
+            style={styles.scrollContainer}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                colors={['#f2ab55']}
+                tintColor="#f2ab55"
+              />
+            }
+          >
+            {/* Sección Tus Listas */}
+            <View style={styles.sectionContainer}>
+              <Text style={styles.subTitle}>Tus Listas</Text>
+              {playlistCreadas.length === 0 ? (
+                <TouchableOpacity
+                  style={styles.createFirstPlaylistButton}
+                  onPress={() => navigation.navigate("CrearPlaylist")}
+                >
+                  <Text style={styles.createFirstPlaylistButtonText}>Crea tu 1ª Playlist!</Text>
+                </TouchableOpacity>
+              ) : (
+                <FlatList
+                  data={playlistCreadas}
+                  renderItem={renderPlaylistCreada}
+                  keyExtractor={(item, index) => index.toString()}
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.horizontalListContent}
+                />
+              )}
+            </View>
 
-          <Text style={styles.subTitle}>Recomendaciones</Text>
-          {recomendations.length === 0 ? (
-            <Text style={{ color: '#fff', textAlign: 'center', marginTop: 20 }}>
-              No hay recomendaciones disponibles
-            </Text>
-          ) : (
-            <FlatList
-              data={recomendations}
-              renderItem={renderRecomendationsItem}
-              keyExtractor={(item, index) => index.toString()}
-              numColumns={2}
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={styles.recomendationsList}
-              columnWrapperStyle={styles.recomendationsList}
-              style={styles.recomendationsSlider}
-            />
-          )}
+            {/* Sección Recomendaciones */}
+            <View style={styles.sectionContainer}>
+              <Text style={styles.subTitle}>Recomendaciones</Text>
+              {recomendations.length === 0 ? (
+                <Text style={styles.noContentText}>No hay recomendaciones disponibles</Text>
+              ) : (
+                <FlatList
+                  data={recomendations}
+                  renderItem={renderRecomendationsItem}
+                  keyExtractor={(item, index) => index.toString()}
+                  numColumns={2}
+                  scrollEnabled={false}
+                  showsVerticalScrollIndicator={false}
+                  contentContainerStyle={styles.gridListContent}
+                />
+              )}
+            </View>
+            
+            {/* Espacio para el menú inferior */}
+            <View style={{ height: 100 }} />
+          </ScrollView>
         </View>
 
         <View style={styles.bottomContainer}>
@@ -303,97 +350,110 @@ export default function HomeScreen({ navigation }) {
   );
 }
 
-
 const styles = StyleSheet.create({
   container: {
+    paddingTop: 40,
     flex: 1,
     backgroundColor: '#121111',
-    paddingHorizontal: 15,
   },
-  blurView: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#000',
-    zIndex: 1,
+  scrollContainer: {
+    flex: 1,
+    paddingHorizontal: 15,
   },
   headerContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 30,
+    paddingVertical: 15,
+    paddingHorizontal: 20,
   },
   greeting: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: 'bold',
     color: '#ffffff',
-    marginLeft: 18,
-    marginTop: 15,
   },
   profileImage: {
-    width: 45,
-    height: 45,
-    borderRadius: 22.5,
-    backgroundColor: '#333',
-    marginTop: 15,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+  },
+  sectionContainer: {
+    marginBottom: 20,
   },
   subTitle: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: 'bold',
     color: '#f2ab55',
-    marginTop: 10,
-    marginBottom: 5,
-    marginLeft: 20,
+    marginLeft: 5,
+    marginBottom: 10,
   },
-  playlistCreadasSlider: {
-    width: width * 0.9,
-    alignSelf: 'center',
-    marginTop: 10,
-  },
-  playlistList: {
-    paddingHorizontal: 5,
+  horizontalListContent: {
+    paddingLeft: 5,
+    paddingBottom: 5,
   },
   playlistItem: {
-    width: width / 2.5 - 15,
-    marginRight: 20,
+    width: width / 3.2,
+    marginRight: 12,
     alignItems: 'center',
   },
   playlistImage: {
-    width: width / 3 - 20,
-    height: width / 3 - 20,
-    borderRadius: 20,
+    width: width / 3.5,
+    height: width / 3.5,
+    borderRadius: 12,
     backgroundColor: '#333',
   },
   playlistTitle: {
-    marginTop: 5,
+    marginTop: 8,
     color: '#fff',
     fontSize: 14,
-    fontWeight: 'bold',
+    fontWeight: '600',
     textAlign: 'center',
   },
-  recomendationsSlider: {
-    width: width * 0.9,
-    alignSelf: 'center',
-  },
-  recomendationsList: {
-    justifyContent: 'space-between',
+  gridListContent: {
     paddingHorizontal: 5,
-  },
-  recomendationsItem: {
-    width: width / 2.5 - 15,
-    marginBottom: 15,
     alignItems: 'center',
   },
+  recomendationsItem: {
+    width: width / 2.4,
+    marginBottom: 12,
+    alignItems: 'center',
+    paddingHorizontal: 10,
+  },
   recomendationsImage: {
-    width: width / 2.5 - 20,
-    height: width / 2.5 - 20,
-    borderRadius: 20,
+    width: '100%',
+    aspectRatio: 1,
+    borderRadius: 12,
     backgroundColor: '#333',
   },
   recomendationsTitle: {
-    marginTop: 5,
+    marginTop: 8,
     color: '#fff',
     fontSize: 14,
-    fontWeight: 'bold',
+    fontWeight: '600',
     textAlign: 'center',
+  },
+  noContentText: {
+    color: '#aaa',
+    textAlign: 'center',
+    marginVertical: 20,
+    fontSize: 16,
+  },
+  createFirstPlaylistButton: {
+    backgroundColor: '#ffb723',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    alignSelf: 'center',
+  },
+  createFirstPlaylistButtonText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  blurView: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#000',
+    zIndex: 1,
   },
   bottomContainer: {
     position: 'absolute',
@@ -451,27 +511,12 @@ const styles = StyleSheet.create({
     borderRadius: 40,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'transparent', // para que no tape nada visualmente
+    backgroundColor: 'transparent',
     zIndex: 4,
   },
   discIcon: {
     width: 80,
     height: 80,
     borderRadius: 35,
-  },
-  createFirstPlaylistButton: {
-    backgroundColor: '#ffb723',
-    paddingVertical: 15,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 20,
-    marginBottom: 20,
-    alignSelf: 'center',
-  },
-  createFirstPlaylistButtonText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#fff',
   },
 });

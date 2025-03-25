@@ -12,7 +12,7 @@ export default function Search({ navigation, route }) {
   const options = ["Canción", "Playlist", "Autor", "Album"];
   const optionMap = {
     "Canción": "canciones",
-    "Playlist": "listas",
+    "Playlist": "playlists",
     "Autor": "artistas",
     "Album": "albums"
   };

@@ -32,6 +32,7 @@ export default function MyLists({ navigation }) {
 
       let userPlaylists = data.playlists ? data.playlists : data; // Manejar si es array u objeto
 
+      console.log("Playlists:", userPlaylists);
       // Agregar la playlist "Favoritos" como primera lista
       const favoritosPlaylist = {
         Nombre: "Favoritos",
@@ -39,7 +40,8 @@ export default function MyLists({ navigation }) {
         esFavoritos: true,
       };
 
-      setPlaylists([favoritosPlaylist, ...userPlaylists]); // Insertar "Favoritos" en la primera posición
+      //setPlaylists([favoritosPlaylist, ...userPlaylists]);
+      setPlaylists(userPlaylists);
     } catch (error) {
       console.error("Error al obtener playlists:", error);
     } finally {
@@ -51,19 +53,21 @@ export default function MyLists({ navigation }) {
     <TouchableOpacity
       style={styles.playlistItem}
       onPress={() => {
-        if (item.esFavoritos) {
+        /*if (item.esFavoritos) {
           navigation.navigate("Favorites"); // Ir a la pantalla de favoritos
         } else {
           navigation.navigate("PlaylistDetail", { playlist: item });
-        }
+        }*/
+        navigation.navigate("PlaylistDetail", { playlist: item });
       }}
     >
       <Image
-        source={ item.esFavoritos
+        /*source={ item.esFavoritos
           ? require('../assets/favorites.jpg') // Icono de favoritos
           : item.Portada ? { uri: item.Portada } : require('../assets/default_playlist_portada.jpg')
-        }
-        style={styles.playlistImage}
+        }*/
+        source={{ uri: item.lista.Portada }}
+        style={ styles.playlistImage }
       />
       <Text style={styles.playlistTitle} numberOfLines={1}>{item.Nombre}</Text>
     </TouchableOpacity>
@@ -84,7 +88,7 @@ export default function MyLists({ navigation }) {
       ) : playlists.length === 0 ? (
         <View style={styles.emptyMessageContainer}>
           <Text style={styles.emptyMessageText}>
-            No has creado ninguna playlist aún {'\n'} ¡Créala presionando el botón de abajo!
+            No has creado ninguna playlist aún {'\n'} ¡Créala presionando el botón '+' de abajo!
           </Text>
         </View>
       ) : (
