@@ -10,8 +10,8 @@ export default function ChatScreen({ navigation }) {
 
   const amigos = [
     { id: '1', nickname: 'Pedro', ultimaCancion: 'Bohemian Rhapsody', fotoPerfil: require('../assets/thanos1.jpg') },
-    { id: '2', nickname: 'Lucía', ultimaCancion: 'Rolling in the Deep', fotoPerfil: require('../assets/jordi.jpg') },
-    { id: '3', nickname: 'Carlos', ultimaCancion: 'Hotel California', fotoPerfil: require('../assets/jordi.jpg') },
+    { id: '2', nickname: 'Elías', ultimaCancion: 'Rolling in the Deep', fotoPerfil: require('../assets/eliasgossip.jpg') },
+    { id: '3', nickname: 'Carlos', ultimaCancion: 'Hotel California', fotoPerfil: require('../assets/carloscoche.jpg') },
     { id: '4', nickname: 'María', ultimaCancion: 'Someone Like You', fotoPerfil: require('../assets/darkraul.jpg') },
     { id: '5', nickname: 'Andrés', ultimaCancion: 'Stairway to Heaven', fotoPerfil: require('../assets/jordi.jpg') },
     { id: '6', nickname: 'Sofía', ultimaCancion: 'Shape of You', fotoPerfil: require('../assets/thanos1.jpg') },
