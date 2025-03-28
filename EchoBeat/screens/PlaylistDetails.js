@@ -1,5 +1,6 @@
 import React, { useState, useLayoutEffect, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Image, FlatList, Dimensions, Alert, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Image, Dimensions, Alert, RefreshControl } from 'react-native';
+import DraggableFlatList from 'react-native-draggable-flatlist';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -281,6 +282,19 @@ export default function PlaylistDetail({ navigation, route }) {
     </TouchableOpacity>
   );
 
+  const guardarNuevoOrden = async (nuevaLista) => {
+    try {
+      await fetch(`https://echobeatapi.duckdns.org/playlists/update-order/${playlist.Id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ canciones: nuevaLista.map((c, i) => ({ id: c.id, orden: i })) })
+      });
+    } catch (e) {
+      Alert.alert("Error", "No se pudo guardar el nuevo orden");
+    }
+  };
+  
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -291,23 +305,57 @@ export default function PlaylistDetail({ navigation, route }) {
           <Ionicons name="information-circle-outline" size={28} color="#f2ab55" />
         </TouchableOpacity>
       </View>
-      <FlatList
-        data={songs}
-        renderItem={renderSong}
-        keyExtractor={(item, index) => index.toString()}
-        showsVerticalScrollIndicator={false}
-        ListHeaderComponent={ListHeader}
-        ListFooterComponent={ListFooter}
-        contentContainerStyle={styles.flatListContent}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            colors={['#f2ab55']}
-            tintColor="#f2ab55"
-          />
-        }
-      />
+        <DraggableFlatList
+          data={songs}
+          keyExtractor={(item) => item.id.toString()}
+          renderItem={({ item, drag, isActive }) => (
+            <TouchableOpacity
+              onLongPress={drag}
+              disabled={isActive}
+              style={[styles.songItem, isActive && { opacity: 0.8 }]}
+              onPress={() => iniciarReproduccionDesdeCancion(item, songs.findIndex(s => s.id === item.id))}
+            >
+              <Image
+                source={item.portada === "URL"
+                  ? require('../assets/default_song_portada.jpg')
+                  : { uri: item.portada }}
+                style={styles.songImage}
+              />
+              <Text style={styles.songTitle} numberOfLines={1}>{item.nombre}</Text>
+
+              <TouchableOpacity onPress={() => toggleFavorito(item.id)} style={{ marginRight: 10 }}>
+                <Ionicons name="heart" size={22} color={favoritos.includes(item.id) ? "#f2ab55" : "#fff"} />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.songOptionsButton}
+                onPress={() => {
+                  setSelectedSong(item);
+                  setSongOptionsVisible(true);
+                }}
+              >
+                <Ionicons name="ellipsis-vertical" size={20} color="#fff" />
+              </TouchableOpacity>
+            </TouchableOpacity>
+          )}
+          onDragEnd={({ data }) => {
+            setSongs(data);
+            guardarNuevoOrden(data);
+            console.log("Nuevo orden guardado:", data);
+          }}
+          ListHeaderComponent={ListHeader}
+          ListFooterComponent={ListFooter}
+          contentContainerStyle={styles.flatListContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={['#f2ab55']}
+              tintColor="#f2ab55"
+            />
+          }
+        />
+
       {songOptionsVisible && (
         <View style={styles.songOptionsOverlay}>
           <View style={styles.songOptionsContainer}>

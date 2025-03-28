@@ -7,6 +7,7 @@ import * as FileSystem from 'expo-file-system';
 import { Ionicons } from '@expo/vector-icons';
 import { decode, encode } from 'base64-arraybuffer';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Modal } from 'react-native';
 
 let globalSound = null;
 let globalSocket = null;
@@ -21,6 +22,11 @@ export default function MusicPlayer({ navigation, route }) {
   const [socket, setSocket] = useState(null);
   const [colaUnica, setColaUnica] = useState(false);
   const [userEmail, setUserEmail] = useState(passedEmail || '');
+  const [favoritos, setFavoritos] = useState([]);
+  const [isFavorita, setIsFavorita] = useState(false);
+  const [loop, setLoop] = useState(false);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [playlists, setPlaylists] = useState([]);
 
   const audioChunksRef = useRef([]);
 
@@ -48,12 +54,59 @@ export default function MusicPlayer({ navigation, route }) {
         setPosition(status.positionMillis);
         setDuration(status.durationMillis);
         if (status.didJustFinish) {
-          console.log("🔁 Canción terminada");
-          siguienteCancion();
+          if (loop) {
+            soundInstance.setPositionAsync(0);
+            soundInstance.playAsync();
+          } else {
+            siguienteCancion();
+          }
         }
       }
     });
   };
+
+  const toggleFavorito = async () => {
+    if (!userEmail) return;
+    const endpoint = isFavorita ? 'unlike' : 'like';
+    const method = isFavorita ? 'DELETE' : 'POST';
+  
+    try {
+      const res = await fetch(`https://echobeatapi.duckdns.org/cancion/${endpoint}/${encodeURIComponent(userEmail)}/${songId}`, {
+        method,
+      });
+      if (!res.ok) throw new Error("Error al cambiar favorito");
+      setIsFavorita(!isFavorita);
+    } catch (err) {
+      Alert.alert("Error", "No se pudo actualizar favorito");
+    }
+  };
+  
+  const fetchPlaylists = async () => {
+    try {
+      const res = await fetch(`https://echobeatapi.duckdns.org/playlists/user/${userEmail}`);
+      const data = await res.json();
+      setPlaylists(data);
+    } catch (e) {
+      console.error("❌ Error al obtener playlists:", e);
+    }
+  };
+  
+  const addSongToPlaylist = async (playlistId) => {
+    try {
+      const res = await fetch(`https://echobeatapi.duckdns.org/playlists/add-song/${playlistId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idLista: playlistId, songId }),
+      });
+      if (!res.ok) throw new Error("Error al añadir canción");
+      Alert.alert("✅ Añadido", "Canción añadida a la playlist");
+    } catch (err) {
+      Alert.alert("Error", "No se pudo añadir a la playlist");
+    } finally {
+      setModalVisible(false);
+    }
+  };
+  
 
   useEffect(() => {
     const initPlayer = async () => {
@@ -64,6 +117,17 @@ export default function MusicPlayer({ navigation, route }) {
         return;
       }
       setUserEmail(email);
+      // Verificar si la canción está en favoritos
+      try {
+        const favRes = await fetch(`https://echobeatapi.duckdns.org/cancion/favorites?email=${encodeURIComponent(email)}`);
+        const favData = await favRes.json();
+        const ids = (favData.canciones || []).map(c => c.id);
+        setFavoritos(ids);
+        setIsFavorita(ids.includes(songId));
+      } catch (err) {
+        console.warn("⚠️ No se pudieron obtener favoritos:", err);
+      }
+
 
       try {
         const response = await fetch(`https://echobeatapi.duckdns.org/cola-reproduccion/cola?userEmail=${encodeURIComponent(email)}`);
@@ -223,12 +287,42 @@ export default function MusicPlayer({ navigation, route }) {
   return (
     <View style={styles.container}>
       <Image source={require('../assets/favorites.jpg')} style={styles.backgroundImage} />
+  
+      {/* Header con botón de volver */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerButton}>
           <Ionicons name="arrow-back" size={24} color="#f2ab55" />
         </TouchableOpacity>
       </View>
-      <Text style={styles.songTitle}>{currentSong}</Text>
+  
+      {/* Título y corazón */}
+      <View style={styles.titleRow}>
+        <Text style={styles.songTitle}>{currentSong}</Text>
+        <TouchableOpacity onPress={toggleFavorito}>
+          <Ionicons name="heart" size={30} color={isFavorita ? "#f2ab55" : "#fff"} />
+        </TouchableOpacity>
+      </View>
+  
+      {/* Controles encima del slider */}
+      <View style={styles.topControls}>
+        {/* Loop */}
+        <TouchableOpacity onPress={() => setLoop(prev => !prev)}>
+          <Ionicons name="repeat" size={28} color={loop ? "#f2ab55" : "#fff"} />
+        </TouchableOpacity>
+  
+        {/* Botón añadir a playlist */}
+        <TouchableOpacity
+          style={styles.addButton}
+          onPress={() => {
+            fetchPlaylists();
+            setModalVisible(true);
+          }}
+        >
+          <Ionicons name="add" size={24} color="#121111" />
+        </TouchableOpacity>
+      </View>
+  
+      {/* Slider */}
       <Slider
         style={styles.slider}
         minimumValue={0}
@@ -239,23 +333,54 @@ export default function MusicPlayer({ navigation, route }) {
         maximumTrackTintColor="#ffffff"
         thumbTintColor="#f2ab55"
       />
+  
+      {/* Controles */}
       <View style={styles.controls}>
         <TouchableOpacity onPress={anteriorCancion}>
           <Ionicons name="play-back" size={40} color="#f2ab55" />
         </TouchableOpacity>
+  
         <TouchableOpacity onPress={togglePlayPause}>
           <Image
             source={isPlaying ? require('../assets/pause.png') : require('../assets/play.png')}
             style={styles.playPauseButton}
           />
         </TouchableOpacity>
+  
         <TouchableOpacity onPress={siguienteCancion} disabled={colaUnica}>
           <Ionicons name="play-forward" size={40} color={colaUnica ? "#888" : "#f2ab55"} />
         </TouchableOpacity>
       </View>
-    </View>
-  );
-}
+  
+      {/* Modal para seleccionar playlist */}
+        <Modal
+          animationType="fade"
+          transparent={true}
+          visible={modalVisible}
+          onRequestClose={() => setModalVisible(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Añadir a Playlist</Text>
+              {playlists.map(pl => (
+                <TouchableOpacity
+                  key={pl.id}
+                  onPress={() => addSongToPlaylist(pl.id)}
+                  style={styles.playlistOption}
+                >
+                  <Text style={styles.playlistOptionText}>{pl.nombre || pl.Nombre}</Text>
+                </TouchableOpacity>
+              ))}
+              <TouchableOpacity onPress={() => setModalVisible(false)}>
+                <Text style={styles.cancelText}>Cancelar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+
+      </View>
+    );
+} 
 
 const styles = StyleSheet.create({
   container: {
@@ -289,13 +414,13 @@ const styles = StyleSheet.create({
   slider: {
     width: '80%',
     marginBottom: 20,
-    marginTop: 170,
+    marginTop: 250,
     thumbTintColor: '#f2ab55',
   },
   controls: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: -70,
+    marginBottom: -380,
   },
   playPauseButton: {
     width: 60,
@@ -317,4 +442,68 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
   },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: -100,
+  },
+  
+  topControls: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: '60%',
+    marginBottom: 10,
+    marginTop: -150, // para que quede encima del slider
+    zIndex: 1,
+    position: 'relative',
+  },
+  
+  loopButton: {
+    padding: 8,
+  },
+  
+  addButton: {
+    backgroundColor: '#f2ab55',
+    borderRadius: 20,
+    padding: 10,
+  },
+  
+  modalOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 999,
+  },
+  
+  modalContent: {
+    width: '80%',
+    backgroundColor: '#333',
+    borderRadius: 10,
+    padding: 20,
+  },
+  
+  playlistOption: {
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#444',
+  },
+  
+  playlistOptionText: {
+    color: '#f2ab55',
+    fontSize: 16,
+  },
+  
+  cancelText: {
+    color: '#aaa',
+    textAlign: 'right',
+    marginTop: 10,
+  },
+  
 });
