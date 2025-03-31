@@ -434,7 +434,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   recomendationsItem: {
-    width: width / 2.4,
+    width: width / 2.17,
     marginBottom: 12,
     alignItems: 'center',
     paddingHorizontal: 10,
