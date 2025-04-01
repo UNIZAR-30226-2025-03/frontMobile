@@ -1,11 +1,14 @@
 import React, { useState, useEffect, useLayoutEffect } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Image, FlatList, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Image, FlatList, ActivityIndicator, Modal, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function MyLists({ navigation }) {
   const [playlists, setPlaylists] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [selectedPlaylist, setSelectedPlaylist] = useState(null);
+  const [userEmail, setUserEmail] = useState('');
 
   useLayoutEffect(() => {
     navigation.setOptions({ headerShown: false });
@@ -13,7 +16,17 @@ export default function MyLists({ navigation }) {
 
   useEffect(() => {
     obtenerPlaylists();
+    obtenerEmail();
   }, []);
+
+  const obtenerEmail = async () => {
+    try {
+      const email = await AsyncStorage.getItem("email");
+      setUserEmail(email);
+    } catch (error) {
+      console.error("Error al obtener el email:", error);
+    }
+  };
 
   const obtenerPlaylists = async () => {
     try {
@@ -23,25 +36,30 @@ export default function MyLists({ navigation }) {
         return;
       }
 
-      // Llamada a la API para obtener las playlists del usuario
-      const response = await fetch(`https://echobeatapi.duckdns.org/playlists/user/${email}`);
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.message || "Error al obtener las playlists");
+      // Obtener playlists creadas por el usuario
+      const responseCreated = await fetch(`https://echobeatapi.duckdns.org/playlists/user/${email}`);
+      const dataCreated = await responseCreated.json();
+      let userPlaylists = dataCreated.playlists ? dataCreated.playlists : dataCreated; // Manejar si es array u objeto
+
+      // Obtener playlists guardadas (listas ajenas)
+      const responseLiked = await fetch(`https://echobeatapi.duckdns.org/playlists/liked/${email}`);
+      const dataLiked = await responseLiked.json();
+
+      // Combinar ambas listas
+      let allPlaylists = [];
+      if (Array.isArray(userPlaylists)) {
+        allPlaylists = userPlaylists;
+      } else if(userPlaylists) {
+        allPlaylists.push(userPlaylists);
+      }
+      // Marcamos las playlists guardadas con la propiedad "guardada"
+      if (dataLiked && Array.isArray(dataLiked)) {
+        const likedPlaylists = dataLiked.map(item => ({ ...item, guardada: true }));
+        allPlaylists = [...allPlaylists, ...likedPlaylists];
       }
 
-      let userPlaylists = data.playlists ? data.playlists : data; // Manejar si es array u objeto
-
-      console.log("Playlists:", userPlaylists);
-      // Agregar la playlist "Favoritos" como primera lista
-      const favoritosPlaylist = {
-        Nombre: "Favoritos",
-        Portada: "favoritos",
-        esFavoritos: true,
-      };
-
-      //setPlaylists([favoritosPlaylist, ...userPlaylists]);
-      setPlaylists(userPlaylists);
+      console.log("Playlists combinadas:", allPlaylists);
+      setPlaylists(allPlaylists);
     } catch (error) {
       console.error("Error al obtener playlists:", error);
     } finally {
@@ -49,41 +67,104 @@ export default function MyLists({ navigation }) {
     }
   };
 
+  const openOptionsModal = (playlist) => {
+    setSelectedPlaylist(playlist);
+    setModalVisible(true);
+  };
+
+  // Función para borrar playlist creada por el usuario
+  const borrarPlaylist = async () => {
+    if (!selectedPlaylist) return;
+    try {
+      // Se asume un endpoint para borrar playlists propias
+      const response = await fetch(`https://echobeatapi.duckdns.org/playlists/${userEmail}/${selectedPlaylist.id || selectedPlaylist.Id}`, {
+        method: 'DELETE',
+        headers: { 'accept': '*/*' }
+      });
+      if (!response.ok) throw new Error("Error al borrar la playlist");
+      Alert.alert("Éxito", "Playlist borrada correctamente");
+      // Actualizamos la lista
+      obtenerPlaylists();
+    } catch (error) {
+      console.error("Error al borrar playlist:", error);
+      Alert.alert("Error", "No se pudo borrar la playlist");
+    } finally {
+      setModalVisible(false);
+      setSelectedPlaylist(null);
+    }
+  };
+
+  // Función para olvidar (desguardar) una playlist guardada
+  const olvidarPlaylist = async () => {
+    if (!selectedPlaylist) return;
+    try {
+      const response = await fetch(`https://echobeatapi.duckdns.org/playlists/like/${userEmail}/${selectedPlaylist.id || selectedPlaylist.Id}`, {
+        method: 'DELETE',
+        headers: { 'accept': '*/*' }
+      });
+      if (!response.ok) throw new Error("Error al olvidar la playlist");
+      Alert.alert("Éxito", "Playlist olvidada correctamente");
+      // Actualizamos la lista
+      obtenerPlaylists();
+    } catch (error) {
+      console.error("Error al olvidar playlist:", error);
+      Alert.alert("Error", "No se pudo olvidar la playlist");
+    } finally {
+      setModalVisible(false);
+      setSelectedPlaylist(null);
+    }
+  };
+
   const renderPlaylist = ({ item }) => {
     const normalizedPlaylist = {
-      Id: item.id || item.Id,
+      id: item.id || item.Id,
       Nombre: item.nombre || item.Nombre || item.lista?.Nombre || 'Sin nombre',
       Portada: item.lista?.Portada || item.Portada || '',
       Descripcion: item.descripcion || item.Descripcion || '',
+      guardada: item.guardada || false,
     };
   
     return (
-      <TouchableOpacity
-        style={styles.playlistItem}
-        onPress={() => {
-          console.log('📀 Playlist enviada desde MyLists:', normalizedPlaylist);
-          navigation.navigate("PlaylistDetails", { playlist: normalizedPlaylist });
-        }}
-      >
-        <Image
-          source={
-            normalizedPlaylist.Portada
-              ? { uri: normalizedPlaylist.Portada }
-              : require('../assets/default_playlist_portada.jpg')
-          }
-          style={styles.playlistImage}
-        />
-        <Text style={styles.playlistTitle} numberOfLines={1}>
-          {normalizedPlaylist.Nombre}
-        </Text>
-      </TouchableOpacity>
+      <View style={styles.playlistItemContainer}>
+        <TouchableOpacity
+          style={styles.playlistMain}
+          onPress={() => {
+            console.log('📀 Playlist enviada desde MyLists:', normalizedPlaylist);
+            if (normalizedPlaylist.guardada) {
+              // Navegar a AlbumDetails para playlists guardadas
+              navigation.navigate("AlbumDetails", { playlist: normalizedPlaylist });
+            } else {
+              navigation.navigate("PlaylistDetails", { playlist: normalizedPlaylist });
+            }
+          }}
+        >
+          <Image
+            source={
+              normalizedPlaylist.Portada
+                ? { uri: normalizedPlaylist.Portada }
+                : require('../assets/default_playlist_portada.jpg')
+            }
+            style={styles.playlistImage}
+          />
+          <View style={styles.playlistTextContainer}>
+            <Text style={styles.playlistTitle} numberOfLines={1}>
+              {normalizedPlaylist.Nombre}
+            </Text>
+            {normalizedPlaylist.guardada && (
+              <Text style={styles.plusIcon}>+</Text>
+            )}
+          </View>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => openOptionsModal(normalizedPlaylist)} style={styles.optionsButton}>
+          <Ionicons name="ellipsis-vertical" size={24} color="#f2ab55" />
+        </TouchableOpacity>
+      </View>
     );
   };
-  
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header con flecha de retroceso y título */}
+      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.replace("HomeScreen")} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#f2ab55" />
@@ -96,7 +177,7 @@ export default function MyLists({ navigation }) {
       ) : playlists.length === 0 ? (
         <View style={styles.emptyMessageContainer}>
           <Text style={styles.emptyMessageText}>
-            No has creado ninguna playlist aún {'\n'} ¡Créala presionando el botón '+' de abajo!
+            No has creado ni guardado ninguna playlist aún{'\n'}¡Créala o guárdala presionando el botón '+'!
           </Text>
         </View>
       ) : (
@@ -108,13 +189,34 @@ export default function MyLists({ navigation }) {
         />
       )}
 
-      {/* Botón de "+" en la esquina inferior izquierda */}
+      {/* Botón para crear playlist */}
       <TouchableOpacity 
         style={styles.addButton}
         onPress={() => navigation.navigate("CrearPlaylist")}
       >
         <Ionicons name="add" size={30} color="#fff" />
       </TouchableOpacity>
+
+      {/* Modal de opciones */}
+      <Modal
+        transparent={true}
+        visible={modalVisible}
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <TouchableOpacity style={styles.modalOverlay} onPress={() => setModalVisible(false)}>
+          <View style={styles.modalContent}>
+            {selectedPlaylist && !selectedPlaylist.guardada ? (
+              <TouchableOpacity style={styles.modalOption} onPress={borrarPlaylist}>
+                <Text style={styles.modalOptionText}>Borrar playlist</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity style={styles.modalOption} onPress={olvidarPlaylist}>
+                <Text style={styles.modalOptionText}>Olvidar playlist</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -133,7 +235,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingTop: 30,
   },
-  backButton: { },
+  backButton: {},
   headerTitle: {
     fontSize: 24,
     fontWeight: 'bold',
@@ -153,14 +255,20 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingHorizontal: 20,
-    paddingBottom: 80, // espacio para el botón flotante
+    paddingBottom: 80,
   },
-  playlistItem: {
+  playlistItemContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 10,
     borderBottomWidth: 1,
     borderBottomColor: '#333',
+    justifyContent: 'space-between',
+  },
+  playlistMain: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
   },
   playlistImage: {
     width: 80,
@@ -168,9 +276,21 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginRight: 10,
   },
+  playlistTextContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   playlistTitle: {
     fontSize: 18,
     color: '#fff',
+  },
+  plusIcon: {
+    fontSize: 18,
+    color: '#f2ab55',
+    marginLeft: 6,
+  },
+  optionsButton: {
+    padding: 8,
   },
   addButton: {
     position: 'absolute',
@@ -182,5 +302,25 @@ const styles = StyleSheet.create({
     borderRadius: 25,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: '#333',
+    borderRadius: 8,
+    padding: 16,
+    width: '80%',
+  },
+  modalOption: {
+    paddingVertical: 12,
+  },
+  modalOptionText: {
+    color: '#fff',
+    fontSize: 18,
+    textAlign: 'center',
   },
 });

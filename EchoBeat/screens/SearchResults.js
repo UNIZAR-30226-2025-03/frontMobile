@@ -67,6 +67,22 @@ export default function SearchResults({ route, navigation }) {
     }
   };
 
+  // Función para guardar (dar like) a una playlist
+  const likePlaylist = async (playlist) => {
+    try {
+      const response = await fetch(`https://echobeatapi.duckdns.org/playlists/like/${email}/${playlist.Id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: '',
+      });
+      if (!response.ok) throw new Error("Error al guardar la playlist");
+      Alert.alert("Éxito", "Playlist guardada correctamente");
+    } catch (error) {
+      console.error("Error al guardar playlist:", error);
+      Alert.alert("Error", "No se pudo guardar la playlist");
+    }
+  };
+
   // Combinar y normalizar resultados
   const combinedResults = [
     ...(results.albums || []).map(item => ({ 
@@ -162,7 +178,6 @@ export default function SearchResults({ route, navigation }) {
     }
   };
 
-  
   const renderModalContent = () => {
     if (!selectedItem) return null;
 
@@ -211,7 +226,20 @@ export default function SearchResults({ route, navigation }) {
             )}
           </View>
         );
-
+      case 'playlist':
+        return (
+          <View>
+            <TouchableOpacity
+              style={styles.modalOption}
+              onPress={() => {
+                likePlaylist(selectedItem);
+                setModalVisible(false);
+              }}
+            >
+              <Text style={styles.modalOptionText}>Guardar Playlist</Text>
+            </TouchableOpacity>
+          </View>
+        );
       default:
         return null;
     }
@@ -259,7 +287,6 @@ export default function SearchResults({ route, navigation }) {
 
     switch (item.type) {
       case 'album': 
-      case 'album':
         const normalizedAlbum = {
           Id: item.id || item.Id,
           Nombre: item.nombre || item.Nombre,
@@ -346,7 +373,6 @@ export default function SearchResults({ route, navigation }) {
               console.log('🔍 Navegando a PlaylistDetail con:', item);
               navigation.navigate('PlaylistDetails', { playlist: normalizedPlaylist });
             }}
-            
           >
             <Image source={imageSource} style={styles.itemImage} />
             <View style={styles.itemTextContainer}>
@@ -360,8 +386,6 @@ export default function SearchResults({ route, navigation }) {
             </TouchableOpacity>
           </TouchableOpacity>
         );
-        
-
       default:
         return null;
     }
