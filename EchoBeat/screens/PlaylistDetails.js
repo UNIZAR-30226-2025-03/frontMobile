@@ -91,9 +91,15 @@ export default function PlaylistDetail({ navigation, route }) {
   
   const eliminarPlaylist = async () => {
     try {
-      const response = await fetch(`https://echobeatapi.duckdns.org/playlists/delete/${playlist.Id}`, {
+      const body = {
+        userEmail: userEmail,
+        idLista: playlist.Id,
+      };
+      
+      const response = await fetch(`https://echobeatapi.duckdns.org/playlists/delete`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
       });
       const responseText = await response.text();
       let data = {};
