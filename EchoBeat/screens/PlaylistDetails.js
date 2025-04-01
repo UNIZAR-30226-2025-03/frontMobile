@@ -20,7 +20,6 @@ export default function PlaylistDetail({ navigation, route }) {
   const [shuffle, setShuffle] = useState(false);
   const [cola, setCola] = useState(null);
 
-
   useLayoutEffect(() => {
     navigation.setOptions({ headerShown: false });
   }, [navigation]);
@@ -32,10 +31,9 @@ export default function PlaylistDetail({ navigation, route }) {
       if (!email) return;
   
       const encodedEmail = encodeURIComponent(email);
-      setUserEmail(email); // aún útil para toggleFavorito()
+      setUserEmail(email);
       console.log('📡 Haciendo fetch con playlist.Id:', playlist?.Id);
-
-      // ahora sí puedes usar el email directamente
+  
       const [cancionesData, playlistData, favoritosData] = await Promise.all([
         fetch(`https://echobeatapi.duckdns.org/playlists/${playlist.Id}/songs`).then(res => res.json()),
         fetch(`https://echobeatapi.duckdns.org/playlists/playlist/${playlist.Id}`).then(res => res.json()),
@@ -87,7 +85,7 @@ export default function PlaylistDetail({ navigation, route }) {
       console.error(`❌ Error al ${esFavorita ? 'quitar' : 'agregar'} favorito con ID ${songId}:`, error.message);
     }
   };
-  
+
   const eliminarPlaylist = async () => {
     try {
       const body = {
@@ -108,10 +106,36 @@ export default function PlaylistDetail({ navigation, route }) {
         console.log("Respuesta no es JSON:", responseText);
       }
       if (!response.ok) throw new Error(data.message || "Error al eliminar la playlist");
-      navigation.replace("HomeScreen");
+      navigation.navigate("HomeScreen");
     } catch (error) {
       console.error("Error en eliminarPlaylist:", error);
       Alert.alert("Error", error.message);
+    }
+  };
+
+  const eliminarCancionDeLista = async () => {
+    if (!selectedSong || !playlist?.Id) return;
+    try {
+      const body = {
+        idLista: playlist.Id,
+        songId: selectedSong.id || selectedSong.Id,
+      };
+      const response = await fetch(`https://echobeatapi.duckdns.org/playlists/delete-song/${playlist.Id}`, {
+        method: 'DELETE',
+        headers: {
+          'accept': '*/*',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      });
+      const resultText = await response.text();
+      if (!response.ok) throw new Error("Error al eliminar la canción de la lista");
+      Alert.alert("Éxito", "Canción eliminada de la lista");
+      setSongOptionsVisible(false);
+      loadData();
+    } catch (error) {
+      console.error("Error al eliminar canción:", error);
+      Alert.alert("Error", error.message || "No se pudo eliminar la canción de la lista");
     }
   };
 
@@ -192,7 +216,6 @@ export default function PlaylistDetail({ navigation, route }) {
           songId: songs[0].id,
           songName: songs[0].nombre,
           userEmail: userEmail,
-          // Puedes pasar `listaFinal` si el reproductor lo admite
         });
       }
     } catch (error) {
@@ -249,7 +272,6 @@ export default function PlaylistDetail({ navigation, route }) {
       <Text style={styles.playlistTitle}>{playlist.Nombre}</Text>
       <Text style={styles.playlistDescription}>{playlist.Descripcion}</Text>
   
-      {/* 🎵 Botones de reproducción */}
       <View style={styles.controlsRow}>
         <TouchableOpacity
           style={[styles.shuffleButton, shuffle && styles.shuffleActive]}
@@ -263,7 +285,7 @@ export default function PlaylistDetail({ navigation, route }) {
   
         <TouchableOpacity
           style={styles.playButton}
-          onPress={() => {iniciarReproduccion()}}
+          onPress={() => iniciarReproduccion()}
         >
           <Ionicons name="play" size={20} color="#121111" />
           <Text style={styles.playButtonText}>Reproducir</Text>
@@ -277,7 +299,6 @@ export default function PlaylistDetail({ navigation, route }) {
     </View>
   );
   
-
   const ListFooter = () => (
     <TouchableOpacity
       style={styles.addButton}
@@ -324,6 +345,12 @@ export default function PlaylistDetail({ navigation, route }) {
               <Ionicons name="close" size={24} color="#000" />
             </TouchableOpacity>
             <Text style={styles.songOptionsTitle}>Opciones para la canción</Text>
+            <TouchableOpacity
+              style={styles.modalOption}
+              onPress={eliminarCancionDeLista}
+            >
+              <Text style={styles.modalOptionText}>Eliminar de la lista</Text>
+            </TouchableOpacity>
           </View>
           <View style={styles.songOptionsBlur} />
         </View>
@@ -559,30 +586,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
-  errorContainer: {
-    flex: 1,
-    backgroundColor: '#121111',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  errorText: {
-    fontSize: 18,
-    color: '#fff',
-    marginBottom: 20,
-    textAlign: 'center',
-  },
-  errorButton: {
-    backgroundColor: '#f2ab55',
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-  },
-  errorButtonText: {
-    color: '#121111',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
   controlsRow: {
     flexDirection: 'row',
     justifyContent: 'center',
@@ -591,7 +594,6 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     flexWrap: 'wrap',
   },
-  
   shuffleButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -600,21 +602,17 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 8,
   },
-  
   shuffleButtonText: {
     marginLeft: 6,
     color: '#121111',
     fontWeight: 'bold',
   },
-  
   shuffleActive: {
     backgroundColor: '#fff',
   },
-  
   shuffleButtonTextActive: {
     color: '#f2ab55',
   },
-  
   playButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -624,10 +622,9 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginLeft: 10,
   },
-  
   playButtonText: {
     marginLeft: 6,
     color: '#121111',
     fontWeight: 'bold',
-  },  
+  },
 });

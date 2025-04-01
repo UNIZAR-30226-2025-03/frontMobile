@@ -1,5 +1,17 @@
 import React, { useState, useLayoutEffect, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Image, FlatList, Dimensions, Alert, RefreshControl } from 'react-native';
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  SafeAreaView, 
+  TouchableOpacity, 
+  Image, 
+  FlatList, 
+  Dimensions, 
+  Alert, 
+  RefreshControl, 
+  TouchableWithoutFeedback 
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -65,12 +77,6 @@ export default function FavoritesScreen({ navigation }) {
     loadData();
   }, []);
 
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await loadData();
-    setRefreshing(false);
-  };
-
   const iniciarReproduccion = async () => {
     try {
       const body = {
@@ -135,6 +141,34 @@ export default function FavoritesScreen({ navigation }) {
     }
   };
 
+  // Función para eliminar (quitar de favoritos) una canción
+  const eliminarCancionDeFavoritos = async () => {
+    if (!selectedSong || !userEmail) return;
+    try {
+      const encodedEmail = encodeURIComponent(userEmail);
+      const songId = selectedSong.id || selectedSong.Id;
+      const response = await fetch(`https://echobeatapi.duckdns.org/cancion/unlike/${encodedEmail}/${songId}`, {
+        method: 'DELETE',
+        headers: { 'accept': '*/*' },
+      });
+      const text = await response.text();
+      if (!response.ok) throw new Error(text);
+      Alert.alert("Éxito", "Canción eliminada de favoritos");
+      setSongOptionsVisible(false);
+      // Actualizamos la lista eliminando el item
+      setSongs(prev => prev.filter(song => (song.id || song.Id) !== songId));
+    } catch (error) {
+      console.error("Error al eliminar canción de favoritos:", error);
+      Alert.alert("Error", error.message || "No se pudo eliminar la canción de favoritos");
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadData();
+    setRefreshing(false);
+  };
+
   const renderSong = ({ item }) => (
     <View style={styles.songItem}>
       <TouchableOpacity
@@ -162,13 +196,39 @@ export default function FavoritesScreen({ navigation }) {
     </View>
   );
 
+  // Renderiza el modal de opciones para la canción (incluyendo eliminar)
+  const renderSongOptionsModal = () => {
+    if (!selectedSong) return null;
+    return (
+      <TouchableWithoutFeedback onPress={() => setSongOptionsVisible(false)}>
+        <View style={styles.songOptionsOverlay}>
+          <View style={styles.songOptionsContainer}>
+            <TouchableOpacity
+              style={styles.closeSongOptionsButton}
+              onPress={() => setSongOptionsVisible(false)}
+            >
+              <Ionicons name="close" size={24} color="#000" />
+            </TouchableOpacity>
+            <Text style={styles.songOptionsTitle}>Opciones para la canción</Text>
+            <TouchableOpacity
+              style={styles.modalOption}
+              onPress={eliminarCancionDeFavoritos}
+            >
+              <Text style={styles.modalOptionText}>Eliminar de la lista</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.songOptionsBlur} />
+        </View>
+      </TouchableWithoutFeedback>
+    );
+  };
+
   const ListHeader = () => (
     <View style={styles.headerContent}>
       <Image source={require('../assets/favorites.jpg')} style={styles.playlistImage} />
       <Text style={styles.playlistTitle}>Favoritos</Text>
-      <Text style={styles.playlistDescription}>Tus canciones favoritas siempre estarán aquí.</Text>
+      <Text style={styles.playlistDescription}>{""}</Text>
 
-      {/* 🎵 Botones de reproducción */}
       <View style={styles.controlsRow}>
         <TouchableOpacity
           style={[styles.shuffleButton, shuffle && styles.shuffleActive]}
@@ -205,7 +265,6 @@ export default function FavoritesScreen({ navigation }) {
           <Ionicons name="information-circle-outline" size={28} color="#f2ab55" />
         </TouchableOpacity>
       </View>
-
       <FlatList
         data={songs}
         renderItem={renderSong}
@@ -222,11 +281,10 @@ export default function FavoritesScreen({ navigation }) {
           />
         }
       />
-      {/* Resto sin cambios */}
+      {songOptionsVisible && renderSongOptionsModal()}
     </SafeAreaView>
   );
 }
-
 
 const styles = StyleSheet.create({
   container: {
@@ -259,7 +317,7 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: 'bold',
     color: '#f2ab55',
-    marginBottom: 10,
+    marginBottom: -25,
     textAlign: 'center',
   },
   playlistDescription: {
@@ -427,30 +485,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
-  errorContainer: {
-    flex: 1,
-    backgroundColor: '#121111',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  errorText: {
-    fontSize: 18,
-    color: '#fff',
-    marginBottom: 20,
-    textAlign: 'center',
-  },
-  errorButton: {
-    backgroundColor: '#f2ab55',
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-  },
-  errorButtonText: {
-    color: '#121111',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
   controlsRow: {
     flexDirection: 'row',
     justifyContent: 'center',
@@ -459,7 +493,6 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     flexWrap: 'wrap',
   },
-  
   shuffleButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -468,21 +501,17 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 8,
   },
-  
   shuffleButtonText: {
     marginLeft: 6,
     color: '#121111',
     fontWeight: 'bold',
   },
-  
   shuffleActive: {
     backgroundColor: '#fff',
   },
-  
   shuffleButtonTextActive: {
     color: '#f2ab55',
   },
-  
   playButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -492,10 +521,9 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginLeft: 10,
   },
-  
   playButtonText: {
     marginLeft: 6,
     color: '#121111',
     fontWeight: 'bold',
-  },  
+  },
 });

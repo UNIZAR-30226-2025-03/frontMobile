@@ -49,7 +49,7 @@ export default function MyLists({ navigation }) {
       let allPlaylists = [];
       if (Array.isArray(userPlaylists)) {
         allPlaylists = userPlaylists;
-      } else if(userPlaylists) {
+      } else if (userPlaylists) {
         allPlaylists.push(userPlaylists);
       }
       // Marcamos las playlists guardadas con la propiedad "guardada"
@@ -72,15 +72,22 @@ export default function MyLists({ navigation }) {
     setModalVisible(true);
   };
 
-  // Función para borrar playlist creada por el usuario
+  // Función para borrar playlist creada por el usuario usando el endpoint actualizado
   const borrarPlaylist = async () => {
     if (!selectedPlaylist) return;
     try {
-      // Se asume un endpoint para borrar playlists propias
-      const response = await fetch(`https://echobeatapi.duckdns.org/playlists/${userEmail}/${selectedPlaylist.id || selectedPlaylist.Id}`, {
+      const response = await fetch('https://echobeatapi.duckdns.org/playlists/delete', {
         method: 'DELETE',
-        headers: { 'accept': '*/*' }
+        headers: {
+          'accept': '*/*',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          userEmail: userEmail,
+          idLista: selectedPlaylist.Id || selectedPlaylist.id
+        })
       });
+      console.log("Response de borrar playlist:", response);
       if (!response.ok) throw new Error("Error al borrar la playlist");
       Alert.alert("Éxito", "Playlist borrada correctamente");
       // Actualizamos la lista
@@ -116,14 +123,15 @@ export default function MyLists({ navigation }) {
   };
 
   const renderPlaylist = ({ item }) => {
+    // Normalizamos el objeto para que incluya la propiedad "Id" (con mayúscula)
     const normalizedPlaylist = {
-      id: item.id || item.Id,
+      Id: item.id || item.Id, // se fuerza el uso de "Id" para que PlaylistDetails la reconozca
       Nombre: item.nombre || item.Nombre || item.lista?.Nombre || 'Sin nombre',
       Portada: item.lista?.Portada || item.Portada || '',
       Descripcion: item.descripcion || item.Descripcion || '',
       guardada: item.guardada || false,
     };
-  
+
     return (
       <View style={styles.playlistItemContainer}>
         <TouchableOpacity
@@ -222,8 +230,8 @@ export default function MyLists({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
+  container: { 
+    flex: 1, 
     backgroundColor: '#121111',
     marginTop: 30,
   },
