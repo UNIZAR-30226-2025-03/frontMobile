@@ -245,13 +245,23 @@ export default function HomeScreen({ navigation }) {
   };
 
   const renderRecomendationsItem = ({ item }) => {
-    const imageSource = item.FotoGenero && item.FotoGenero !== "URL_por_defecto"
-      ? { uri: item.FotoGenero }
+    const imageSource = item.FotoGenero && item.FotoGenero !== "URL_por_defecto"  //item.FotoGenero o item.Portada
+      ? { uri: item.FotoGenero }  //Seria item.FotoGenero o item.Portada
       : require('../assets/darkraul.jpg');
+
     return (
       <TouchableOpacity 
-        style={styles.recomendationsItem}
-        //onPress={() => navigation.navigate('GenreSongs', { genre: item.NombreGenero })}
+      onPress={() =>
+        navigation.navigate('AlbumDetails', {
+          playlist: {
+            Id: item.NombreGenero, // Usa el nombre como ID
+            Nombre: item.NombreGenero,
+            Portada: item.FotoGenero || '',
+            Descripcion: item.Descripcion || '',
+          }
+        })
+      }
+      style={styles.recomendationsItem}
       >
         <Image source={imageSource} style={styles.recomendationsImage} />
         <Text style={styles.recomendationsTitle}>{item.NombreGenero || '####'}</Text>
