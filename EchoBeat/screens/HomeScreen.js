@@ -254,10 +254,10 @@ export default function HomeScreen({ navigation }) {
       onPress={() =>
         navigation.navigate('AlbumDetails', {
           playlist: {
-            Id: item.NombreGenero, // Usa el nombre como ID
+            Id: item.IdLista, // Usa el nombre como ID
             Nombre: item.NombreGenero,
             Portada: item.FotoGenero || '',
-            Descripcion: item.Descripcion || '',
+            Descripcion: item.Descripcion || "Lista predefinida de ${item.NombreGenero}",
           }
         })
       }
