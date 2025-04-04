@@ -47,7 +47,20 @@ export default function ChatScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Chats con amigos</Text>
+      <View style={styles.header}>
+        {/* Botón retroceso */}
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Ionicons name="arrow-back" size={24} color="#f2ab55" />
+        </TouchableOpacity>
+
+        {/* Título */}
+        <Text style={styles.title}>Chats con amigos</Text>
+
+        {/* Botón invisible para equilibrar el layout */}
+        <TouchableOpacity style={{ opacity: 0 }}>
+          <Ionicons name="arrow-back" size={24} color="transparent" />
+        </TouchableOpacity>
+      </View>
   
       <FlatList
         data={amigos}
@@ -90,6 +103,11 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#f2ab55',
     textAlign: 'center',
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 15,
   },
   chatList: {

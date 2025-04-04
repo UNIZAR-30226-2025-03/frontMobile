@@ -1,72 +1,90 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, TextInput, FlatList, TouchableOpacity, Image, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 
 export default function Amistades({ navigation }) {
   const [nick, setNick] = useState('');
-  const [solicitudes, setSolicitudes] = useState([]);
+  const [amigos, setAmigos] = useState([]);
   const [busqueda, setBusqueda] = useState('');
 
-  useEffect(() => {
-    const cargarSolicitudes = async () => {
-        const email = await AsyncStorage.getItem('email');
-        if (!email) {
-          console.warn("⚠️ No se encontró el email del usuario.");
-          return;
-        }
-    
-        try {
-          const resUser = await fetch(`https://echobeatapi.duckdns.org/users/get-user?userEmail=${email}`);
-          const userData = await resUser.json();
-          const nickUsuario = userData.Nick;
-          setNick(nickUsuario);
+  useLayoutEffect(() => {
+      navigation.setOptions({ headerShown: false });
+  }, [navigation]);
 
-          const res = await fetch(`https://echobeatapi.duckdns.org/amistades/verSolicitudes/${nickUsuario}`);
-          const data = await res.json();
-          setSolicitudes(data || []);
-        } catch (error) {
-          console.error("❌ Error cargando solicitudes:", error);
-          Alert.alert('Error', 'No se pudieron cargar las solicitudes');
-        }
-      };
+  useFocusEffect(
+    useCallback(() => {
+      cargarAmigos();
+    }, [])
+  );
 
-    cargarSolicitudes();
-  }, []);
+  const cargarAmigos = async () => {
+    try {
+      const email = await AsyncStorage.getItem('email');
+      if (!email) {
+        console.warn("⚠️ No se encontró el email del usuario.");
+        return;
+      }
+
+      const resUser = await fetch(`https://echobeatapi.duckdns.org/users/get-user?userEmail=${email}`);
+      const userData = await resUser.json();
+      const nickUsuario = userData.Nick;
+      setNick(nickUsuario);
+
+      const res = await fetch(`https://echobeatapi.duckdns.org/amistades/verAmigos/${nickUsuario}`);
+      const data = await res.json();
+      setAmigos(data || []);
+      console.log("Amigos:", data);
+    } catch (error) {
+      console.error("❌ Error cargando amigos:", error);
+      Alert.alert('Error', 'No se pudieron cargar los amigos');
+    }
+  };
+
+  const amigosFiltrados = amigos.filter(a =>
+    a.Nick?.toLowerCase().includes(busqueda.toLowerCase())
+  );
 
   const renderItem = ({ item }) => (
-    <View style={styles.solicitudItem}>
-    <Image
-      source={require('../assets/logo.png')} // Imagen por defecto ya que no tenemos foto
-      style={styles.avatar}
-    />
-    <Text style={styles.nick}>{item.NickFriendSender}</Text>
-    <View style={styles.botones}>
-      <TouchableOpacity style={styles.botonAceptar}>
-        <Ionicons name="checkmark" size={18} color="#121111" />
-      </TouchableOpacity>
-      <TouchableOpacity style={styles.botonRechazar}>
-        <Ionicons name="close" size={18} color="#fff" />
-      </TouchableOpacity>
+    <View style={styles.friendItem}>
+      <Image
+        source={item.LinkFoto ? { uri: item.LinkFoto } : require('../assets/logo.png')}
+        style={styles.avatar}
+      />
+      <View style={{ flex: 1 }}>
+        <Text style={styles.nick}>{item.Nick}</Text>
+        <Text style={styles.lastSong}>Última canción: {item.CancionActual || 'Ninguna'}</Text>
+      </View>
     </View>
-  </View>
   );
 
   return (
     <View style={styles.container}>
+      {/* Título y campanita */}
+      <View style={styles.header}>
+        {/* Icono de retroceso a la pantalla anterior */}
+        <TouchableOpacity onPress={() => navigation.goBack()} >
+          <Ionicons name="arrow-back" size={24} color="#f2ab55" />
+        </TouchableOpacity>
+        <Text style={styles.title}>Amigos</Text>
+        <TouchableOpacity onPress={() => navigation.navigate('FriendRequest')}>
+          <Ionicons name="notifications-outline" size={26} color="#f2ab55" />
+        </TouchableOpacity>
+      </View>
 
-      <Text style={styles.title}>Amigos</Text>
-
+      {/* Buscador */}
       <TextInput
         style={styles.searchInput}
-        placeholder="Introducir Nick al que enviar solicitud"
+        placeholder="Buscar amigo por nick"
         placeholderTextColor="#bbb"
         value={busqueda}
         onChangeText={setBusqueda}
       />
 
+      {/* Lista de amigos */}
       <FlatList
-        data={solicitudes}
+        data={amigosFiltrados}
         renderItem={renderItem}
         keyExtractor={(item, index) => index.toString()}
         contentContainerStyle={{ paddingBottom: 30 }}
@@ -82,15 +100,16 @@ const styles = StyleSheet.create({
     paddingTop: 50,
     paddingHorizontal: 20,
   },
-  backButton: {
-    marginBottom: 10,
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 15,
   },
   title: {
-    fontSize: 26,
+    fontSize: 24,
     fontWeight: 'bold',
     color: '#f2ab55',
-    marginBottom: 20,
-    textAlign: 'center',
   },
   searchInput: {
     backgroundColor: '#1e1e1e',
@@ -101,17 +120,17 @@ const styles = StyleSheet.create({
     color: '#fff',
     marginBottom: 20,
   },
-  solicitudItem: {
+  friendItem: {
     backgroundColor: '#1e1e1e',
-    padding: 10,
+    padding: 12,
     borderRadius: 10,
     marginBottom: 10,
     flexDirection: 'row',
     alignItems: 'center',
   },
   avatar: {
-    width: 45,
-    height: 45,
+    width: 50,
+    height: 50,
     borderRadius: 25,
     marginRight: 12,
     backgroundColor: '#444',
@@ -120,20 +139,9 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: 'bold',
     fontSize: 16,
-    flex: 1,
   },
-  botones: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  botonAceptar: {
-    backgroundColor: '#f2ab55',
-    borderRadius: 20,
-    padding: 6,
-  },
-  botonRechazar: {
-    backgroundColor: '#d9534f',
-    borderRadius: 20,
-    padding: 6,
+  lastSong: {
+    color: '#ccc',
+    fontSize: 14,
   },
 });
