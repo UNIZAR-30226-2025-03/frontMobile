@@ -8,6 +8,8 @@ export default function Amistades({ navigation }) {
   const [nick, setNick] = useState('');
   const [amigos, setAmigos] = useState([]);
   const [busqueda, setBusqueda] = useState('');
+  const [numSolicitudes, setNumSolicitudes] = useState(0);
+
 
   useLayoutEffect(() => {
       navigation.setOptions({ headerShown: false });
@@ -18,6 +20,17 @@ export default function Amistades({ navigation }) {
       cargarAmigos();
     }, [])
   );
+
+  const cargarSolicitudes = async (nickUsuario) => {
+    try {
+      const res = await fetch(`https://echobeatapi.duckdns.org/amistades/verSolicitudes/${nickUsuario}`);
+      const data = await res.json();
+      setNumSolicitudes(data.length);
+    } catch (error) {
+      console.error("❌ Error cargando solicitudes:", error);
+      setNumSolicitudes(0);
+    }
+  };  
 
   const cargarAmigos = async () => {
     try {
@@ -31,6 +44,7 @@ export default function Amistades({ navigation }) {
       const userData = await resUser.json();
       const nickUsuario = userData.Nick;
       setNick(nickUsuario);
+      await cargarSolicitudes(nickUsuario);
 
       const res = await fetch(`https://echobeatapi.duckdns.org/amistades/verAmigos/${nickUsuario}`);
       const data = await res.json();
@@ -68,9 +82,14 @@ export default function Amistades({ navigation }) {
           <Ionicons name="arrow-back" size={24} color="#f2ab55" />
         </TouchableOpacity>
         <Text style={styles.title}>Amigos</Text>
-        <TouchableOpacity onPress={() => navigation.navigate('FriendRequest')}>
-          <Ionicons name="notifications-outline" size={26} color="#f2ab55" />
-        </TouchableOpacity>
+        <TouchableOpacity onPress={() => navigation.navigate('FriendRequest')} style={{ position: 'relative' }}>
+        <Ionicons name="notifications-outline" size={26} color="#f2ab55" />
+        {numSolicitudes > 0 && (
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>{numSolicitudes}</Text>
+          </View>
+        )}
+      </TouchableOpacity>
       </View>
 
       {/* Buscador */}
@@ -143,5 +162,21 @@ const styles = StyleSheet.create({
   lastSong: {
     color: '#ccc',
     fontSize: 14,
+  },
+  badge: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    backgroundColor: 'red',
+    borderRadius: 10,
+    width: 18,
+    height: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  badgeText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: 'bold',
   },
 });
