@@ -9,7 +9,7 @@ export default function Amistades({ navigation }) {
   const [amigos, setAmigos] = useState([]);
   const [busqueda, setBusqueda] = useState('');
   const [numSolicitudes, setNumSolicitudes] = useState(0);
-
+  const [mensajeConfirmacion, setMensajeConfirmacion] = useState('');
 
   useLayoutEffect(() => {
       navigation.setOptions({ headerShown: false });
@@ -56,6 +56,30 @@ export default function Amistades({ navigation }) {
     }
   };
 
+  const eliminarAmigo = async (nickReceiver) => {
+    try {
+      console.log(`Eliminando a: ${nick} -> ${nickReceiver}`);
+      const response = await fetch(`https://echobeatapi.duckdns.org/amistades/eliminar/${nick}/${nickReceiver}`, {
+        method: 'DELETE',
+      });
+  
+      const result = await response.json();
+  
+      if (response.ok) {
+        setMensajeConfirmacion(result.message || 'Amistad eliminada.');
+        // Recargamos la lista de amigos tras eliminar
+        setAmigos(prev => prev.filter(a => a.Nick !== nickReceiver));
+      } else {
+        setMensajeConfirmacion('Error al eliminar al amigo');
+      }
+    } catch (error) {
+      console.error("Error eliminando amigo:", error);
+      setMensajeConfirmacion('Error al eliminar al amigo');
+    }
+  
+    setTimeout(() => setMensajeConfirmacion(''), 3000);
+  };  
+
   const amigosFiltrados = amigos.filter(a =>
     a.Nick?.toLowerCase().includes(busqueda.toLowerCase())
   );
@@ -70,6 +94,9 @@ export default function Amistades({ navigation }) {
         <Text style={styles.nick}>{item.Nick}</Text>
         <Text style={styles.lastSong}>Última canción: {item.CancionActual || 'Ninguna'}</Text>
       </View>
+      <TouchableOpacity onPress={() => eliminarAmigo(item.Nick)}>
+        <Ionicons name="person-remove-outline" size={24} color="red" />
+      </TouchableOpacity>
     </View>
   );
 
@@ -109,6 +136,12 @@ export default function Amistades({ navigation }) {
         keyExtractor={(item, index) => index.toString()}
         contentContainerStyle={{ paddingBottom: 30 }}
       />
+
+      {mensajeConfirmacion !== '' && (
+        <View style={styles.toast}>
+          <Text style={styles.toastText}>{mensajeConfirmacion}</Text>
+        </View>
+      )}
     </View>
   );
 }
@@ -178,6 +211,21 @@ const styles = StyleSheet.create({
   badgeText: {
     color: '#fff',
     fontSize: 11,
+    fontWeight: 'bold',
+  },
+  toast: {
+    position: 'absolute',
+    bottom: 20,
+    left: 20,
+    right: 20,
+    backgroundColor: '#ffb723',
+    padding: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  toastText: {
+    color: '#000',
+    fontSize: 14,
     fontWeight: 'bold',
   },
 });

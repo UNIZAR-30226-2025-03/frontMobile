@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useLayoutEffect } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, TextInput, FlatList, TouchableOpacity, Image, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 
 export default function FriendRequest({ navigation }) {
   const [nick, setNick] = useState('');
@@ -14,31 +15,33 @@ export default function FriendRequest({ navigation }) {
     navigation.setOptions({ headerShown: false });
   }, [navigation]);
 
-  useEffect(() => {
-    const cargarSolicitudes = async () => {
-        const email = await AsyncStorage.getItem('email');
-        if (!email) {
-          console.warn("No se encontró el email del usuario.");
-          return;
-        }
-    
-        try {
-          const resUser = await fetch(`https://echobeatapi.duckdns.org/users/get-user?userEmail=${email}`);
-          const userData = await resUser.json();
-          const nickUsuario = userData.Nick;
-          setNick(nickUsuario);
+  useFocusEffect(
+    useCallback(() => {
+      cargarSolicitudes(); // cada vez que se vuelve a esta pantalla, se recarga
+    }, [])
+  );
 
-          const res = await fetch(`https://echobeatapi.duckdns.org/amistades/verSolicitudes/${nickUsuario}`);
-          const data = await res.json();
-          setSolicitudes(data || []);
-        } catch (error) {
-          console.error("Error al cargar las solicitudes:", error);
-          Alert.alert('Error', 'No se pudieron cargar las solicitudes');
-        }
-      };
+  const cargarSolicitudes = async () => {
+    const email = await AsyncStorage.getItem('email');
+    if (!email) {
+      console.warn("No se encontró el email del usuario.");
+      return;
+    }
 
-    cargarSolicitudes();
-  }, []);
+    try {
+      const resUser = await fetch(`https://echobeatapi.duckdns.org/users/get-user?userEmail=${email}`);
+      const userData = await resUser.json();
+      const nickUsuario = userData.Nick;
+      setNick(nickUsuario);
+
+      const res = await fetch(`https://echobeatapi.duckdns.org/amistades/verSolicitudes/${nickUsuario}`);
+      const data = await res.json();
+      setSolicitudes(data || []);
+    } catch (error) {
+      console.error("Error al cargar las solicitudes:", error);
+      Alert.alert('Error', 'No se pudieron cargar las solicitudes');
+    }
+  };
 
   const gestionarSolicitud = async (accion, nickSender) => {
     try {
@@ -103,20 +106,22 @@ export default function FriendRequest({ navigation }) {
       const result = await response.json();
   
       if (response.status === 201) {
-        setMensajeConfirmacion(`Solicitud enviada a ${busqueda}`);
+        setMensajeConfirmacion(result.message); // Solicitud enviada correctamente o amistad aceptada automáticamente
         setBusqueda('');
-      } else if (response.status === 404 || response.status === 400) {
-        setMensajeConfirmacion('Usuario no encontrado');
+        await cargarSolicitudes(); // Recargar solicitudes para reflejar el cambio
+      } else if (response.status === 400 || response.status === 404) {
+        setMensajeConfirmacion(result.message); // Mensajes como: ya sois amigos, ya existe solicitud, etc.
       } else {
-        setMensajeConfirmacion('Error al enviar solicitud');
+        setMensajeConfirmacion('Error desconocido al enviar solicitud.');
       }
+  
     } catch (error) {
+      console.error("❌ Error al enviar solicitud:", error);
       setMensajeConfirmacion(`Error: ${error.message}`);
     }
   
     setTimeout(() => setMensajeConfirmacion(''), 3000);
   };
-  
 
   return (
     <View style={styles.container}>
