@@ -1,5 +1,17 @@
 import React, { useState, useEffect, useLayoutEffect } from 'react';
-import { View, Text, FlatList, StyleSheet, TouchableOpacity, Image, Modal, TouchableWithoutFeedback, TextInput, Keyboard, Alert } from 'react-native';
+import { 
+  View, 
+  Text, 
+  FlatList, 
+  StyleSheet, 
+  TouchableOpacity, 
+  Image, 
+  Modal, 
+  TouchableWithoutFeedback, 
+  TextInput, 
+  Keyboard, 
+  Alert 
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -69,17 +81,64 @@ export default function SearchResults({ route, navigation }) {
 
   // Función para guardar (dar like) a una playlist
   const likePlaylist = async (playlist) => {
+    const playlistId = playlist.id || playlist.Id;
+    if (!playlistId) {
+      console.error("ID de la playlist no encontrado");
+      Alert.alert("Error", "No se encontró el ID de la playlist");
+      return;
+    }
     try {
-      const response = await fetch(`https://echobeatapi.duckdns.org/playlists/like/${email}/${playlist.Id}`, {
+      const response = await fetch(`https://echobeatapi.duckdns.org/playlists/like/${email}/${playlistId}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: '',
+        headers: { 'accept': '*/*' }
       });
       if (!response.ok) throw new Error("Error al guardar la playlist");
       Alert.alert("Éxito", "Playlist guardada correctamente");
     } catch (error) {
       console.error("Error al guardar playlist:", error);
       Alert.alert("Error", "No se pudo guardar la playlist");
+    }
+  };
+
+  // Función para guardar (dar like) a un álbum
+  const likeAlbum = async (album) => {
+    const albumId = album.id || album.Id;
+    if (!albumId) {
+      console.error("ID del álbum no encontrado");
+      Alert.alert("Error", "No se encontró el ID del álbum");
+      return;
+    }
+    try {
+      const response = await fetch(`https://echobeatapi.duckdns.org/playlists/like/${email}/${albumId}`, {
+        method: 'POST',
+        headers: { 'accept': '*/*' }
+      });
+      if (!response.ok) throw new Error("Error al guardar el álbum");
+      Alert.alert("Éxito", "Álbum guardado correctamente");
+    } catch (error) {
+      console.error("Error al guardar álbum:", error);
+      Alert.alert("Error", "No se pudo guardar el álbum");
+    }
+  };
+
+  // Función para guardar (dar like) a una canción (añadir a favoritos)
+  const likeSong = async (song) => {
+    const songId = song.id || song.Id;
+    if (!songId) {
+      console.error("ID de la canción no encontrado");
+      Alert.alert("Error", "No se encontró el ID de la canción");
+      return;
+    }
+    try {
+      const response = await fetch(`https://echobeatapi.duckdns.org/cancion/like/${encodeURIComponent(email)}/${songId}`, {
+        method: 'POST',
+        headers: { 'accept': '*/*' }
+      });
+      if (!response.ok) throw new Error("Error al dar like a la canción");
+      Alert.alert("Éxito", "Canción añadida a favoritos");
+    } catch (error) {
+      console.error("Error al dar like a la canción:", error);
+      Alert.alert("Error", "Canción ya guardada en favoritos");
     }
   };
 
@@ -117,9 +176,11 @@ export default function SearchResults({ route, navigation }) {
     ...(results.playlists || []).map(item => ({ 
       ...item, 
       type: 'playlist',
-      id: item.id || item.Id,
+      // Incluimos EmailAutor si existe para poder distinguir las playlists propias de las de otros usuarios
+      Id: item.id || item.Id,
       nombre: item.nombre || item.Nombre,
-      portada: item.portada || item.Portada
+      portada: item.portada || item.Portada,
+      EmailAutor: item.EmailAutor || null,
     }))
   ];
 
@@ -161,12 +222,11 @@ export default function SearchResults({ route, navigation }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ idLista, songId }),
       });
-
       if (!response.ok) throw new Error("No se pudo añadir la canción");
       Alert.alert("Éxito", "Canción añadida a la playlist");
     } catch (error) {
       console.error("Error al añadir canción:", error);
-      Alert.alert("Error", "No se pudo añadir la canción");
+      Alert.alert("Error", "Canción ya añadida a la playlist o no se pudo añadir");
     }
   };
 
@@ -187,7 +247,10 @@ export default function SearchResults({ route, navigation }) {
           <View>
             <TouchableOpacity
               style={styles.modalOption}
-              onPress={() => console.log("Añadir a Favoritos")}
+              onPress={() => {
+                likeSong(selectedItem);
+                setModalVisible(false);
+              }}
             >
               <Text style={styles.modalOptionText}>Añadir a Favoritos</Text>
             </TouchableOpacity>
@@ -226,17 +289,52 @@ export default function SearchResults({ route, navigation }) {
             )}
           </View>
         );
-      case 'playlist':
+        case 'playlist':
+          const normalizedPlaylist = {
+            Id: item.id || item.Id,
+            Nombre: item.nombre || item.Nombre,
+            Portada: item.portada || item.Portada,
+            Descripcion: item.descripcion || item.Descripcion || '',
+            EmailAutor: item.EmailAutor || null,
+          };
+          return (
+            <TouchableOpacity 
+              style={styles.itemContainer} 
+              onPress={() => {
+                console.log('🔍 Playlist enviada desde SearchResults:', normalizedPlaylist);
+                // Si EmailAutor existe y coincide con el email actual, es tuya; de lo contrario, es ajena
+                if (normalizedPlaylist.EmailAutor && normalizedPlaylist.EmailAutor === email) {
+                  navigation.navigate('PlaylistDetails', { playlist: normalizedPlaylist });
+                } else {
+                  navigation.navigate('AlbumDetails', { playlist: normalizedPlaylist });
+                }
+              }}
+            >
+              <Image source={imageSource} style={styles.itemImage} />
+              <View style={styles.itemTextContainer}>
+                <Text style={styles.itemTitle}>{item.nombre || item.Nombre}</Text>
+                <Text style={styles.itemSubtitle}>
+                  Playlist • {item.numeroLikes || item.NumLikes || 0} likes
+                </Text>
+              </View>
+              <TouchableOpacity onPress={() => openModal(item)}>
+                <Ionicons name="ellipsis-vertical" size={24} color="#fff" />
+              </TouchableOpacity>
+            </TouchableOpacity>
+          );
+
+        
+      case 'album':
         return (
           <View>
             <TouchableOpacity
               style={styles.modalOption}
               onPress={() => {
-                likePlaylist(selectedItem);
+                likeAlbum(selectedItem);
                 setModalVisible(false);
               }}
             >
-              <Text style={styles.modalOptionText}>Guardar Playlist</Text>
+              <Text style={styles.modalOptionText}>Guardar Álbum</Text>
             </TouchableOpacity>
           </View>
         );
@@ -247,11 +345,11 @@ export default function SearchResults({ route, navigation }) {
 
   const playSingleSong = async (song) => {
     try {
-      const email = await AsyncStorage.getItem('email');
-      if (!email) return;
+      const emailStored = await AsyncStorage.getItem('email');
+      if (!emailStored) return;
 
       const body = {
-        userEmail: email,
+        userEmail: emailStored,
         reproduccionAleatoria: false,
         posicionCola: 0,
         colaReproduccion: {
@@ -360,18 +458,25 @@ export default function SearchResults({ route, navigation }) {
         );
 
       case 'playlist':
+        // Normalizamos la playlist incluyendo EmailAutor si existe
         const normalizedPlaylist = {
           Id: item.id || item.Id,
           Nombre: item.nombre || item.Nombre,
           Portada: item.portada || item.Portada,
           Descripcion: item.descripcion || item.Descripcion || '',
+          EmailAutor: item.EmailAutor || null,
         };
         return (
           <TouchableOpacity 
             style={styles.itemContainer} 
             onPress={() => {
-              console.log('🔍 Navegando a PlaylistDetail con:', item);
-              navigation.navigate('PlaylistDetails', { playlist: normalizedPlaylist });
+              console.log('🔍 Playlist enviada desde SearchResults:', normalizedPlaylist);
+              // Si la playlist tiene EmailAutor y es distinta al email actual, se considera ajena
+              if (normalizedPlaylist.EmailAutor && normalizedPlaylist.EmailAutor !== email) {
+                navigation.navigate('AlbumDetails', { playlist: normalizedPlaylist });
+              } else {
+                navigation.navigate('PlaylistDetails', { playlist: normalizedPlaylist });
+              }
             }}
           >
             <Image source={imageSource} style={styles.itemImage} />

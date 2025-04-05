@@ -47,15 +47,28 @@ export default function ChatScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Chats con amigos</Text>
+      <View style={styles.header}>
+        {/* Botón retroceso */}
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Ionicons name="arrow-back" size={24} color="#f2ab55" />
+        </TouchableOpacity>
 
+        {/* Título */}
+        <Text style={styles.title}>Chats con amigos</Text>
+
+        {/* Botón invisible para equilibrar el layout */}
+        <TouchableOpacity style={{ opacity: 0 }}>
+          <Ionicons name="arrow-back" size={24} color="transparent" />
+        </TouchableOpacity>
+      </View>
+  
       <FlatList
         data={amigos}
         renderItem={renderChatItem}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.chatList}
       />
-
+  
       {cancionSonando && (
         <TouchableOpacity onPress={() => navigation.navigate('MusicPlayer')} style={styles.musicIconContainer}>
           <Animated.Image
@@ -64,6 +77,16 @@ export default function ChatScreen({ navigation }) {
           />
         </TouchableOpacity>
       )}
+  
+      {/* Botón semicircular para el apartado Amistades */}
+      <View style={styles.bottomContainer}>
+        <TouchableOpacity 
+          style={styles.halfCircleButton} 
+          onPress={() => navigation.navigate('Amistades')}
+        >
+          <Ionicons name="people-outline" size={30} color="#fff" />
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -80,6 +103,11 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#f2ab55',
     textAlign: 'center',
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 15,
   },
   chatList: {
@@ -119,5 +147,25 @@ const styles = StyleSheet.create({
   musicIcon: {
     width: 60,
     height: 60,
+  },
+  bottomContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 100,
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    zIndex: 5,
+  },
+  halfCircleButton: {
+    width: 160,
+    height: 100,
+    borderTopLeftRadius: 100,
+    borderTopRightRadius: 100,
+    backgroundColor: '#ffb723',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: -20,
   },
 });

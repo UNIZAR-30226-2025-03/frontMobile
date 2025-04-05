@@ -6,9 +6,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width } = Dimensions.get('window');
 
-export default function PlaylistDetail({ navigation, route }) {
+export default function AlbumDetails({ navigation, route }) {
   const { playlist } = route.params;
-  console.log('📥 Playlist recibida en PlaylistDetail:', playlist);
+  console.log('📥 Álbum/Playlist guardada recibida en AlbumDetails:', playlist);
   const [songs, setSongs] = useState([]);
   const [userEmail, setUserEmail] = useState('');
   const [playlistInfo, setPlaylistInfo] = useState(null);
@@ -19,7 +19,6 @@ export default function PlaylistDetail({ navigation, route }) {
   const [favoritos, setFavoritos] = useState([]);
   const [shuffle, setShuffle] = useState(false);
   const [cola, setCola] = useState(null);
-
 
   useLayoutEffect(() => {
     navigation.setOptions({ headerShown: false });
@@ -32,10 +31,9 @@ export default function PlaylistDetail({ navigation, route }) {
       if (!email) return;
   
       const encodedEmail = encodeURIComponent(email);
-      setUserEmail(email); // aún útil para toggleFavorito()
+      setUserEmail(email);
       console.log('📡 Haciendo fetch con playlist.Id:', playlist?.Id);
-
-      // ahora sí puedes usar el email directamente
+  
       const [cancionesData, playlistData, favoritosData] = await Promise.all([
         fetch(`https://echobeatapi.duckdns.org/playlists/${playlist.Id}/songs`).then(res => res.json()),
         fetch(`https://echobeatapi.duckdns.org/playlists/playlist/${playlist.Id}`).then(res => res.json()),
@@ -165,7 +163,6 @@ export default function PlaylistDetail({ navigation, route }) {
           songId: songs[0].id,
           songName: songs[0].nombre,
           userEmail: userEmail,
-          // Puedes pasar `listaFinal` si el reproductor lo admite
         });
       }
     } catch (error) {
@@ -220,9 +217,8 @@ export default function PlaylistDetail({ navigation, route }) {
         style={styles.playlistImage}
       />
       <Text style={styles.playlistTitle}>{playlist.Nombre}</Text>
-      <Text style={styles.playlistDescription}>{playlist.Descripcion}</Text>
+      <Text style={styles.playlistDescription}>{""}</Text>
   
-      {/* 🎵 Botones de reproducción */}
       <View style={styles.controlsRow}>
         <TouchableOpacity
           style={[styles.shuffleButton, shuffle && styles.shuffleActive]}
@@ -236,7 +232,7 @@ export default function PlaylistDetail({ navigation, route }) {
   
         <TouchableOpacity
           style={styles.playButton}
-          onPress={() => {iniciarReproduccion()}}
+          onPress={() => iniciarReproduccion()}
         >
           <Ionicons name="play" size={20} color="#121111" />
           <Text style={styles.playButtonText}>Reproducir</Text>
@@ -308,9 +304,6 @@ export default function PlaylistDetail({ navigation, route }) {
             ) : (
               <Text style={styles.infoText}>Cargando información...</Text>
             )}
-            <Text style={[styles.infoText, { marginTop: 20 }]}>
-                Este álbum no se puede editar ni eliminar
-            </Text>
           </View>
           <View style={styles.blurBackground} />
         </View>
@@ -518,30 +511,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
-  errorContainer: {
-    flex: 1,
-    backgroundColor: '#121111',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  errorText: {
-    fontSize: 18,
-    color: '#fff',
-    marginBottom: 20,
-    textAlign: 'center',
-  },
-  errorButton: {
-    backgroundColor: '#f2ab55',
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-  },
-  errorButtonText: {
-    color: '#121111',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
   controlsRow: {
     flexDirection: 'row',
     justifyContent: 'center',
@@ -550,7 +519,6 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     flexWrap: 'wrap',
   },
-  
   shuffleButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -559,21 +527,17 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 8,
   },
-  
   shuffleButtonText: {
     marginLeft: 6,
     color: '#121111',
     fontWeight: 'bold',
   },
-  
   shuffleActive: {
     backgroundColor: '#fff',
   },
-  
   shuffleButtonTextActive: {
     color: '#f2ab55',
   },
-  
   playButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -583,10 +547,9 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginLeft: 10,
   },
-  
   playButtonText: {
     marginLeft: 6,
     color: '#121111',
     fontWeight: 'bold',
-  },  
+  },
 });
