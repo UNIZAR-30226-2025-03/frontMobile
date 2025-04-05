@@ -27,7 +27,7 @@ export default function Amistades({ navigation }) {
       const data = await res.json();
       setNumSolicitudes(data.length);
     } catch (error) {
-      console.error("❌ Error cargando solicitudes:", error);
+      console.error("Error al cargar solicitudes:", error);
       setNumSolicitudes(0);
     }
   };  
@@ -36,7 +36,7 @@ export default function Amistades({ navigation }) {
     try {
       const email = await AsyncStorage.getItem('email');
       if (!email) {
-        console.warn("⚠️ No se encontró el email del usuario.");
+        console.warn("No se encontró el email del usuario.");
         return;
       }
 
@@ -51,7 +51,7 @@ export default function Amistades({ navigation }) {
       setAmigos(data || []);
       console.log("Amigos:", data);
     } catch (error) {
-      console.error("❌ Error cargando amigos:", error);
+      console.error("Error al cargar amigos:", error);
       Alert.alert('Error', 'No se pudieron cargar los amigos');
     }
   };
@@ -75,12 +75,13 @@ export default function Amistades({ navigation }) {
 
   return (
     <View style={styles.container}>
-      {/* Título y campanita */}
       <View style={styles.header}>
         {/* Icono de retroceso a la pantalla anterior */}
         <TouchableOpacity onPress={() => navigation.goBack()} >
           <Ionicons name="arrow-back" size={24} color="#f2ab55" />
         </TouchableOpacity>
+
+        {/* Título y campanita */}
         <Text style={styles.title}>Amigos</Text>
         <TouchableOpacity onPress={() => navigation.navigate('FriendRequest')} style={{ position: 'relative' }}>
         <Ionicons name="notifications-outline" size={26} color="#f2ab55" />
