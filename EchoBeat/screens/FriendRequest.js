@@ -18,7 +18,7 @@ export default function FriendRequest({ navigation }) {
     const cargarSolicitudes = async () => {
         const email = await AsyncStorage.getItem('email');
         if (!email) {
-          console.warn("⚠️ No se encontró el email del usuario.");
+          console.warn("No se encontró el email del usuario.");
           return;
         }
     
@@ -32,7 +32,7 @@ export default function FriendRequest({ navigation }) {
           const data = await res.json();
           setSolicitudes(data || []);
         } catch (error) {
-          console.error("❌ Error cargando solicitudes:", error);
+          console.error("Error al cargar las solicitudes:", error);
           Alert.alert('Error', 'No se pudieron cargar las solicitudes');
         }
       };
@@ -61,7 +61,7 @@ export default function FriendRequest({ navigation }) {
   
       setTimeout(() => setMensajeConfirmacion(''), 3000);
     } catch (error) {
-      console.error(`❌ Error al ${accion} solicitud:`, error.message);
+      console.error(`Error al ${accion} solicitud:`, error.message);
       Alert.alert('Error', `No se pudo ${accion} la solicitud.`);
     }
   };  
@@ -84,6 +84,40 @@ export default function FriendRequest({ navigation }) {
   </View>
   );
 
+  const handleEnviarSolicitud = async () => {
+    if (!busqueda.trim()) {
+      Alert.alert("Error", "Introduce un nick válido.");
+      return;
+    }
+  
+    try {
+      const response = await fetch('https://echobeatapi.duckdns.org/amistades/solicitar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nickSender: nick,
+          nickReceiver: busqueda.trim(),
+        }),
+      });
+  
+      const result = await response.json();
+  
+      if (response.status === 201) {
+        setMensajeConfirmacion(`Solicitud enviada a ${busqueda}`);
+        setBusqueda('');
+      } else if (response.status === 404 || response.status === 400) {
+        setMensajeConfirmacion('Usuario no encontrado');
+      } else {
+        setMensajeConfirmacion('Error al enviar solicitud');
+      }
+    } catch (error) {
+      setMensajeConfirmacion(`Error: ${error.message}`);
+    }
+  
+    setTimeout(() => setMensajeConfirmacion(''), 3000);
+  };
+  
+
   return (
     <View style={styles.container}>
 
@@ -102,13 +136,18 @@ export default function FriendRequest({ navigation }) {
         </TouchableOpacity>
       </View>
 
-      <TextInput
-        style={styles.searchInput}
-        placeholder="Introducir Nick al que enviar solicitud"
-        placeholderTextColor="#bbb"
-        value={busqueda}
-        onChangeText={setBusqueda}
-      />
+      <View style={styles.searchRow}>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Introducir nick al que enviar solicitud"
+          placeholderTextColor="#bbb"
+          value={busqueda}
+          onChangeText={setBusqueda}
+        />
+        <TouchableOpacity style={styles.enviarButton} onPress={handleEnviarSolicitud}>
+          <Text style={styles.enviarText}>Enviar</Text>
+        </TouchableOpacity>
+      </View>
 
       <FlatList
         data={solicitudes}
@@ -205,6 +244,34 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   toastText: {
+    color: '#121111',
+    fontWeight: 'bold',
+  },
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  searchInput: {
+    flex: 1,
+    backgroundColor: '#1e1e1e',
+    padding: 10,
+    borderTopLeftRadius: 8,
+    borderBottomLeftRadius: 8,
+    borderColor: '#f2ab55',
+    borderWidth: 1,
+    color: '#fff',
+  },
+  enviarButton: {
+    backgroundColor: '#f2ab55',
+    height: 42, 
+    paddingHorizontal: 15,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderTopRightRadius: 8,
+    borderBottomRightRadius: 8,
+  },
+  enviarText: {
     color: '#121111',
     fontWeight: 'bold',
   },
