@@ -4,6 +4,7 @@ import DraggableFlatList from 'react-native-draggable-flatlist';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Gesture, GestureHandlerRootView } from 'react-native-gesture-handler';
 
 const { width } = Dimensions.get('window');
 
@@ -323,115 +324,117 @@ export default function PlaylistDetail({ navigation, route }) {
   
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerButton}>
-          <Ionicons name="arrow-back" size={24} color="#f2ab55" />
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => setInfoVisible(true)} style={styles.headerButton}>
-          <Ionicons name="information-circle-outline" size={28} color="#f2ab55" />
-        </TouchableOpacity>
-      </View>
-        <DraggableFlatList
-          data={songs}
-          keyExtractor={(item) => item.id.toString()}
-          renderItem={({ item, drag, isActive }) => (
-            <TouchableOpacity
-              onLongPress={drag}
-              disabled={isActive}
-              style={[styles.songItem, isActive && { opacity: 0.8 }]}
-              onPress={() => iniciarReproduccionDesdeCancion(item, songs.findIndex(s => s.id === item.id))}
-            >
-              <Image
-                source={item.portada === "URL"
-                  ? require('../assets/default_song_portada.jpg')
-                  : { uri: item.portada }}
-                style={styles.songImage}
-              />
-              <Text style={styles.songTitle} numberOfLines={1}>{item.nombre}</Text>
-
-              <TouchableOpacity onPress={() => toggleFavorito(item.id)} style={{ marginRight: 10 }}>
-                <Ionicons name="heart" size={22} color={favoritos.includes(item.id) ? "#f2ab55" : "#fff"} />
-              </TouchableOpacity>
-
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerButton}>
+            <Ionicons name="arrow-back" size={24} color="#f2ab55" />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => setInfoVisible(true)} style={styles.headerButton}>
+            <Ionicons name="information-circle-outline" size={28} color="#f2ab55" />
+          </TouchableOpacity>
+        </View>
+          <DraggableFlatList
+            data={songs}
+            keyExtractor={(item) => item.id.toString()}
+            renderItem={({ item, drag, isActive }) => (
               <TouchableOpacity
-                style={styles.songOptionsButton}
-                onPress={() => {
-                  setSelectedSong(item);
-                  setSongOptionsVisible(true);
-                }}
+                onLongPress={drag}
+                disabled={isActive}
+                style={[styles.songItem, isActive && { opacity: 0.8 }]}
+                onPress={() => iniciarReproduccionDesdeCancion(item, songs.findIndex(s => s.id === item.id))}
               >
-                <Ionicons name="ellipsis-vertical" size={20} color="#fff" />
-              </TouchableOpacity>
-            </TouchableOpacity>
-          )}
-          onDragEnd={({ data }) => {
-            setSongs(data);
-            guardarNuevoOrden(data);
-            console.log("Nuevo orden guardado:", data);
-          }}
-          ListHeaderComponent={ListHeader}
-          ListFooterComponent={ListFooter}
-          contentContainerStyle={styles.flatListContent}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              colors={['#f2ab55']}
-              tintColor="#f2ab55"
-            />
-          }
-        />
+                <Image
+                  source={item.portada === "URL"
+                    ? require('../assets/default_song_portada.jpg')
+                    : { uri: item.portada }}
+                  style={styles.songImage}
+                />
+                <Text style={styles.songTitle} numberOfLines={1}>{item.nombre}</Text>
 
-      {songOptionsVisible && (
-        <View style={styles.songOptionsOverlay}>
-          <View style={styles.songOptionsContainer}>
-            <TouchableOpacity
-              style={styles.closeSongOptionsButton}
-              onPress={() => setSongOptionsVisible(false)}
-            >
-              <Ionicons name="close" size={24} color="#000" />
-            </TouchableOpacity>
-            <Text style={styles.songOptionsTitle}>Opciones para la canción</Text>
-            <TouchableOpacity
-              style={styles.modalOption}
-              onPress={eliminarCancionDeLista}
-            >
-              <Text style={styles.modalOptionText}>Eliminar de la lista</Text>
-            </TouchableOpacity>
-          </View>
-          <View style={styles.songOptionsBlur} />
-        </View>
-      )}
-      {infoVisible && (
-        <View style={styles.infoOverlay}>
-          <View style={styles.infoContainer}>
-            <TouchableOpacity
-              style={styles.closeButton}
-              onPress={() => setInfoVisible(false)}
-            >
-              <Ionicons name="close" size={30} color="#000" />
-            </TouchableOpacity>
-            <Text style={styles.infoTitle}>Información</Text>
-            {playlistInfo ? (
-              <>
-                <Text style={styles.infoText}>Privacidad: {playlistInfo.TipoPrivacidad}</Text>
-                <Text style={styles.infoText}>Género: {playlistInfo.Genero}</Text>
-              </>
-            ) : (
-              <Text style={styles.infoText}>Cargando información...</Text>
+                <TouchableOpacity onPress={() => toggleFavorito(item.id)} style={{ marginRight: 10 }}>
+                  <Ionicons name="heart" size={22} color={favoritos.includes(item.id) ? "#f2ab55" : "#fff"} />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.songOptionsButton}
+                  onPress={() => {
+                    setSelectedSong(item);
+                    setSongOptionsVisible(true);
+                  }}
+                >
+                  <Ionicons name="ellipsis-vertical" size={20} color="#fff" />
+                </TouchableOpacity>
+              </TouchableOpacity>
             )}
-            <TouchableOpacity style={styles.editButton} onPress={() => { }}>
-              <Text style={styles.editButtonText}>Editar playlist</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.deleteButton} onPress={() => eliminarPlaylist()}>
-              <Text style={styles.deleteButtonText}>Eliminar playlist</Text>
-            </TouchableOpacity>
+            onDragEnd={({ data }) => {
+              setSongs(data);
+              guardarNuevoOrden(data);
+              console.log("Nuevo orden guardado:", data);
+            }}
+            ListHeaderComponent={ListHeader}
+            ListFooterComponent={ListFooter}
+            contentContainerStyle={styles.flatListContent}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                colors={['#f2ab55']}
+                tintColor="#f2ab55"
+              />
+            }
+          />
+
+        {songOptionsVisible && (
+          <View style={styles.songOptionsOverlay}>
+            <View style={styles.songOptionsContainer}>
+              <TouchableOpacity
+                style={styles.closeSongOptionsButton}
+                onPress={() => setSongOptionsVisible(false)}
+              >
+                <Ionicons name="close" size={24} color="#000" />
+              </TouchableOpacity>
+              <Text style={styles.songOptionsTitle}>Opciones para la canción</Text>
+              <TouchableOpacity
+                style={styles.modalOption}
+                onPress={eliminarCancionDeLista}
+              >
+                <Text style={styles.modalOptionText}>Eliminar de la lista</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.songOptionsBlur} />
           </View>
-          <View style={styles.blurBackground} />
-        </View>
-      )}
-    </SafeAreaView>
+        )}
+        {infoVisible && (
+          <View style={styles.infoOverlay}>
+            <View style={styles.infoContainer}>
+              <TouchableOpacity
+                style={styles.closeButton}
+                onPress={() => setInfoVisible(false)}
+              >
+                <Ionicons name="close" size={30} color="#000" />
+              </TouchableOpacity>
+              <Text style={styles.infoTitle}>Información</Text>
+              {playlistInfo ? (
+                <>
+                  <Text style={styles.infoText}>Privacidad: {playlistInfo.TipoPrivacidad}</Text>
+                  <Text style={styles.infoText}>Género: {playlistInfo.Genero}</Text>
+                </>
+              ) : (
+                <Text style={styles.infoText}>Cargando información...</Text>
+              )}
+              <TouchableOpacity style={styles.editButton} onPress={() => { }}>
+                <Text style={styles.editButtonText}>Editar playlist</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.deleteButton} onPress={() => eliminarPlaylist()}>
+                <Text style={styles.deleteButtonText}>Eliminar playlist</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.blurBackground} />
+          </View>
+        )}
+      </SafeAreaView>
+    </GestureHandlerRootView>
   );
 }
 

@@ -1,19 +1,6 @@
 import React, { useState, useLayoutEffect, useEffect, useRef } from 'react';
-import { 
-  View, 
-  Text, 
-  FlatList, 
-  Image, 
-  StyleSheet, 
-  Dimensions, 
-  TouchableOpacity, 
-  TouchableWithoutFeedback, 
-  Animated, 
-  Alert, 
-  Easing,
-  RefreshControl,
-  ScrollView
-} from 'react-native';
+import { View, Text, FlatList, Image, StyleSheet, Dimensions, TouchableOpacity, 
+         TouchableWithoutFeedback, Animated, Alert, Easing,RefreshControl, ScrollView } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -283,100 +270,100 @@ export default function HomeScreen({ navigation }) {
   };
 
   return (
-    <TouchableWithoutFeedback onPress={() => menuAbierto && toggleMenu()}>
-      <View style={styles.container}>
-        <Animated.View
-          pointerEvents={menuAbierto ? 'auto' : 'none'}
-          style={[
-            styles.blurView,
-            {
-              opacity: blurAnimation.interpolate({ inputRange: [0, 1], outputRange: [0, 0.7] }),
-              zIndex: 1,
-            },
-          ]}
-        />
+      <TouchableWithoutFeedback onPress={() => menuAbierto && toggleMenu()}>
+        <View style={styles.container}>
+          <Animated.View
+            pointerEvents={menuAbierto ? 'auto' : 'none'}
+            style={[
+              styles.blurView,
+              {
+                opacity: blurAnimation.interpolate({ inputRange: [0, 1], outputRange: [0, 0.7] }),
+                zIndex: 1,
+              },
+            ]}
+          />
 
-        <View pointerEvents={menuAbierto ? 'none' : 'auto'} style={{ flex: 1 }}>
-          <View style={styles.headerContainer}>
-            <Text style={styles.greeting}>Hola 😄, {userName}</Text>
-            <TouchableOpacity onPress={() => navigation.navigate('ProfileScreen')}>
-              <Image source={{uri: profilePhoto}} style={styles.profileImage} />
-            </TouchableOpacity>
+          <View pointerEvents={menuAbierto ? 'none' : 'auto'} style={{ flex: 1 }}>
+            <View style={styles.headerContainer}>
+              <Text style={styles.greeting}>Hola 😄, {userName}</Text>
+              <TouchableOpacity onPress={() => navigation.navigate('ProfileScreen')}>
+                <Image source={{uri: profilePhoto}} style={styles.profileImage} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView 
+              style={styles.scrollContainer}
+              refreshControl={
+                <RefreshControl
+                  refreshing={refreshing}
+                  onRefresh={onRefresh}
+                  colors={['#f2ab55']}
+                  tintColor="#f2ab55"
+                />
+              }
+            >
+              {/* Sección Tus Listas */}
+              <View style={styles.sectionContainer}>
+                <Text style={styles.subTitle}>Tus Listas</Text>
+                {playlistCreadas.length === 0 ? (
+                  <TouchableOpacity
+                    style={styles.createFirstPlaylistButton}
+                    onPress={() => navigation.navigate("CrearPlaylist")}
+                  >
+                    <Text style={styles.createFirstPlaylistButtonText}>Crea tu 1ª Playlist!</Text>
+                  </TouchableOpacity>
+                ) : (
+                  <FlatList
+                    data={playlistCreadas}
+                    renderItem={renderPlaylistCreada}
+                    keyExtractor={(item, index) => index.toString()}
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.horizontalListContent}
+                  />
+                )}
+              </View>
+
+              {/* Sección Recomendaciones */}
+              <View style={styles.sectionContainer}>
+                <Text style={styles.subTitle}>Recomendaciones</Text>
+                {recomendations.length === 0 ? (
+                  <Text style={styles.noContentText}>No hay recomendaciones disponibles</Text>
+                ) : (
+                  <FlatList
+                    data={recomendations}
+                    renderItem={renderRecomendationsItem}
+                    keyExtractor={(item, index) => index.toString()}
+                    numColumns={2}
+                    scrollEnabled={false}
+                    showsVerticalScrollIndicator={false}
+                    contentContainerStyle={styles.gridListContent}
+                  />
+                )}
+              </View>
+              
+              {/* Espacio para el menú inferior */}
+              <View style={{ height: 100 }} />
+            </ScrollView>
           </View>
 
-          <ScrollView 
-            style={styles.scrollContainer}
-            refreshControl={
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={onRefresh}
-                colors={['#f2ab55']}
-                tintColor="#f2ab55"
-              />
-            }
-          >
-            {/* Sección Tus Listas */}
-            <View style={styles.sectionContainer}>
-              <Text style={styles.subTitle}>Tus Listas</Text>
-              {playlistCreadas.length === 0 ? (
-                <TouchableOpacity
-                  style={styles.createFirstPlaylistButton}
-                  onPress={() => navigation.navigate("CrearPlaylist")}
-                >
-                  <Text style={styles.createFirstPlaylistButtonText}>Crea tu 1ª Playlist!</Text>
-                </TouchableOpacity>
-              ) : (
-                <FlatList
-                  data={playlistCreadas}
-                  renderItem={renderPlaylistCreada}
-                  keyExtractor={(item, index) => index.toString()}
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.horizontalListContent}
-                />
-              )}
-            </View>
-
-            {/* Sección Recomendaciones */}
-            <View style={styles.sectionContainer}>
-              <Text style={styles.subTitle}>Recomendaciones</Text>
-              {recomendations.length === 0 ? (
-                <Text style={styles.noContentText}>No hay recomendaciones disponibles</Text>
-              ) : (
-                <FlatList
-                  data={recomendations}
-                  renderItem={renderRecomendationsItem}
-                  keyExtractor={(item, index) => index.toString()}
-                  numColumns={2}
-                  scrollEnabled={false}
-                  showsVerticalScrollIndicator={false}
-                  contentContainerStyle={styles.gridListContent}
-                />
-              )}
-            </View>
-            
-            {/* Espacio para el menú inferior */}
-            <View style={{ height: 100 }} />
-          </ScrollView>
-        </View>
-
-        <View style={styles.bottomContainer}>
-          {renderBotonesMenu()}
-          <TouchableOpacity style={styles.halfCircleButton} onPress={toggleMenu} activeOpacity={0.8}>
-            <Text style={styles.buttonText}>{menuAbierto ? 'x' : '. . .'}</Text>
-          </TouchableOpacity>
-
-          {cancionSonando && !menuAbierto && (
-            <TouchableOpacity onPress={handleOpenMusicPlayer} style={styles.musicIconContainer}>
-              <Animated.Image
-                source={require('../assets/disc.png')}
-                style={[styles.discIcon, { transform: [{ rotate: spin }] }]}
-              />
+          <View style={styles.bottomContainer}>
+            {renderBotonesMenu()}
+            <TouchableOpacity style={styles.halfCircleButton} onPress={toggleMenu} activeOpacity={0.8}>
+              <Text style={styles.buttonText}>{menuAbierto ? 'x' : '. . .'}</Text>
             </TouchableOpacity>
-          )}
+
+            {cancionSonando && !menuAbierto && (
+              <TouchableOpacity onPress={handleOpenMusicPlayer} style={styles.musicIconContainer}>
+                <Animated.Image
+                  source={require('../assets/disc.png')}
+                  style={[styles.discIcon, { transform: [{ rotate: spin }] }]}
+                />
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
-      </View>
-    </TouchableWithoutFeedback>
+      </TouchableWithoutFeedback>
   );
 }
 

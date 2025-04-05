@@ -1,17 +1,5 @@
 import React, { useState, useEffect, useLayoutEffect } from 'react';
-import { 
-  View, 
-  Text, 
-  FlatList, 
-  StyleSheet, 
-  TouchableOpacity, 
-  Image, 
-  Modal, 
-  TouchableWithoutFeedback, 
-  TextInput, 
-  Keyboard, 
-  Alert 
-} from 'react-native';
+import { View, Text, FlatList, StyleSheet, TouchableOpacity, Image, Modal, TouchableWithoutFeedback, TextInput, Keyboard, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -30,7 +18,6 @@ export default function SearchResults({ route, navigation }) {
     navigation.setOptions({ headerShown: false });
   }, [navigation]);
 
-  const options = ["Canción", "Playlist", "Autor", "Álbum"];
   const optionMap = {
     "Canción": "canciones",
     "Playlist": "playlists",
@@ -381,7 +368,7 @@ export default function SearchResults({ route, navigation }) {
   };
 
   const renderItem = ({ item }) => {
-    const imageSource = { uri: item.portada || item.Portada || 'https://via.placeholder.com/150' };
+    const imageSource = { uri: item.portada || item.Portada || item.FotoPerfil || 'https://via.placeholder.com/150' };
 
     switch (item.type) {
       case 'album': 
@@ -427,19 +414,19 @@ export default function SearchResults({ route, navigation }) {
           </View>
         );
 
-      case 'artist':
-        return (
-          <View style={[styles.itemContainer, styles.artistContainer]}>
-            <Image source={imageSource} style={styles.artistImage} />
-            <View style={styles.artistTextContainer}>
-              <Text style={styles.artistName}>{item.nombre || item.Nombre}</Text>
-              <Text style={styles.artistListeners}>{item.numOyentesTotales || item.NumOyentesTotales || 0} oyentes</Text>
-            </View>
-            <TouchableOpacity onPress={() => openModal(item)}>
-              <Ionicons name="ellipsis-vertical" size={24} color="#fff" />
+        case 'artist':
+          return (
+            <TouchableOpacity style={[styles.itemContainer, styles.artistContainer]} onPress={() => navigation.navigate('ArtistDetails', { artist: item })}>
+              <Image source={imageSource} style={styles.artistImage} />
+              <View style={styles.artistTextContainer}>
+                <Text style={styles.artistName}>{item.nombre || item.Nombre}</Text>
+                <Text style={styles.artistListeners}>{item.numOyentesTotales || item.NumOyentesTotales || 0} oyentes</Text>
+              </View>
+              <TouchableOpacity onPress={() => openModal(item)}>
+                <Ionicons name="ellipsis-vertical" size={24} color="#fff" />
+              </TouchableOpacity>
             </TouchableOpacity>
-          </View>
-        );
+          );
 
       case 'song':
         return (
@@ -518,7 +505,7 @@ export default function SearchResults({ route, navigation }) {
 
         <FlatList
           data={filteredResults}
-          keyExtractor={(item) => `${item.type}-${item.id || item.Id}`}
+          keyExtractor={(item, index) => `${item.type}-${item.id || item.Id || index}`}
           renderItem={renderItem}
           contentContainerStyle={styles.listContainer}
         />
@@ -586,9 +573,8 @@ const styles = StyleSheet.create({
     marginRight: 16,
   },
   artistContainer: {
-    backgroundColor: '#222',
     borderRadius: 8,
-    padding: 16,
+    padding: 5,
   },
   artistImage: {
     width: 80,

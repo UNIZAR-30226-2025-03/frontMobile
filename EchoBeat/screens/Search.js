@@ -7,11 +7,11 @@ export default function Search({ navigation, route }) {
   const [selectedOption, setSelectedOption] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
 
-  const options = ["Canción", "Playlist", "Autor", "Álbum"];
+  const options = ["Canción", "Playlist", "Artista", "Álbum"];
   const optionMap = {
     "Canción": "canciones",
     "Playlist": "playlists",
-    "Autor": "artistas",
+    "Artista": "artistas",
     "Álbum": "albums"
   };
 

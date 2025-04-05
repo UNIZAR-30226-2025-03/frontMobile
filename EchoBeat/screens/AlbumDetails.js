@@ -26,6 +26,7 @@ export default function AlbumDetails({ navigation, route }) {
 
   const loadData = async () => {
     try {
+      console.log("Datos del album ", playlist);
       const email = await AsyncStorage.getItem('email');
       console.log("Email recuperado:", `"${email}"`);
       if (!email) return;
@@ -213,7 +214,7 @@ export default function AlbumDetails({ navigation, route }) {
   const ListHeader = () => (
     <View style={styles.headerContent}>
       <Image
-        source={playlist.Portada ? { uri: playlist.Portada } : require('../assets/default_playlist_portada.jpg')}
+        source={{ uri: playlist.Portada || 'https://via.placeholder.com/200' }}
         style={styles.playlistImage}
       />
       <Text style={styles.playlistTitle}>{playlist.Nombre}</Text>
