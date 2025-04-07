@@ -21,6 +21,7 @@ export default function PlaylistDetail({ navigation, route }) {
   const [favoritos, setFavoritos] = useState([]);
   const [shuffle, setShuffle] = useState(false);
   const [cola, setCola] = useState(null);
+  const [esAutor, setEsAutor] = useState(false);
 
   useLayoutEffect(() => {
     navigation.setOptions({ headerShown: false });
@@ -36,16 +37,22 @@ export default function PlaylistDetail({ navigation, route }) {
       setUserEmail(email);
       console.log('📡 Haciendo fetch con playlist.Id:', playlist?.Id);
   
-      const [cancionesData, playlistData, favoritosData] = await Promise.all([
+      const [cancionesData, playlistData, favoritosData, listasDelUsuario] = await Promise.all([
         fetch(`https://echobeatapi.duckdns.org/playlists/${playlist.Id}/songs`).then(res => res.json()),
         fetch(`https://echobeatapi.duckdns.org/playlists/playlist/${playlist.Id}`).then(res => res.json()),
         fetch(`https://echobeatapi.duckdns.org/cancion/favorites?email=${encodedEmail}`).then(res => res.json()),
+        fetch(`https://echobeatapi.duckdns.org/playlists/user/${encodedEmail}`).then(res => res.json()),
       ]);
   
       setCola(cancionesData);
       setSongs(cancionesData.canciones || []);
       setPlaylistInfo(playlistData);
       setFavoritos((favoritosData.canciones || []).map(c => c.id));
+
+      const nombresDelUsuario = listasDelUsuario.map(p => p.Nombre);
+      const esPropia = nombresDelUsuario.includes(playlist.Nombre);
+      setEsAutor(esPropia);
+      //console.log("Es autor:", esPropia);
     } catch (error) {
       console.error("Error en loadData:", error);
     }
@@ -423,12 +430,16 @@ export default function PlaylistDetail({ navigation, route }) {
               ) : (
                 <Text style={styles.infoText}>Cargando información...</Text>
               )}
-              <TouchableOpacity style={styles.editButton} onPress={() => { }}>
-                <Text style={styles.editButtonText}>Editar playlist</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.deleteButton} onPress={() => eliminarPlaylist()}>
-                <Text style={styles.deleteButtonText}>Eliminar playlist</Text>
-              </TouchableOpacity>
+              {esAutor && (
+                <>
+                  <TouchableOpacity style={styles.editButton} onPress={() => { }}>
+                    <Text style={styles.editButtonText}>Editar playlist</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.deleteButton} onPress={eliminarPlaylist}>
+                    <Text style={styles.deleteButtonText}>Eliminar playlist</Text>
+                  </TouchableOpacity>
+                </>
+              )}
             </View>
             <View style={styles.blurBackground} />
           </View>
