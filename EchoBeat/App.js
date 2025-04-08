@@ -23,6 +23,7 @@ import SearchResults from './screens/SearchResults';
 import Amistades from './screens/Amistades';
 import FriendRequest from './screens/FriendRequest';
 import ArtistDetails from './screens/ArtistDetails';
+import ProfileAmistades from './screens/ProfileAmistades';
 
 const Stack = createNativeStackNavigator();
 
@@ -51,6 +52,7 @@ export default function App() {
         <Stack.Screen name="Amistades" component={Amistades} />
         <Stack.Screen name="FriendRequest" component={FriendRequest} />
         <Stack.Screen name="ArtistDetails" component={ArtistDetails} />
+        <Stack.Screen name="ProfileAmistades" component={ProfileAmistades} />
       </Stack.Navigator>
     </NavigationContainer>
   );

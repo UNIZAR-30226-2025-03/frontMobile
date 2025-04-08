@@ -27,9 +27,21 @@ export default function SearchResults({ route, navigation }) {
 
   const handleSearch = async () => {
     const tipo = selectedOption ? optionMap[selectedOption] : '';
-    const url = `https://echobeatapi.duckdns.org/search?q=${encodeURIComponent(searchText)}${tipo ? `&tipo=${tipo}` : ''}`;
+    
     
     try {
+      const email = await AsyncStorage.getItem('email');
+      if (!email) {
+        console.warn("No se encontró el email del usuario.");
+        return;
+      }
+
+      const resUser = await fetch(`https://echobeatapi.duckdns.org/users/get-user?userEmail=${email}`);
+      const userData = await resUser.json();
+      const nickUsuario = userData.Nick;
+
+      const url = `https://echobeatapi.duckdns.org/search?Búsqueda=${encodeURIComponent(searchText)}&tipo=${tipo}&usuarioNick=${encodeURIComponent(nickUsuario)}`;
+
       const response = await fetch(url);
       const data = await response.json();
 

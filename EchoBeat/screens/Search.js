@@ -1,6 +1,7 @@
 import React, { useState, useLayoutEffect, useEffect } from 'react';
 import { View, Text, TouchableOpacity, TextInput, StyleSheet, TouchableWithoutFeedback, Keyboard } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function Search({ navigation, route }) {
   const [searchText, setSearchText] = useState('');
@@ -34,9 +35,20 @@ export default function Search({ navigation, route }) {
     setErrorMessage('');
     
     const tipo = selectedOption ? optionMap[selectedOption] : '';
-    const url = `https://echobeatapi.duckdns.org/search?q=${encodeURIComponent(searchText)}${tipo ? `&tipo=${tipo}` : ''}`;
-  
+
     try {
+      const email = await AsyncStorage.getItem('email');
+      if (!email) {
+        console.warn("No se encontró el email del usuario.");
+        return;
+      }
+
+      const resUser = await fetch(`https://echobeatapi.duckdns.org/users/get-user?userEmail=${email}`);
+      const userData = await resUser.json();
+      const nickUsuario = userData.Nick;
+      
+      const url = `https://echobeatapi.duckdns.org/search?Búsqueda=${encodeURIComponent(searchText)}&tipo=${tipo}&usuarioNick=${encodeURIComponent(nickUsuario)}`;
+
       const response = await fetch(url);
       const data = await response.json();
 

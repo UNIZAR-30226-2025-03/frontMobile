@@ -308,14 +308,18 @@ export default function PlaylistDetail({ navigation, route }) {
     </View>
   );
   
-  const ListFooter = () => (
-    <TouchableOpacity
-      style={styles.addButton}
-      onPress={() => navigation.navigate("Search", { defaultFilter: "Canción" })}
-    >
-      <Text style={styles.addButtonText}>+ Añadir canciones</Text>
-    </TouchableOpacity>
-  );
+  const ListFooter = () => {
+    if (!esAutor) return null;
+
+    return (
+      <TouchableOpacity
+        style={styles.addButton}
+        onPress={() => navigation.navigate("Search", { defaultFilter: "Canción" })}
+      >
+        <Text style={styles.addButtonText}>+ Añadir canciones</Text>
+      </TouchableOpacity>
+    );
+  };
 
   const guardarNuevoOrden = async (nuevaLista) => {
     try {

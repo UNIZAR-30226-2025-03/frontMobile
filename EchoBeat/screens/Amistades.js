@@ -49,7 +49,7 @@ export default function Amistades({ navigation }) {
       const res = await fetch(`https://echobeatapi.duckdns.org/amistades/verAmigos/${nickUsuario}`);
       const data = await res.json();
       setAmigos(data || []);
-      console.log("Amigos:", data);
+      //console.log("Amigos:", data);
     } catch (error) {
       console.error("Error al cargar amigos:", error);
       Alert.alert('Error', 'No se pudieron cargar los amigos');
@@ -85,19 +85,22 @@ export default function Amistades({ navigation }) {
   );
 
   const renderItem = ({ item }) => (
-    <View style={styles.friendItem}>
+    <TouchableOpacity
+      style={styles.friendItem}
+      onPress={() => navigation.navigate('ProfileAmistades', { userEmail: item.Email })}
+    >
       <Image
         source={item.LinkFoto ? { uri: item.LinkFoto } : require('../assets/logo.png')}
         style={styles.avatar}
       />
       <View style={{ flex: 1 }}>
         <Text style={styles.nick}>{item.Nick}</Text>
-        <Text style={styles.lastSong}>Última canción: {item.CancionActual || 'Ninguna'}</Text>
+        <Text style={styles.lastSong}>Última canción escuchada: {item.CancionActual || 'Ninguna'}</Text>
       </View>
       <TouchableOpacity onPress={() => eliminarAmigo(item.Nick)}>
         <Ionicons name="person-remove-outline" size={24} color="red" />
       </TouchableOpacity>
-    </View>
+    </TouchableOpacity>
   );
 
   return (
