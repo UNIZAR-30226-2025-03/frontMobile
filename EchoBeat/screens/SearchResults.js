@@ -28,7 +28,7 @@ export default function SearchResults({ route, navigation }) {
   const handleSearch = async () => {
     const tipo = selectedOption ? optionMap[selectedOption] : '';
     
-    
+
     try {
       const email = await AsyncStorage.getItem('email');
       if (!email) {
@@ -44,6 +44,7 @@ export default function SearchResults({ route, navigation }) {
 
       const response = await fetch(url);
       const data = await response.json();
+      console.log("🔍 Resultados de búsqueda:", data);
 
       // Normalizar la estructura de resultados
       const normalizedResults = {

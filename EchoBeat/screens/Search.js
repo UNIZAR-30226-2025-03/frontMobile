@@ -1,5 +1,5 @@
 import React, { useState, useLayoutEffect, useEffect } from 'react';
-import { View, Text, TouchableOpacity, TextInput, StyleSheet, TouchableWithoutFeedback, Keyboard } from 'react-native';
+import { View, Text, TouchableOpacity, TextInput, StyleSheet, TouchableWithoutFeedback, Keyboard, Modal, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -7,8 +7,11 @@ export default function Search({ navigation, route }) {
   const [searchText, setSearchText] = useState('');
   const [selectedOption, setSelectedOption] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
+  const [userEmail, setUserEmail] = useState('');
+  const [modalVisible, setModalVisible] = useState(false);
+  const [availableGeneros, setAvailableGeneros] = useState([]);
 
-  const options = ["Canción", "Playlist", "Artista", "Álbum"];
+  const options = ["Canción", "Playlist", "Artista", "Álbum", "Géneros"];
   const optionMap = {
     "Canción": "canciones",
     "Playlist": "playlists",
@@ -21,14 +24,34 @@ export default function Search({ navigation, route }) {
   }, [navigation]);
 
   useEffect(() => {
+    const getUserEmail = async () => {
+      try {
+        const email = await AsyncStorage.getItem('email');
+        if (email) {
+          setUserEmail(email);
+        }
+      } catch (error) {
+        console.error("Error al obtener el email:", error);
+      }
+    };
+    getUserEmail();
+  }, []);
+
+  useEffect(() => {
     if (route.params && route.params.defaultFilter) {
       setSelectedOption(route.params.defaultFilter);
     }
   }, [route.params]);
 
   const handleOptionPress = (option) => {
-    setSelectedOption(option === selectedOption ? null : option);
-    setErrorMessage('');
+    if (option === "Géneros") {
+      setModalVisible(true);
+      obtenerGenerosModal();
+      // No modificamos selectedOption en este caso
+    } else {
+      setSelectedOption(option === selectedOption ? null : option);
+      setErrorMessage('');
+    }
   };
 
   const handleSearch = async () => {
@@ -70,6 +93,40 @@ export default function Search({ navigation, route }) {
       console.error("Error al realizar la búsqueda:", error);
       setErrorMessage('Error al realizar la búsqueda. Por favor, intenta de nuevo.');
     }
+  };
+
+  const obtenerGenerosModal = async () => {
+    if (!userEmail) return;
+    try {
+      const response = await fetch(`https://echobeatapi.duckdns.org/genero?userEmail=${userEmail}`);
+      const data = await response.json();
+      // Mapeamos solo el nombre del género
+      const nombresGeneros = data.map((genero) => genero.NombreGenero);
+      setAvailableGeneros(nombresGeneros);
+    } catch (error) {
+      console.error("Error al obtener géneros:", error);
+    }
+  };
+
+  const selectGenero = async (genero) => {
+    setModalVisible(false);
+    // DESCOMENTAR Y ACTUALIZAR CUANDO SE IMPLEMENTE LA BÚSQUEDA POR GÉNEROS:
+    /*
+    const email = await AsyncStorage.getItem('email');
+    const resUser = await fetch(`https://echobeatapi.duckdns.org/users/get-user?userEmail=${email}`);
+    const userData = await resUser.json();
+    const nickUsuario = userData.Nick;
+    
+    const url = `https://echobeatapi.duckdns.org/search?Búsqueda=${encodeURIComponent(genero)}&tipo=generos&usuarioNick=${encodeURIComponent(nickUsuario)}`;
+    const response = await fetch(url);
+    const data = await response.json();
+    navigation.navigate('SearchResults', {
+      initialResults: data,
+      initialSearchText: genero,
+      initialSelectedOption: "Géneros",
+    });
+    */
+    console.log("Género seleccionado (llamada a búsqueda pendiente):", genero);
   };
 
   return (
@@ -125,6 +182,30 @@ export default function Search({ navigation, route }) {
             <Text style={styles.errorText}>{errorMessage}</Text>
           ) : null}
         </View>
+
+        {modalVisible && (
+          <Modal
+            transparent={true}
+            animationType="slide"
+            onRequestClose={() => setModalVisible(false)}
+          >
+            <View style={styles.modalContainer}>
+              <View style={styles.modalContent}>
+                <Text style={styles.modalTitle}>Selecciona un género</Text>
+                <ScrollView>
+                  {availableGeneros.map((genero) => (
+                    <TouchableOpacity key={genero} style={styles.modalItem} onPress={() => selectGenero(genero)}>
+                      <Text style={styles.modalItemText}>{genero}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+                <TouchableOpacity style={styles.modalCloseButton} onPress={() => setModalVisible(false)}>
+                  <Text style={styles.modalCloseButtonText}>Cerrar</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </Modal>
+        )}
       </View>
     </TouchableWithoutFeedback>
   );
@@ -213,5 +294,47 @@ const styles = StyleSheet.create({
     marginTop: 12,
     textAlign: 'center',
     fontSize: 16,
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    width: '80%',
+    backgroundColor: '#222',
+    borderRadius: 10,
+    padding: 20,
+    maxHeight: '80%',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  modalItem: {
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#444',
+    alignItems: 'center',
+  },
+  modalItemText: {
+    color: '#fff',
+    fontSize: 18,
+  },
+  modalCloseButton: {
+    backgroundColor: 'orange',
+    paddingVertical: 12,
+    borderRadius: 8,
+    marginTop: 20,
+    alignItems: 'center'
+  },
+  modalCloseButtonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
   },
 });

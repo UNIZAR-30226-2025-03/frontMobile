@@ -66,7 +66,7 @@ export default function GeneroPreferencesScreen({ navigation }) {
       // 🔹 Mapeamos los datos asegurando que los valores de "Seleccionado" se reflejan correctamente
       const generosFormateados = data.map((genero) => ({
         nombre: genero.NombreGenero,
-        seleccionado: genero.Seleccionado === true,  // **Si es true, debe verse como botón marcado**
+        seleccionado: genero.seleccionado === true,  // **Si es true, debe verse como botón marcado**
       }));
 
       console.log("✅ Géneros después de procesarlos:", JSON.stringify(generosFormateados, null, 2));

@@ -27,6 +27,7 @@ export default function ArtistDetails({ route, navigation }) {
       try {
         const response = await fetch(`https://echobeatapi.duckdns.org/artistas/perfil?artistName=${encodeURIComponent(artist.nombre || artist.Nombre)}`);
         const data = await response.json();
+        console.log("Detalles del artista:", data);
         setArtistData(data);
       } catch (error) {
         console.error("Error al obtener detalles del artista:", error);
@@ -52,7 +53,7 @@ export default function ArtistDetails({ route, navigation }) {
   const renderAlbumItem = ({ item }) => (
     <TouchableOpacity 
       style={styles.albumItem} 
-      onPress={() => navigation.navigate('AlbumDetails', { album: item })}
+      onPress={() => navigation.navigate('AlbumDetails', { playlist: item })}
     >
       <Image source={{ uri: item.Portada || 'https://via.placeholder.com/150' }} style={styles.albumImage} />
       <Text style={styles.albumTitle}>{item.Nombre}</Text>

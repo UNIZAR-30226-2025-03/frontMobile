@@ -103,9 +103,7 @@ export default function AlbumDetails({ navigation, route }) {
           onPress={() => iniciarReproduccionDesdeCancion(item, songs.findIndex(s => s.id === item.id))}
         >
           <Image
-            source={item.portada === "URL"
-              ? require('../assets/default_song_portada.jpg')
-              : { uri: item.portada }}
+            source={{ uri: item.portada || item.Portada }}
             style={styles.songImage}
           />
           <Text style={styles.songTitle} numberOfLines={1}>{item.nombre}</Text>
