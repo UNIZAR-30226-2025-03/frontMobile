@@ -1,26 +1,31 @@
 import React, { useState, useRef, useLayoutEffect, useEffect } from 'react';
-import { View, Text, FlatList, Image, StyleSheet, Dimensions, TouchableOpacity, Animated } from 'react-native';
+import { 
+  View, 
+  Text, 
+  FlatList, 
+  Image, 
+  StyleSheet, 
+  Dimensions, 
+  TouchableOpacity, 
+  Animated 
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 const { width } = Dimensions.get('window');
 
 export default function ChatScreen({ navigation }) {
   const [cancionSonando, setCancionSonando] = useState(true);
+  const [chats, setChats] = useState([]);
+  const [userName, setUserName] = useState('');
+
   const rotation = useRef(new Animated.Value(0)).current;
 
-  const amigos = [
-    { id: '1', nickname: 'Pedro', ultimaCancion: 'Bohemian Rhapsody', fotoPerfil: require('../assets/thanos1.jpg') },
-    { id: '2', nickname: 'Elías', ultimaCancion: 'Rolling in the Deep', fotoPerfil: require('../assets/eliasgossip.jpg') },
-    { id: '3', nickname: 'Carlos', ultimaCancion: 'Hotel California', fotoPerfil: require('../assets/carloscoche.jpg') },
-    { id: '4', nickname: 'María', ultimaCancion: 'Someone Like You', fotoPerfil: require('../assets/darkraul.jpg') },
-    { id: '5', nickname: 'Andrés', ultimaCancion: 'Stairway to Heaven', fotoPerfil: require('../assets/jordi.jpg') },
-    { id: '6', nickname: 'Sofía', ultimaCancion: 'Shape of You', fotoPerfil: require('../assets/thanos1.jpg') },
-  ];
-
+  // Configurar navegación: ocultar header
   useLayoutEffect(() => {
     navigation.setOptions({ headerShown: false });
   }, [navigation]);
 
+  // Iniciar animación para el icono de música
   Animated.loop(
     Animated.timing(rotation, {
       toValue: 1,
@@ -34,12 +39,65 @@ export default function ChatScreen({ navigation }) {
     outputRange: ['0deg', '360deg'],
   });
 
+  // Se hace la petición para cargar los chats recientes y obtener el nick de cada usuario
+  useEffect(() => {
+    const fetchChats = async () => {
+      try {
+        // Cambia el email si es necesario o recupéralo dinámicamente
+        const userEmail = 'userA@gmail.com';
+        const encodedEmail = encodeURIComponent(userEmail);
+        const response = await fetch(`https://echobeatapi.duckdns.org/chat/chatsDelUsuario?userEmail=${encodedEmail}`, {
+          headers: { accept: '*/*' }
+        });
+        if (!response.ok) {
+          throw new Error('Error al obtener los chats');
+        }
+        const data = await response.json();
+
+        // Por cada chat se consulta el nick del usuario
+        const chatsWithNick = await Promise.all(
+          data.map(async (item) => {
+            try {
+              const response = await fetch(`https://echobeatapi.duckdns.org/users/get-user?userEmail=${userEmail}`);
+              const data = await response.json();
+              if (!response.ok) throw new Error(data.message || "Error al obtener el nombre del usuario");
+              setUserName(data.Nick || 'Usuario');
+              // Se asume que la respuesta es un objeto { nick: "..." } o directamente un string.
+              return {
+                ...item,
+                contact: data.Nick || data,
+                foto: data.LinkFoto || item.foto,
+              };
+            } catch (error) {
+              console.error("Error al obtener nick para", item.contact, error);
+              // En caso de error, se retorna el item original sin modificar
+              return item;
+            }
+          })
+        );
+        setChats(chatsWithNick);
+      } catch (error) {
+        console.error("Error al cargar chats:", error);
+      }
+    };
+
+    fetchChats();
+  }, []);
+
+  // Renderiza cada ítem de chat
   const renderChatItem = ({ item }) => (
-    <TouchableOpacity style={styles.chatItem} onPress={() => navigation.navigate('ChatScreen', { friend: item })}>
-      <Image source={item.fotoPerfil} style={styles.profileImage} />
+    <TouchableOpacity 
+      style={styles.chatItem} 
+      onPress={() => navigation.navigate('ChatScreen', { chat: item })}
+    >
+      {item.foto ? (
+        <Image source={{ uri: item.foto }} style={styles.profileImage} />
+      ) : (
+        <Image source={require('../assets/default_user_icon.png')} style={styles.profileImage} />
+      )}
       <View style={styles.chatInfo}>
-        <Text style={styles.nickname}>{item.nickname}</Text>
-        <Text style={styles.lastSong}>Última canción escuchada: {item.ultimaCancion}</Text>
+        <Text style={styles.nickname}>{item.contact}</Text>
+        <Text style={styles.lastSong}>{item.mensaje}</Text>
       </View>
       <Ionicons name="chatbubble-ellipses-outline" size={20} color="#f2ab55" />
     </TouchableOpacity>
@@ -61,24 +119,29 @@ export default function ChatScreen({ navigation }) {
           <Ionicons name="arrow-back" size={24} color="transparent" />
         </TouchableOpacity>
       </View>
-  
+      
+      {/* Lista de chats recientes obtenidos de la API */}
       <FlatList
-        data={amigos}
+        data={chats}
         renderItem={renderChatItem}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item, index) => index.toString()}
         contentContainerStyle={styles.chatList}
       />
-  
+
+      {/* Botón que muestra el icono de música */}
       {cancionSonando && (
-        <TouchableOpacity onPress={() => navigation.navigate('MusicPlayer')} style={styles.musicIconContainer}>
+        <TouchableOpacity 
+          onPress={() => navigation.navigate('MusicPlayer')} 
+          style={styles.musicIconContainer}
+        >
           <Animated.Image
-            source={require('../assets/favicon.png')}
+            source={require('../assets/disc.png')}
             style={[styles.musicIcon, { transform: [{ rotate: spin }] }]}
           />
         </TouchableOpacity>
       )}
-  
-      {/* Botón semicircular para el apartado Amistades */}
+
+      {/* Botón semicircular para ir al apartado Amistades */}
       <View style={styles.bottomContainer}>
         <TouchableOpacity 
           style={styles.halfCircleButton} 

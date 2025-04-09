@@ -48,6 +48,33 @@ export default function MusicPlayer({ navigation, route }) {
     });
   }, []);
 
+  useEffect(() => {
+    // Creamos un intervalo de 2 segundos
+    const progressInterval = setInterval(async () => {
+      // Verificamos que existan el sonido y el socket y que se esté reproduciendo
+      if (sound && socket && isPlaying) {
+        try {
+          const status = await sound.getStatusAsync();
+          if (status.isLoaded && status.isPlaying) {
+            const currentTimeSec = Math.floor(status.positionMillis / 1000);
+            socket.emit('progressUpdate', {
+              userId: userEmail,
+              songId, // se usa la variable songId recibida como parámetro
+              currentTime: currentTimeSec,
+            });
+            console.log(`Progreso enviado: ${currentTimeSec} segundos`);
+          }
+        } catch (error) {
+          console.error("Error obteniendo el estado del sonido:", error);
+        }
+      }
+    }, 2000);
+  
+    // Al desmontarse el componente se limpia el intervalo
+    return () => clearInterval(progressInterval);
+  }, [sound, socket, isPlaying, userEmail, songId]);
+
+
   const setupPlaybackStatusUpdate = (soundInstance) => {
     soundInstance.setOnPlaybackStatusUpdate((status) => {
       if (status.isLoaded) {

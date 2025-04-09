@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useLayoutEffect } from 'react';
 import { View, Text, Image, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -14,6 +14,10 @@ export default function ProfileAmistades({ route, navigation }) {
       .then(data => setUserData(data))
       .catch(err => console.error("Error cargando perfil:", err));
   }, [userEmail]);
+
+  useLayoutEffect(() => {
+    navigation.setOptions({ headerShown: false });
+  }, [navigation]);
 
   if (!userData) {
     return (

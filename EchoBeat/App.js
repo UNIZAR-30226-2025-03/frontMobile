@@ -24,6 +24,7 @@ import Amistades from './screens/Amistades';
 import FriendRequest from './screens/FriendRequest';
 import ArtistDetails from './screens/ArtistDetails';
 import ProfileAmistades from './screens/ProfileAmistades';
+import ChatScreen from './screens/ChatScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -53,6 +54,7 @@ export default function App() {
         <Stack.Screen name="FriendRequest" component={FriendRequest} />
         <Stack.Screen name="ArtistDetails" component={ArtistDetails} />
         <Stack.Screen name="ProfileAmistades" component={ProfileAmistades} />
+        <Stack.Screen name="ChatScreen" component={ChatScreen} options={{ headerShown: false }} />
       </Stack.Navigator>
     </NavigationContainer>
   );
