@@ -45,7 +45,7 @@ export default function ProfileAmistades({ route, navigation }) {
         <Text style={styles.nick}>{userData.Nick}</Text>
       </View>
 
-      <Text style={styles.sectionTitle}>Playlists públicas</Text>
+      <Text style={styles.sectionTitle}>Playlists visibles</Text>
 
       {userData.Playlists.length === 0 ? (
         <Text style={styles.emptyText}>Este usuario no tiene playlists públicas.</Text>

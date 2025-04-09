@@ -29,6 +29,7 @@ export default function MusicPlayer({ navigation, route }) {
   const [playlists, setPlaylists] = useState([]);
 
   const audioChunksRef = useRef([]);
+  const loopRef = useRef(loop);
 
   const isBase64 = (str) => /^[A-Za-z0-9+/]+={0,2}$/.test(str);
 
@@ -49,6 +50,7 @@ export default function MusicPlayer({ navigation, route }) {
   }, []);
 
   useEffect(() => {
+    loopRef.current = loop;
     // Creamos un intervalo de 2 segundos
     const progressInterval = setInterval(async () => {
       // Verificamos que existan el sonido y el socket y que se esté reproduciendo
@@ -72,18 +74,24 @@ export default function MusicPlayer({ navigation, route }) {
   
     // Al desmontarse el componente se limpia el intervalo
     return () => clearInterval(progressInterval);
-  }, [sound, socket, isPlaying, userEmail, songId]);
+  }, [loop, sound, socket, isPlaying, userEmail, songId]);
 
 
   const setupPlaybackStatusUpdate = (soundInstance) => {
-    soundInstance.setOnPlaybackStatusUpdate((status) => {
+    soundInstance.setOnPlaybackStatusUpdate(async (status) => {
       if (status.isLoaded) {
         setPosition(status.positionMillis);
         setDuration(status.durationMillis);
         if (status.didJustFinish) {
-          if (loop) {
-            soundInstance.setPositionAsync(0);
-            soundInstance.playAsync();
+          console.log("el loop tambien esta activo:", loopRef.current);
+          if (loopRef.current) {
+            try {
+              await soundInstance.setPositionAsync(0);
+              await soundInstance.playAsync();
+              console.log("🔁 Canción reiniciada en modo loop");
+            } catch (error) {
+              console.error("❌ Error al reiniciar la canción en loop:", error);
+            }
           } else {
             siguienteCancion();
           }
@@ -118,7 +126,7 @@ export default function MusicPlayer({ navigation, route }) {
     }
   };
   
-  const addSongToPlaylist = async (playlistId) => {
+  const addSongToPlaylist = async (playlistId, songId) => {
     try {
       const res = await fetch(`https://echobeatapi.duckdns.org/playlists/add-song/${playlistId}`, {
         method: 'POST',
@@ -128,15 +136,20 @@ export default function MusicPlayer({ navigation, route }) {
       if (!res.ok) throw new Error("Error al añadir canción");
       Alert.alert("✅ Añadido", "Canción añadida a la playlist");
     } catch (err) {
-      Alert.alert("Error", "No se pudo añadir a la playlist");
+      Alert.alert("Error", "Esta cancion ya se encuentra en la playlist seleccionada");
     } finally {
       setModalVisible(false);
     }
   };
-  
 
   useEffect(() => {
     const initPlayer = async () => {
+      const storedLoop = await AsyncStorage.getItem('loopMode');
+      if (storedLoop !== null) {
+        const parsed = JSON.parse(storedLoop);
+        setLoop(parsed);
+        loopRef.current = parsed;
+      }
       const email = passedEmail || await AsyncStorage.getItem('email');
       if (!email) {
         console.warn("❌ No se pudo obtener el email del usuario");
@@ -221,8 +234,14 @@ export default function MusicPlayer({ navigation, route }) {
             setupPlaybackStatusUpdate(newSound);
             setIsPlaying(true);
             globalSound = newSound;
-            await AsyncStorage.setItem('lastSong', songName);
-            await AsyncStorage.setItem('isPlaying', 'true');
+            if (songId && songName) {
+              console.log("💾 Guardando en AsyncStorage:", { songId, songName });
+              await AsyncStorage.setItem('lastSongId', String(songId));
+              await AsyncStorage.setItem('lastSong', songName);
+              await AsyncStorage.setItem('isPlaying', 'true');
+            } else {
+              console.warn("❌ songId o songName undefined al intentar guardar");
+            }
           } catch (error) {
             console.error("❌ Error procesando audio:", error);
             Alert.alert("Error", "No se pudo procesar el audio");
@@ -247,6 +266,12 @@ export default function MusicPlayer({ navigation, route }) {
   }, [songId, songName]);
 
   const siguienteCancion = async () => {
+    if (loopRef.current && sound) {
+      await sound.setPositionAsync(0);
+      await sound.playAsync();
+      return;
+    }
+
     if (colaUnica) return;
     try {
       const email = userEmail || await AsyncStorage.getItem('email');
@@ -266,6 +291,12 @@ export default function MusicPlayer({ navigation, route }) {
   };
 
   const anteriorCancion = async () => {
+    if (loopRef.current && sound) {
+      await sound.setPositionAsync(0);
+      await sound.playAsync();
+      return;
+    }
+
     try {
       if (position > duration * 0.2 && sound) {
         await sound.setPositionAsync(0);
@@ -333,9 +364,16 @@ export default function MusicPlayer({ navigation, route }) {
       {/* Controles encima del slider */}
       <View style={styles.topControls}>
         {/* Loop */}
-        <TouchableOpacity onPress={() => setLoop(prev => !prev)}>
-          <Ionicons name="repeat" size={28} color={loop ? "#f2ab55" : "#fff"} />
-        </TouchableOpacity>
+        <TouchableOpacity
+        onPress={async () => {
+          const newLoop = !loop;
+          setLoop(newLoop);
+          loopRef.current = newLoop;
+          await AsyncStorage.setItem('loopMode', JSON.stringify(newLoop));
+        }}
+      >
+        <Ionicons name="repeat" size={28} color={loop ? "#f2ab55" : "#fff"} />
+      </TouchableOpacity>
   
         {/* Botón añadir a playlist */}
         <TouchableOpacity
@@ -391,8 +429,8 @@ export default function MusicPlayer({ navigation, route }) {
               <Text style={styles.modalTitle}>Añadir a Playlist</Text>
               {playlists.map(pl => (
                 <TouchableOpacity
-                  key={pl.id}
-                  onPress={() => addSongToPlaylist(pl.id)}
+                  key={pl.id || pl.Id || `playlist-${index}`} 
+                  onPress={() => addSongToPlaylist(pl.id || pl.Id, songId)}
                   style={styles.playlistOption}
                 >
                   <Text style={styles.playlistOptionText}>{pl.nombre || pl.Nombre}</Text>

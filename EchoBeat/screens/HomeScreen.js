@@ -259,8 +259,17 @@ export default function HomeScreen({ navigation }) {
   const handleOpenMusicPlayer = async () => {
     try {
       const lastSong = await AsyncStorage.getItem('lastSong');
-      if (lastSong) {
-        navigation.navigate('MusicPlayer', { songName: lastSong });
+      const lastSongIdStr = await AsyncStorage.getItem('lastSongId');
+      const lastSongId = parseInt(lastSongIdStr);
+
+      console.log("🎵 Última canción guardada:", { lastSong, lastSongId });
+
+      if (lastSong && !isNaN(lastSongId)) {
+        navigation.navigate('MusicPlayer', { 
+          songName: lastSong, 
+          songId: lastSongId,
+          userEmail: userEmail
+        });
       } else {
         Alert.alert("🔇 No hay ninguna canción en reproducción");
       }
