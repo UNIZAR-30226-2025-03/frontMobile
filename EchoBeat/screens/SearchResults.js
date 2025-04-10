@@ -1,17 +1,5 @@
 import React, { useState, useLayoutEffect, useEffect } from 'react';
-import {
-  View,
-  Text,
-  FlatList,
-  StyleSheet,
-  TouchableOpacity,
-  Image,
-  Modal,
-  TouchableWithoutFeedback,
-  TextInput,
-  Keyboard,
-  Alert
-} from 'react-native';
+import { View, Text, FlatList, StyleSheet, TouchableOpacity, Image, Modal, TouchableWithoutFeedback, TextInput, Keyboard, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -36,7 +24,7 @@ export default function SearchResults({ route, navigation }) {
   const optionMap = {
     "Canción": "canciones",
     "Playlist": "playlists",
-    "Autor": "artistas",
+    "Artista": "artistas",
     "Álbum": "albums",
     "Generos": "genero",
   };
@@ -121,7 +109,6 @@ export default function SearchResults({ route, navigation }) {
       // Se procesa la respuesta para agregar el campo "type" a cada objeto.
       const normalizedResults = processResults(data, tipo);
       setResults(normalizedResults);
-      console.log("Resultados de búsqueda:", normalizedResults);
       setLoading(false);
       Keyboard.dismiss();
     } catch (error) {

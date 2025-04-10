@@ -23,12 +23,6 @@ export default function Search({ navigation, route }) {
 
   // Para evitar problemas con las tildes, usamos "Generos" sin tilde en el valor interno.
   const options = ["Canción", "Playlist", "Artista", "Álbum", "Generos"];
-  const optionMap = {
-    "Canción": "canciones",
-    "Playlist": "playlists",
-    "Artista": "artistas",
-    "Álbum": "albums"
-  };
 
   useLayoutEffect(() => {
     navigation.setOptions({ headerShown: false });

@@ -1,16 +1,27 @@
-import React, { useState, useLayoutEffect, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Image, FlatList, Dimensions, Alert, RefreshControl } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect } from '@react-navigation/native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, { useState, useLayoutEffect, useEffect, useCallback } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  SafeAreaView,
+  TouchableOpacity,
+  Image,
+  FlatList,
+  Dimensions,
+  Alert,
+  RefreshControl,
+  Keyboard,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect } from "@react-navigation/native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const { width } = Dimensions.get('window');
+const { width } = Dimensions.get("window");
 
 export default function AlbumDetails({ navigation, route }) {
   const { playlist } = route.params;
-  console.log('📥 Álbum/Playlist guardada recibida en AlbumDetails:', playlist);
   const [songs, setSongs] = useState([]);
-  const [userEmail, setUserEmail] = useState('');
+  const [userEmail, setUserEmail] = useState("");
   const [playlistInfo, setPlaylistInfo] = useState(null);
   const [infoVisible, setInfoVisible] = useState(false);
   const [selectedSong, setSelectedSong] = useState(null);
@@ -26,25 +37,18 @@ export default function AlbumDetails({ navigation, route }) {
 
   const loadData = async () => {
     try {
-      console.log("Datos del album ", playlist);
-      const email = await AsyncStorage.getItem('email');
-      console.log("Email recuperado:", `"${email}"`);
+      const email = await AsyncStorage.getItem("email");
       if (!email) return;
-  
-      const encodedEmail = encodeURIComponent(email);
       setUserEmail(email);
-      console.log('📡 Haciendo fetch con playlist.Id:', playlist?.Id);
-  
       const [cancionesData, playlistData, favoritosData] = await Promise.all([
-        fetch(`https://echobeatapi.duckdns.org/playlists/${playlist.Id}/songs`).then(res => res.json()),
-        fetch(`https://echobeatapi.duckdns.org/playlists/playlist/${playlist.Id}`).then(res => res.json()),
-        fetch(`https://echobeatapi.duckdns.org/cancion/favorites?email=${encodedEmail}`).then(res => res.json()),
+        fetch(`https://echobeatapi.duckdns.org/playlists/${playlist.Id}/songs`).then((res) => res.json()),
+        fetch(`https://echobeatapi.duckdns.org/playlists/playlist/${playlist.Id}`).then((res) => res.json()),
+        fetch(`https://echobeatapi.duckdns.org/cancion/favorites?email=${encodeURIComponent(email)}`).then((res) => res.json()),
       ]);
-  
       setCola(cancionesData);
       setSongs(cancionesData.canciones || []);
       setPlaylistInfo(playlistData);
-      setFavoritos((favoritosData.canciones || []).map(c => c.id));
+      setFavoritos((favoritosData.canciones || []).map((c) => c.id));
     } catch (error) {
       console.error("Error en loadData:", error);
     }
@@ -65,25 +69,20 @@ export default function AlbumDetails({ navigation, route }) {
       console.warn("Email no disponible aún");
       return;
     }
-  
     const esFavorita = favoritos.includes(songId);
-    const endpoint = esFavorita ? 'unlike' : 'like';
-    const method = esFavorita ? 'DELETE' : 'POST';
-    const encodedEmail = encodeURIComponent(userEmail);
-    const url = `https://echobeatapi.duckdns.org/cancion/${endpoint}/${encodedEmail}/${songId}`;
-  
+    const endpoint = esFavorita ? "unlike" : "like";
+    const method = esFavorita ? "DELETE" : "POST";
+    const url = `https://echobeatapi.duckdns.org/cancion/${endpoint}/${encodeURIComponent(
+      userEmail
+    )}/${songId}`;
     try {
       const response = await fetch(url, { method });
-      const text = await response.text();
-      console.log(`Respuesta de favoritos para ${esFavorita ? 'unlike' : 'like'} canción ${songId}:`, text);
-  
-      if (!response.ok) throw new Error(text);
-  
-      setFavoritos(prev =>
-        esFavorita ? prev.filter(id => id !== songId) : [...prev, songId]
+      if (!response.ok) throw new Error("Error");
+      setFavoritos((prev) =>
+        esFavorita ? prev.filter((id) => id !== songId) : [...prev, songId]
       );
     } catch (error) {
-      console.error(`❌ Error al ${esFavorita ? 'quitar' : 'agregar'} favorito con ID ${songId}:`, error.message);
+      console.error("Error al togglear favorito:", error);
     }
   };
 
@@ -93,42 +92,32 @@ export default function AlbumDetails({ navigation, route }) {
     setRefreshing(false);
   };
 
+  // Render unificado para cada canción: imagen a la izquierda, título a la derecha y
+  // en el extremo derecho (en un contenedor) se ubican el ícono de like y el de opciones.
   const renderSong = ({ item }) => {
     const esFavorita = favoritos.includes(item.id);
-
     return (
       <View style={styles.songItem}>
-        <TouchableOpacity
-          style={{ flex: 1 }}
-          onPress={() => iniciarReproduccionDesdeCancion(item, songs.findIndex(s => s.id === item.id))}
-        >
-          <Image
-            source={{ uri: item.portada || item.Portada }}
-            style={styles.songImage}
-          />
-          <Text style={styles.songTitle} numberOfLines={1}>{item.nombre}</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          onPress={() => toggleFavorito(item.id)}
-          style={{ marginRight: 10 }}
-        >
-          <Ionicons
-            name="heart"
-            size={22}
-            color={esFavorita ? "#f2ab55" : "#fff"}
-          />
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.songOptionsButton}
-          onPress={() => {
+        <Image
+          source={{ uri: item.portada || item.Portada }}
+          style={styles.songImage}
+        />
+        <View style={styles.songTextContainer}>
+          <Text style={styles.songTitle} numberOfLines={1}>
+            {item.nombre}
+          </Text>
+        </View>
+        <View style={styles.songIconsContainer}>
+          <TouchableOpacity onPress={() => toggleFavorito(item.id)} style={styles.heartButton}>
+            <Ionicons name="heart" size={22} color={esFavorita ? "#f2ab55" : "#fff"} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.songOptionsButton} onPress={() => {
             setSelectedSong(item);
             setSongOptionsVisible(true);
-          }}
-        >
-          <Ionicons name="ellipsis-vertical" size={20} color="#fff" />
-        </TouchableOpacity>
+          }}>
+            <Ionicons name="ellipsis-vertical" size={20} color="#fff" />
+          </TouchableOpacity>
+        </View>
       </View>
     );
   };
@@ -140,36 +129,28 @@ export default function AlbumDetails({ navigation, route }) {
         reproduccionAleatoria: shuffle,
         colaReproduccion: cola,
       };
-  
-      const response = await fetch('https://echobeatapi.duckdns.org/cola-reproduccion/play-list', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+      const response = await fetch("https://echobeatapi.duckdns.org/cola-reproduccion/play-list", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-  
       const result = await response.json();
-  
       if (!response.ok) {
-        console.error("❌ Error en reproducción:", result.message);
         Alert.alert("Error", result.message || "No se pudo iniciar la reproducción");
         return;
       }
-  
       if (songs.length > 0) {
-        navigation.navigate('MusicPlayer', {
+        navigation.navigate("MusicPlayer", {
           songId: songs[0].id,
           songName: songs[0].nombre,
           userEmail: userEmail,
         });
       }
     } catch (error) {
-      console.error("❌ Error al iniciar reproducción:", error);
       Alert.alert("Error", "Error inesperado al iniciar la reproducción");
     }
   };
-  
+
   const iniciarReproduccionDesdeCancion = async (song, index) => {
     try {
       const body = {
@@ -178,33 +159,22 @@ export default function AlbumDetails({ navigation, route }) {
         posicionCola: index,
         colaReproduccion: cola,
       };
-  
-      console.log("📤 Enviando datos a la API:", JSON.stringify(body, null, 2));
-  
-      const response = await fetch('https://echobeatapi.duckdns.org/cola-reproduccion/play-list-by-position', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+      const response = await fetch("https://echobeatapi.duckdns.org/cola-reproduccion/play-list-by-position", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-  
       const result = await response.json();
-      console.log("✅ Respuesta de la API:", result);
-  
       if (!response.ok) {
-        console.error("❌ Error al iniciar reproducción desde canción:", result.message);
         Alert.alert("Error", result.message || "No se pudo iniciar la reproducción");
         return;
       }
-  
-      navigation.navigate('MusicPlayer', {
+      navigation.navigate("MusicPlayer", {
         songId: songs[index].id,
         songName: songs[index].nombre,
         userEmail: userEmail,
       });
     } catch (error) {
-      console.error("❌ Error inesperado:", error);
       Alert.alert("Error", "Error al iniciar reproducción desde la canción seleccionada");
     }
   };
@@ -212,32 +182,23 @@ export default function AlbumDetails({ navigation, route }) {
   const ListHeader = () => (
     <View style={styles.headerContent}>
       <Image
-        source={{ uri: playlist.Portada || 'https://via.placeholder.com/200' }}
+        source={playlist.Portada ? { uri: playlist.Portada } : require("../assets/default_playlist_portada.jpg")}
         style={styles.playlistImage}
       />
       <Text style={styles.playlistTitle}>{playlist.Nombre}</Text>
-      <Text style={styles.playlistDescription}>{""}</Text>
-  
+      <Text style={styles.playlistDescription}>{playlist.Descripcion}</Text>
       <View style={styles.controlsRow}>
-        <TouchableOpacity
-          style={[styles.shuffleButton, shuffle && styles.shuffleActive]}
-          onPress={() => setShuffle(prev => !prev)}
-        >
-          <Ionicons name="shuffle" size={20} color={shuffle ? '#121111' : '#f2ab55'} />
+        <TouchableOpacity style={[styles.shuffleButton, shuffle && styles.shuffleActive]} onPress={() => setShuffle(prev => !prev)}>
+          <Ionicons name="shuffle" size={20} color={shuffle ? "#121111" : "#f2ab55"} />
           <Text style={[styles.shuffleButtonText, shuffle && styles.shuffleButtonTextActive]}>
             {shuffle ? "Aleatorio activado" : "Aleatorio desactivado"}
           </Text>
         </TouchableOpacity>
-  
-        <TouchableOpacity
-          style={styles.playButton}
-          onPress={() => iniciarReproduccion()}
-        >
+        <TouchableOpacity style={styles.playButton} onPress={() => iniciarReproduccion()}>
           <Ionicons name="play" size={20} color="#121111" />
           <Text style={styles.playButtonText}>Reproducir</Text>
         </TouchableOpacity>
       </View>
-  
       <Text style={styles.sectionTitle}>Canciones</Text>
       {songs.length === 0 && (
         <Text style={styles.noSongsText}>No hay canciones en la lista.</Text>
@@ -266,7 +227,7 @@ export default function AlbumDetails({ navigation, route }) {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={['#f2ab55']}
+            colors={["#f2ab55"]}
             tintColor="#f2ab55"
           />
         }
@@ -314,13 +275,13 @@ export default function AlbumDetails({ navigation, route }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#121111',
+    backgroundColor: "#121111",
     paddingTop: 30,
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingHorizontal: 25,
     paddingTop: 30,
   },
@@ -328,219 +289,104 @@ const styles = StyleSheet.create({
   headerContent: {
     paddingHorizontal: 20,
     paddingTop: 10,
-    alignItems: 'center',
-    position: 'relative',
+    alignItems: "center",
+    position: "relative",
   },
   playlistImage: {
     width: 200,
     height: 200,
     borderRadius: 10,
-    marginBottom: 10,
-    marginTop: 20,
+    marginVertical: 20,
   },
   playlistTitle: {
     fontSize: 28,
-    fontWeight: 'bold',
-    color: '#f2ab55',
-    marginBottom: -25,
-    textAlign: 'center',
+    fontWeight: "bold",
+    color: "#f2ab55",
+    textAlign: "center",
   },
   playlistDescription: {
     fontSize: 16,
-    color: '#ffffff',
+    color: "#ffffff",
     marginBottom: 20,
-    textAlign: 'center',
+    textAlign: "center",
   },
   sectionTitle: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#f2ab55',
+    fontWeight: "bold",
+    color: "#f2ab55",
     marginBottom: 10,
-    alignSelf: 'flex-start',
+    alignSelf: "flex-start",
     paddingLeft: 5,
   },
   flatListContent: {
     paddingBottom: 20,
     paddingHorizontal: 10,
   },
+  // Estilos unificados para el item de canción en AlbumDetails:
   songItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 10,
-    padding: 8,
-    backgroundColor: '#222',
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#222",
     borderRadius: 8,
-    marginHorizontal: 5,
+    marginVertical: 5,
+    marginHorizontal: 10,
+    padding: 8,
   },
   songImage: {
     width: 60,
     height: 60,
     borderRadius: 8,
-    marginRight: 10,
+  },
+  songTextContainer: {
+    flex: 1,
+    marginHorizontal: 10,
+    justifyContent: "center",
   },
   songTitle: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#ffffff',
-    flexShrink: 1,
+    fontWeight: "bold",
+    color: "#fff",
   },
-  songOptionsButton: {
-    marginLeft: 'auto',
+  songIconsContainer: {
+    flexDirection: "row",
+    alignItems: "center",
   },
-  noSongsText: {
-    fontSize: 16,
-    color: '#ffffff',
-    textAlign: 'center',
-    marginVertical: 20,
+  heartButton: {
+    marginRight: 5,
   },
-  addButton: {
-    backgroundColor: '#ffffff',
-    borderRadius: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    alignSelf: 'center',
-    marginTop: 20,
-  },
-  addButtonText: {
-    color: '#000',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  songOptionsOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 200,
-  },
-  songOptionsContainer: {
-    width: '80%',
-    backgroundColor: '#ccc',
-    borderRadius: 8,
-    padding: 20,
-    alignItems: 'center',
-    zIndex: 201,
-  },
-  closeSongOptionsButton: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
-  },
-  songOptionsTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#000',
-    marginBottom: 10,
-  },
-  songOptionsBlur: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    zIndex: 200,
-  },
-  infoOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 100,
-  },
-  blurBackground: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-  },
-  infoContainer: {
-    width: '80%',
-    backgroundColor: '#ccc',
-    borderRadius: 8,
-    padding: 20,
-    zIndex: 101,
-    alignItems: 'center',
-  },
-  closeButton: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
-  },
-  infoTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    marginBottom: 10,
-    color: '#000',
-  },
-  infoText: {
-    fontSize: 16,
-    marginBottom: 5,
-    color: '#000',
-  },
-  editButton: {
-    backgroundColor: 'orange',
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    marginTop: 20,
-  },
-  editButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  deleteButton: {
-    backgroundColor: 'red',
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    marginTop: 20,
-  },
-  deleteButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
+  songOptionsButton: {},
+  // Fin de los estilos para el item de canción.
   controlsRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
     gap: 10,
     marginBottom: 20,
-    flexWrap: 'wrap',
+    flexWrap: "wrap",
   },
   shuffleButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f2ab55',
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#f2ab55",
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
   },
   shuffleButtonText: {
     marginLeft: 6,
-    color: '#121111',
-    fontWeight: 'bold',
+    color: "#121111",
+    fontWeight: "bold",
   },
   shuffleActive: {
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
   },
   shuffleButtonTextActive: {
-    color: '#f2ab55',
+    color: "#f2ab55",
   },
   playButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f2ab55',
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#f2ab55",
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 8,
@@ -548,7 +394,102 @@ const styles = StyleSheet.create({
   },
   playButtonText: {
     marginLeft: 6,
-    color: '#121111',
-    fontWeight: 'bold',
+    color: "#121111",
+    fontWeight: "bold",
+  },
+  noSongsText: {
+    fontSize: 16,
+    color: "#ffffff",
+    textAlign: "center",
+    marginVertical: 20,
+  },
+  addButton: {
+    backgroundColor: "#ffffff",
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    alignSelf: "center",
+    marginTop: 20,
+  },
+  addButtonText: {
+    color: "#000",
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+  // Estilos para modales y overlays.
+  songOptionsOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 200,
+  },
+  songOptionsContainer: {
+    width: "80%",
+    backgroundColor: "#ccc",
+    borderRadius: 8,
+    padding: 20,
+    alignItems: "center",
+    zIndex: 201,
+  },
+  closeSongOptionsButton: {
+    position: "absolute",
+    top: 10,
+    right: 10,
+  },
+  songOptionsTitle: {
+    fontSize: 22,
+    fontWeight: "bold",
+    color: "#000",
+    marginBottom: 10,
+  },
+  songOptionsBlur: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    zIndex: 200,
+  },
+  infoOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 100,
+  },
+  blurBackground: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0,0,0,0.5)",
+  },
+  infoContainer: {
+    width: "80%",
+    backgroundColor: "#ccc",
+    borderRadius: 8,
+    padding: 20,
+    zIndex: 101,
+    alignItems: "center",
+  },
+  infoTitle: {
+    fontSize: 22,
+    fontWeight: "bold",
+    marginBottom: 10,
+    color: "#000",
+  },
+  infoText: {
+    fontSize: 16,
+    marginBottom: 5,
+    color: "#000",
   },
 });
