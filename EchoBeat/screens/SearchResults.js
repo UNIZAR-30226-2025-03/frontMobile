@@ -1,85 +1,137 @@
-import React, { useState, useEffect, useLayoutEffect } from 'react';
-import { View, Text, FlatList, StyleSheet, TouchableOpacity, Image, Modal, TouchableWithoutFeedback, TextInput, Keyboard, Alert } from 'react-native';
+import React, { useState, useLayoutEffect, useEffect } from 'react';
+import {
+  View,
+  Text,
+  FlatList,
+  StyleSheet,
+  TouchableOpacity,
+  Image,
+  Modal,
+  TouchableWithoutFeedback,
+  TextInput,
+  Keyboard,
+  Alert
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function SearchResults({ route, navigation }) {
-  const { initialResults, initialSearchText, initialSelectedOption } = route.params || {};
-  const [searchText, setSearchText] = useState(initialSearchText || '');
-  const [selectedOption, setSelectedOption] = useState(initialSelectedOption || null);
-  const [results, setResults] = useState(initialResults || {});
+  // Recibimos los parámetros iniciales: texto y filtro seleccionado.
+  const { initialSearchText = '', initialSelectedOption = null } = route.params || {};
+  const [searchText, setSearchText] = useState(initialSearchText);
+  const [selectedOption, setSelectedOption] = useState(initialSelectedOption);
+  const [results, setResults] = useState({});
+  const [email, setEmail] = useState('');
+  const [userNick, setUserNick] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  // Estados para el modal y para acciones adicionales (como añadir a playlist)
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
   const [showPlaylists, setShowPlaylists] = useState(false);
   const [playlists, setPlaylists] = useState([]);
-  const [email, setEmail] = useState('');
 
-  useLayoutEffect(() => {
-    navigation.setOptions({ headerShown: false });
-  }, [navigation]);
-
+  // Mapeo de opciones: usamos "Generos" sin tilde para la búsqueda por género.
   const optionMap = {
     "Canción": "canciones",
     "Playlist": "playlists",
     "Autor": "artistas",
     "Álbum": "albums",
+    "Generos": "genero",
   };
 
-  const handleSearch = async () => {
-    const tipo = selectedOption ? optionMap[selectedOption] : '';
-    
+  useLayoutEffect(() => {
+    navigation.setOptions({ headerShown: false });
+  }, [navigation]);
 
-    try {
-      const email = await AsyncStorage.getItem('email');
-      if (!email) {
-        console.warn("No se encontró el email del usuario.");
-        return;
+  // Al montar, obtenemos el email y el nick del usuario.
+  useEffect(() => {
+    const loadUserData = async () => {
+      try {
+        const emailStored = await AsyncStorage.getItem('email');
+        if (emailStored) {
+          setEmail(emailStored);
+          const resUser = await fetch(`https://echobeatapi.duckdns.org/users/get-user?userEmail=${emailStored}`);
+          const userData = await resUser.json();
+          if (userData.Nick) {
+            setUserNick(userData.Nick);
+          }
+        }
+      } catch (error) {
+        console.error("Error al obtener datos del usuario:", error);
       }
+    };
+    loadUserData();
+  }, []);
 
-      const resUser = await fetch(`https://echobeatapi.duckdns.org/users/get-user?userEmail=${email}`);
-      const userData = await resUser.json();
-      const nickUsuario = userData.Nick;
+  // Realizamos la búsqueda al montar si ya hay texto inicial y datos de usuario.
+  useEffect(() => {
+    if (searchText && email && userNick) {
+      handleSearch();
+    }
+  }, [email, userNick]);
 
-      const url = `https://echobeatapi.duckdns.org/search?Búsqueda=${encodeURIComponent(searchText)}&tipo=${tipo}&usuarioNick=${encodeURIComponent(nickUsuario)}`;
+  // Función para procesar (normalizar) los resultados agregando el tipo a cada objeto.
+  const processResults = (data, tipo) => {
+    // Función de mapeo para cada categoría.
+    const mapItems = (items, type) => items.map(item => ({ ...item, type }));
+    
+    if (tipo === "genero") {
+      return {
+        canciones: mapItems(data.canciones || [], 'song'),
+        artistas: mapItems(data.artistas || [], 'artist'),
+        albums: mapItems(data.albums || [], 'album'),
+        listas: mapItems(data.listas || [], 'list'),
+        playlists: mapItems(data.playlistsPorGenero || [], 'playlist'),
+      };
+    } else {
+      return {
+        canciones: mapItems(data.canciones || [], 'song'),
+        artistas: mapItems(data.artistas || [], 'artist'),
+        albums: mapItems(data.albums || [], 'album'),
+        listas: mapItems(data.listas || [], 'list'),
+        playlists: (data.playlistsProtegidasDeAmigos && data.playlistsProtegidasDeAmigos.length > 0)
+          ? mapItems([...data.playlistsProtegidasDeAmigos, ...(data.playlists || [])], 'playlist')
+          : mapItems(data.playlists || [], 'playlist'),
+      };
+    }
+  };
 
+  // Función para realizar la búsqueda en la API.
+  // Se agrega la validación: si el texto a buscar está vacío, se muestra un mensaje y no se ejecuta la llamada.
+  const handleSearch = async () => {
+    if (!searchText.trim()) {
+      setErrorMessage("Ingrese un texto para buscar");
+      return;
+    }
+    if (!email || !userNick) {
+      console.warn("Datos de usuario no cargados aún");
+      return;
+    }
+    setErrorMessage('');
+    setLoading(true);
+    // Determinamos el tipo de búsqueda.
+    const tipo = selectedOption && optionMap[selectedOption] ? optionMap[selectedOption] : '';
+    try {
+      const url = `https://echobeatapi.duckdns.org/search?B%C3%BAsqueda=${encodeURIComponent(searchText)}&tipo=${tipo}&usuarioNick=${encodeURIComponent(userNick)}`;
       const response = await fetch(url);
       const data = await response.json();
-      console.log("🔍 Resultados de búsqueda:", data);
 
-      // Normalizar la estructura de resultados
-      const normalizedResults = {
-        canciones: data.canciones || [],
-        artistas: data.artistas || [],
-        albums: data.albums || [],
-        listas: data.listas || [],
-        playlists: data.playlists || []
-      };
-
+      // Se procesa la respuesta para agregar el campo "type" a cada objeto.
+      const normalizedResults = processResults(data, tipo);
       setResults(normalizedResults);
+      console.log("Resultados de búsqueda:", normalizedResults);
+      setLoading(false);
       Keyboard.dismiss();
     } catch (error) {
       console.error("Error al realizar la búsqueda:", error);
-      Alert.alert("Error", "No se pudieron obtener los resultados de búsqueda");
+      setErrorMessage("Error al realizar la búsqueda. Por favor, intenta de nuevo.");
+      setLoading(false);
     }
   };
 
-  useEffect(() => {
-    if (initialSearchText) {
-      handleSearch();
-    }
-    rellenarEmail();
-  }, []);
-
-  const rellenarEmail = async () => {
-    try {
-      const emailUsuario = await AsyncStorage.getItem('email');
-      setEmail(emailUsuario);
-    } catch (error) {
-      console.error("Error al obtener el email del usuario:", error);
-    }
-  };
-
-  // Función para guardar (dar like) a una playlist
+  // Funciones para dar like a playlist, álbum o canción, y para agregar canción a playlist.
   const likePlaylist = async (playlist) => {
     const playlistId = playlist.id || playlist.Id;
     if (!playlistId) {
@@ -100,7 +152,6 @@ export default function SearchResults({ route, navigation }) {
     }
   };
 
-  // Función para guardar (dar like) a un álbum
   const likeAlbum = async (album) => {
     const albumId = album.id || album.Id;
     if (!albumId) {
@@ -121,7 +172,6 @@ export default function SearchResults({ route, navigation }) {
     }
   };
 
-  // Función para guardar (dar like) a una canción (añadir a favoritos)
   const likeSong = async (song) => {
     const songId = song.id || song.Id;
     if (!songId) {
@@ -140,68 +190,6 @@ export default function SearchResults({ route, navigation }) {
       console.error("Error al dar like a la canción:", error);
       Alert.alert("Error", "Canción ya guardada en favoritos");
     }
-  };
-
-  // Combinar y normalizar resultados
-  const combinedResults = [
-    ...(results.albums || []).map(item => ({ 
-      ...item, 
-      type: 'album',
-      id: item.id || item.Id,
-      nombre: item.nombre || item.Nombre,
-      portada: item.portada || item.Portada
-    })),
-    ...(results.artistas || []).map(item => ({ 
-      ...item, 
-      type: 'artist',
-      id: item.id || item.Id,
-      nombre: item.nombre || item.Nombre,
-      fotoPerfil: item.fotoPerfil || item.FotoPerfil
-    })),
-    ...(results.canciones || []).map(item => ({ 
-      ...item, 
-      type: 'song',
-      id: item.id || item.Id,
-      nombre: item.nombre || item.Nombre,
-      portada: item.portada || item.Portada
-    })),
-    ...(results.listas || []).map(item => ({ 
-      ...item, 
-      type: 'album', // Tratamos listas como álbumes si tienen TipoLista === 'Album'
-      id: item.id || item.Id,
-      nombre: item.nombre || item.Nombre,
-      portada: item.portada || item.Portada,
-      esAlbum: item.TipoLista === 'Album'
-    })),
-    ...(results.playlists || []).map(item => ({ 
-      ...item, 
-      type: 'playlist',
-      // Incluimos EmailAutor si existe para poder distinguir las playlists propias de las de otros usuarios
-      Id: item.id || item.Id,
-      nombre: item.nombre || item.Nombre,
-      portada: item.portada || item.Portada,
-      EmailAutor: item.EmailAutor || null,
-    }))
-  ];
-
-  // Filtrar resultados según la opción seleccionada
-  const filteredResults = selectedOption 
-    ? combinedResults.filter(item => {
-        switch(selectedOption) {
-          case 'Canción': return item.type === 'song';
-          case 'Playlist': return item.type === 'playlist';
-          case 'Autor': return item.type === 'artist';
-          case 'Álbum': return item.type === 'album' || (item.type === 'list' && item.esAlbum);
-          default: return true;
-        }
-      })
-    : combinedResults;
-
-  const formatDuration = (duration) => {
-    if (!duration) return '0:00';
-    const minutes = Math.floor(duration / 60);
-    const seconds = duration % 60;
-    return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
   };
 
   const fetchPlaylists = async () => {
@@ -230,6 +218,7 @@ export default function SearchResults({ route, navigation }) {
     }
   };
 
+  // Función para abrir el modal con acciones adicionales (como dar like o añadir a playlist).
   const openModal = (item) => {
     setSelectedItem(item);
     setModalVisible(true);
@@ -240,7 +229,6 @@ export default function SearchResults({ route, navigation }) {
 
   const renderModalContent = () => {
     if (!selectedItem) return null;
-
     switch (selectedItem.type) {
       case 'song':
         return (
@@ -282,48 +270,46 @@ export default function SearchResults({ route, navigation }) {
                       source={{ uri: playlist.portada || playlist.lista?.Portada || 'https://via.placeholder.com/150' }}
                       style={styles.playlistImage}
                     />
-                    <Text style={styles.playlistItemText}>{playlist.nombre || playlist.lista?.Nombre || 'Playlist sin nombre'}</Text>
+                    <Text style={styles.playlistItemText}>
+                      {playlist.nombre || playlist.lista?.Nombre || 'Playlist sin nombre'}
+                    </Text>
                   </TouchableOpacity>
                 ))}
               </View>
             )}
           </View>
         );
-        case 'playlist':
-          const normalizedPlaylist = {
-            Id: item.id || item.Id,
-            Nombre: item.nombre || item.Nombre,
-            Portada: item.portada || item.Portada,
-            Descripcion: item.descripcion || item.Descripcion || '',
-            EmailAutor: item.EmailAutor || null,
-          };
-          return (
-            <TouchableOpacity 
-              style={styles.itemContainer} 
-              onPress={() => {
-                console.log('🔍 Playlist enviada desde SearchResults:', normalizedPlaylist);
-                // Si EmailAutor existe y coincide con el email actual, es tuya; de lo contrario, es ajena
-                if (normalizedPlaylist.EmailAutor && normalizedPlaylist.EmailAutor === email) {
-                  navigation.navigate('PlaylistDetails', { playlist: normalizedPlaylist });
-                } else {
-                  navigation.navigate('AlbumDetails', { playlist: normalizedPlaylist });
-                }
-              }}
-            >
-              <Image source={imageSource} style={styles.itemImage} />
-              <View style={styles.itemTextContainer}>
-                <Text style={styles.itemTitle}>{item.nombre || item.Nombre}</Text>
-                <Text style={styles.itemSubtitle}>
-                  Playlist • {item.numeroLikes || item.NumLikes || 0} likes
-                </Text>
-              </View>
-              <TouchableOpacity onPress={() => openModal(item)}>
-                <Ionicons name="ellipsis-vertical" size={24} color="#fff" />
-              </TouchableOpacity>
+      case 'playlist':
+        const normalizedPlaylist = {
+          Id: selectedItem.id || selectedItem.Id,
+          Nombre: selectedItem.nombre || selectedItem.Nombre,
+          Portada: selectedItem.portada || selectedItem.Portada,
+          Descripcion: selectedItem.descripcion || selectedItem.Descripcion || '',
+          EmailAutor: selectedItem.EmailAutor || null,
+        };
+        return (
+          <TouchableOpacity
+            style={styles.itemContainer}
+            onPress={() => {
+              if (normalizedPlaylist.EmailAutor && normalizedPlaylist.EmailAutor === email) {
+                navigation.navigate('PlaylistDetails', { playlist: normalizedPlaylist });
+              } else {
+                navigation.navigate('AlbumDetails', { playlist: normalizedPlaylist });
+              }
+            }}
+          >
+            <Image source={{ uri: normalizedPlaylist.Portada }} style={styles.itemImage} />
+            <View style={styles.itemTextContainer}>
+              <Text style={styles.itemTitle}>{normalizedPlaylist.Nombre}</Text>
+              <Text style={styles.itemSubtitle}>
+                Playlist • {selectedItem.numeroLikes || selectedItem.NumLikes || 0} likes
+              </Text>
+            </View>
+            <TouchableOpacity onPress={() => openModal(selectedItem)}>
+              <Ionicons name="ellipsis-vertical" size={24} color="#fff" />
             </TouchableOpacity>
-          );
-
-        
+          </TouchableOpacity>
+        );
       case 'album':
         return (
           <View>
@@ -343,11 +329,19 @@ export default function SearchResults({ route, navigation }) {
     }
   };
 
+  // Función auxiliar para formatear la duración de una canción.
+  const formatDuration = (duration) => {
+    if (!duration) return '0:00';
+    const minutes = Math.floor(duration / 60);
+    const seconds = duration % 60;
+    return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+  };
+
+  // Función para reproducir una canción individual.
   const playSingleSong = async (song) => {
     try {
       const emailStored = await AsyncStorage.getItem('email');
       if (!emailStored) return;
-
       const body = {
         userEmail: emailStored,
         reproduccionAleatoria: false,
@@ -374,29 +368,35 @@ export default function SearchResults({ route, navigation }) {
         songId: song.id || song.Id,
         songName: song.nombre || song.Nombre,
       });
-
     } catch (error) {
       Alert.alert("Error", "No se pudo reproducir la canción");
     }
   };
 
+  // Se combinan los arrays de resultados para mostrar en el FlatList.
+  const combinedResults = [
+    ...(results.canciones || []),
+    ...(results.artistas || []),
+    ...(results.albums || []),
+    ...(results.listas || []),
+    ...(results.playlists || []),
+  ];
+
+  // Renderizamos cada item según su "type".
   const renderItem = ({ item }) => {
     const imageSource = { uri: item.portada || item.Portada || item.FotoPerfil || 'https://via.placeholder.com/150' };
-
     switch (item.type) {
-      case 'album': 
+      case 'album': {
         const normalizedAlbum = {
           Id: item.id || item.Id,
           Nombre: item.nombre || item.Nombre,
           Portada: item.portada || item.Portada,
           Descripcion: item.descripcion || item.Descripcion || '',
         };
-
         return (
           <TouchableOpacity
             style={styles.itemContainer}
             onPress={() => {
-              console.log("🎧 Navegando a AlbumDetails con:", normalizedAlbum);
               navigation.navigate('AlbumDetails', { playlist: normalizedAlbum });
             }}
           >
@@ -410,37 +410,20 @@ export default function SearchResults({ route, navigation }) {
             </TouchableOpacity>
           </TouchableOpacity>
         );
-
-      case 'list':
+      }
+      case 'artist':
         return (
-          <View style={styles.itemContainer}>
-            <Image source={imageSource} style={styles.itemImage} />
-            <View style={styles.itemTextContainer}>
-              <Text style={styles.itemTitle}>{item.nombre || item.Nombre}</Text>
-              <Text style={styles.itemSubtitle}>
-                {item.type === 'album' ? 'Álbum' : 'Playlist'} • {item.autor || item.EmailAutor || 'Desconocido'}
-              </Text>
+          <TouchableOpacity style={[styles.itemContainer, styles.artistContainer]} onPress={() => navigation.navigate('ArtistDetails', { artist: item })}>
+            <Image source={imageSource} style={styles.artistImage} />
+            <View style={styles.artistTextContainer}>
+              <Text style={styles.artistName}>{item.nombre || item.Nombre}</Text>
+              <Text style={styles.artistListeners}>{item.numOyentesTotales || item.NumOyentesTotales || 0} oyentes</Text>
             </View>
             <TouchableOpacity onPress={() => openModal(item)}>
               <Ionicons name="ellipsis-vertical" size={24} color="#fff" />
             </TouchableOpacity>
-          </View>
+          </TouchableOpacity>
         );
-
-        case 'artist':
-          return (
-            <TouchableOpacity style={[styles.itemContainer, styles.artistContainer]} onPress={() => navigation.navigate('ArtistDetails', { artist: item })}>
-              <Image source={imageSource} style={styles.artistImage} />
-              <View style={styles.artistTextContainer}>
-                <Text style={styles.artistName}>{item.nombre || item.Nombre}</Text>
-                <Text style={styles.artistListeners}>{item.numOyentesTotales || item.NumOyentesTotales || 0} oyentes</Text>
-              </View>
-              <TouchableOpacity onPress={() => openModal(item)}>
-                <Ionicons name="ellipsis-vertical" size={24} color="#fff" />
-              </TouchableOpacity>
-            </TouchableOpacity>
-          );
-
       case 'song':
         return (
           <TouchableOpacity style={styles.itemContainer} onPress={() => playSingleSong(item)}>
@@ -456,9 +439,7 @@ export default function SearchResults({ route, navigation }) {
             </TouchableOpacity>
           </TouchableOpacity>
         );
-
-      case 'playlist':
-        // Normalizamos la playlist incluyendo EmailAutor si existe
+      case 'playlist': {
         const normalizedPlaylist = {
           Id: item.id || item.Id,
           Nombre: item.nombre || item.Nombre,
@@ -467,11 +448,9 @@ export default function SearchResults({ route, navigation }) {
           EmailAutor: item.EmailAutor || null,
         };
         return (
-          <TouchableOpacity 
-            style={styles.itemContainer} 
+          <TouchableOpacity
+            style={styles.itemContainer}
             onPress={() => {
-              console.log('🔍 Playlist enviada desde SearchResults:', normalizedPlaylist);
-              // Si la playlist tiene EmailAutor y es distinta al email actual, se considera ajena
               if (normalizedPlaylist.EmailAutor && normalizedPlaylist.EmailAutor !== email) {
                 navigation.navigate('AlbumDetails', { playlist: normalizedPlaylist });
               } else {
@@ -491,6 +470,7 @@ export default function SearchResults({ route, navigation }) {
             </TouchableOpacity>
           </TouchableOpacity>
         );
+      }
       default:
         return null;
     }
@@ -513,15 +493,32 @@ export default function SearchResults({ route, navigation }) {
               onSubmitEditing={handleSearch}
               returnKeyType="search"
             />
+            <TouchableOpacity style={styles.searchButton} onPress={handleSearch}>
+              <Text style={styles.searchButtonText}>Buscar</Text>
+            </TouchableOpacity>
           </View>
+          {errorMessage ? (
+            <Text style={styles.errorText}>{errorMessage}</Text>
+          ) : null}
         </View>
-
-        <FlatList
-          data={filteredResults}
-          keyExtractor={(item, index) => `${item.type}-${item.id || item.Id || index}`}
-          renderItem={renderItem}
-          contentContainerStyle={styles.listContainer}
-        />
+        
+        {/* Condiciones para mostrar mensajes de carga o sin resultados */}
+        {loading ? (
+          <Text style={{ color: '#fff', textAlign: 'center' }}>
+            Cargando resultados de búsqueda...
+          </Text>
+        ) : combinedResults.length === 0 ? (
+          <Text style={{ color: '#fff', textAlign: 'center' }}>
+            No se han encontrado resultados.
+          </Text>
+        ) : (
+          <FlatList
+            data={combinedResults}
+            keyExtractor={(item, index) => `${item.type}-${item.id || item.Id || index}`}
+            renderItem={renderItem}
+            contentContainerStyle={styles.listContainer}
+          />
+        )}
 
         <Modal
           transparent={true}
@@ -531,10 +528,7 @@ export default function SearchResults({ route, navigation }) {
           <TouchableWithoutFeedback onPress={() => setModalVisible(false)}>
             <View style={styles.modalOverlay}>
               <View style={styles.modalContent}>
-                <TouchableOpacity 
-                  style={styles.closeButton} 
-                  onPress={() => setModalVisible(false)}
-                >
+                <TouchableOpacity style={styles.closeButton} onPress={() => setModalVisible(false)}>
                   <Ionicons name="close" size={24} color="#fff" />
                 </TouchableOpacity>
                 {renderModalContent()}
@@ -570,42 +564,59 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 18,
   },
+  searchButton: { 
+    backgroundColor: 'orange', 
+    paddingVertical: 10, 
+    paddingHorizontal: 16, 
+    borderRadius: 8, 
+    marginLeft: 8 
+  },
+  searchButtonText: { 
+    color: '#fff', 
+    fontSize: 16 
+  },
+  errorText: { 
+    color: 'red', 
+    marginTop: 12, 
+    textAlign: 'center', 
+    fontSize: 16 
+  },
   listContainer: { 
     paddingBottom: 20 
   },
-  itemContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-    paddingHorizontal: 16,
+  itemContainer: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    marginBottom: 16, 
+    paddingHorizontal: 16 
   },
-  itemImage: {
-    width: 60,
-    height: 60,
-    borderRadius: 8,
-    marginRight: 16,
+  itemImage: { 
+    width: 60, 
+    height: 60, 
+    borderRadius: 8, 
+    marginRight: 16 
   },
-  artistContainer: {
-    borderRadius: 8,
-    padding: 5,
+  artistContainer: { 
+    borderRadius: 8, 
+    padding: 5 
   },
-  artistImage: {
-    width: 80,
-    height: 80,
-    borderRadius: 8,
-    marginRight: 16,
+  artistImage: { 
+    width: 80, 
+    height: 80, 
+    borderRadius: 8, 
+    marginRight: 16 
   },
-  artistTextContainer: {
-    flex: 1,
+  artistTextContainer: { 
+    flex: 1 
   },
-  artistName: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
+  artistName: { 
+    color: '#fff', 
+    fontSize: 18, 
+    fontWeight: 'bold' 
   },
-  artistListeners: {
-    color: '#ccc',
-    fontSize: 14,
+  artistListeners: { 
+    color: '#ccc', 
+    fontSize: 14 
   },
   itemTextContainer: { 
     flex: 1 
@@ -619,17 +630,17 @@ const styles = StyleSheet.create({
     color: '#ccc', 
     fontSize: 14 
   },
-  modalOverlay: {
+  modalOverlay: { 
     flex: 1, 
     justifyContent: 'center', 
     alignItems: 'center', 
-    backgroundColor: 'rgba(0, 0, 0, 0.5)'
+    backgroundColor: 'rgba(0, 0, 0, 0.5)' 
   },
-  modalContent: {
-    backgroundColor: '#333',
-    borderRadius: 8,
-    padding: 16,
-    width: '90%',
+  modalContent: { 
+    backgroundColor: '#333', 
+    borderRadius: 8, 
+    padding: 16, 
+    width: '90%' 
   },
   closeButton: { 
     alignSelf: 'flex-end' 
@@ -641,28 +652,28 @@ const styles = StyleSheet.create({
     color: '#fff', 
     fontSize: 18 
   },
-  playlistOptionContainer: {
+  playlistOptionContainer: { 
     flexDirection: 'row', 
     alignItems: 'center', 
-    justifyContent: 'space-between',
+    justifyContent: 'space-between' 
   },
   playlistList: { 
     marginTop: 8 
   },
-  playlistItem: {
+  playlistItem: { 
     flexDirection: 'row', 
     alignItems: 'center', 
     paddingVertical: 8, 
-    paddingLeft: 16,
+    paddingLeft: 16 
   },
-  playlistImage: {
+  playlistImage: { 
     width: 40, 
     height: 40, 
     borderRadius: 4, 
-    marginRight: 8,
+    marginRight: 8 
   },
-  playlistItemText: {
+  playlistItemText: { 
     color: '#fff', 
-    fontSize: 16,
+    fontSize: 16 
   },
 });
