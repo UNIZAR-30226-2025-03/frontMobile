@@ -174,7 +174,6 @@ export default function SearchResults({ route, navigation }) {
       if (!response.ok) throw new Error("Error al dar like a la canción");
       Alert.alert("Éxito", "Canción añadida a favoritos");
     } catch (error) {
-      console.error("Error al dar like a la canción:", error);
       Alert.alert("Error", "Canción ya guardada en favoritos");
     }
   };
@@ -200,7 +199,6 @@ export default function SearchResults({ route, navigation }) {
       if (!response.ok) throw new Error("No se pudo añadir la canción");
       Alert.alert("Éxito", "Canción añadida a la playlist");
     } catch (error) {
-      console.error("Error al añadir canción:", error);
       Alert.alert("Error", "Canción ya añadida a la playlist o no se pudo añadir");
     }
   };
@@ -285,15 +283,14 @@ export default function SearchResults({ route, navigation }) {
               }
             }}
           >
-            <Image source={{ uri: normalizedPlaylist.Portada }} style={styles.itemImage} />
-            <View style={styles.itemTextContainer}>
-              <Text style={styles.itemTitle}>{normalizedPlaylist.Nombre}</Text>
-              <Text style={styles.itemSubtitle}>
-                Playlist • {selectedItem.numeroLikes || selectedItem.NumLikes || 0} likes
-              </Text>
-            </View>
-            <TouchableOpacity onPress={() => openModal(selectedItem)}>
-              <Ionicons name="ellipsis-vertical" size={24} color="#fff" />
+            <TouchableOpacity
+              style={styles.modalOption}
+              onPress={() => {
+                likePlaylist(selectedItem);
+                setModalVisible(false);
+              }}
+            >
+              <Text style={styles.modalOptionText}>Guardar Playlist</Text>
             </TouchableOpacity>
           </TouchableOpacity>
         );

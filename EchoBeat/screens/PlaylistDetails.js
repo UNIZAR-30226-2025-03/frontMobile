@@ -175,6 +175,82 @@ export default function PlaylistDetail({ navigation, route }) {
     );
   };
 
+  const iniciarReproduccion = async () => {
+    try {
+      const body = {
+        userEmail: userEmail,
+        reproduccionAleatoria: shuffle,
+        colaReproduccion: cola,
+      };
+  
+      const response = await fetch('https://echobeatapi.duckdns.org/cola-reproduccion/play-list', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      });
+  
+      const result = await response.json();
+  
+      if (!response.ok) {
+        console.error("❌ Error en reproducción:", result.message);
+        Alert.alert("Error", result.message || "No se pudo iniciar la reproducción");
+        return;
+      }
+  
+      if (songs.length > 0) {
+        navigation.navigate('MusicPlayer', {
+          songId: songs[0].id,
+          songName: songs[0].nombre,
+          userEmail: userEmail,
+        });
+      }
+    } catch (error) {
+      console.error("❌ Error al iniciar reproducción:", error);
+      Alert.alert("Error", "Error inesperado al iniciar la reproducción");
+    }
+  };
+  
+  const iniciarReproduccionDesdeCancion = async (song, index) => {
+    try {
+      const body = {
+        userEmail: userEmail,
+        reproduccionAleatoria: shuffle,
+        posicionCola: index,
+        colaReproduccion: cola,
+      };
+  
+      console.log("📤 Enviando datos a la API:", JSON.stringify(body, null, 2));
+  
+      const response = await fetch('https://echobeatapi.duckdns.org/cola-reproduccion/play-list-by-position', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      });
+  
+      const result = await response.json();
+      console.log("✅ Respuesta de la API:", result);
+  
+      if (!response.ok) {
+        console.error("❌ Error al iniciar reproducción desde canción:", result.message);
+        Alert.alert("Error", result.message || "No se pudo iniciar la reproducción");
+        return;
+      }
+  
+      navigation.navigate('MusicPlayer', {
+        songId: songs[index].id,
+        songName: songs[index].nombre,
+        userEmail: userEmail,
+      });
+    } catch (error) {
+      console.error("❌ Error inesperado:", error);
+      Alert.alert("Error", "Error al iniciar reproducción desde la canción seleccionada");
+    }
+  };
+
   const ListHeader = () => (
     <View style={styles.headerContent}>
       <Image
@@ -202,6 +278,33 @@ export default function PlaylistDetail({ navigation, route }) {
     </View>
   );
 
+  const ListFooter = () => {
+    if (!esAutor) return null;
+
+    return (
+      <View style={{ marginBottom: 80 }}> 
+        <TouchableOpacity
+          style={styles.addButton}
+          onPress={() => navigation.navigate("Search", { defaultFilter: "Canción" })}
+        >
+          <Text style={styles.addButtonText}>+ Añadir canciones</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  };
+
+  const guardarNuevoOrden = async (nuevaLista) => {
+    try {
+      await fetch(`https://echobeatapi.duckdns.org/playlists/update-order/${playlist.Id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ canciones: nuevaLista.map((c, i) => ({ id: c.id, orden: i })) })
+      });
+    } catch (e) {
+      Alert.alert("Error", "No se pudo guardar el nuevo orden");
+    }
+  };
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaView style={styles.container}>
@@ -222,12 +325,8 @@ export default function PlaylistDetail({ navigation, route }) {
             guardarNuevoOrden(data);
           }}
           ListHeaderComponent={ListHeader}
-          ListFooterComponent={esAutor ? (
-            <TouchableOpacity style={styles.addButton} onPress={() => navigation.navigate("Search", { defaultFilter: "Canción" })}>
-              <Text style={styles.addButtonText}>+ Añadir canciones</Text>
-            </TouchableOpacity>
-          ) : null}
           contentContainerStyle={styles.flatListContent}
+          ListFooterComponent={ListFooter}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}

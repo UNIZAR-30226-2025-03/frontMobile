@@ -50,7 +50,7 @@ export default function ChatScreen({ navigation }) {
           headers: { accept: '*/*' }
         });
         if (!response.ok) {
-          throw new Error('Error al obtener los chats');
+          throw new Error('Error al obtener los chats'); 
         }
         const data = await response.json();
 
