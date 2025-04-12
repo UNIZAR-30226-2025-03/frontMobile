@@ -11,6 +11,7 @@ const { width } = Dimensions.get("window");
 export default function PlaylistDetail({ navigation, route }) {
   const { playlist } = route.params;
   const [songs, setSongs] = useState([]);
+  const [ordenOriginal, setOrdenOriginal] = useState([]); // NUEVO: Orden original de la playlist
   const [userEmail, setUserEmail] = useState("");
   const [playlistInfo, setPlaylistInfo] = useState(null);
   const [infoVisible, setInfoVisible] = useState(false);
@@ -21,6 +22,14 @@ export default function PlaylistDetail({ navigation, route }) {
   const [shuffle, setShuffle] = useState(false);
   const [cola, setCola] = useState(null);
   const [esAutor, setEsAutor] = useState(false);
+  const [orderDropdownVisible, setOrderDropdownVisible] = useState(false);
+
+  const orderOptions = [
+    { value: "original", label: "Orden original" },
+    { value: 0, label: "Orden EchoBeat" },
+    { value: 1, label: "Orden por nombre" },
+    { value: 2, label: "Orden por reproducciones" },
+  ];
 
   useLayoutEffect(() => {
     navigation.setOptions({ headerShown: false });
@@ -40,6 +49,8 @@ export default function PlaylistDetail({ navigation, route }) {
       ]);
       setCola(cancionesData);
       setSongs(cancionesData.canciones || []);
+      setOrdenOriginal(cancionesData.canciones);
+      console.log("Orden original:", cancionesData);
       setPlaylistInfo(playlistData);
       setFavoritos((favoritosData.canciones || []).map((c) => c.id));
       const nombresDelUsuario = listasDelUsuario.map((p) => p.Nombre);
@@ -110,6 +121,7 @@ export default function PlaylistDetail({ navigation, route }) {
 
   const eliminarCancionDeLista = async () => {
     if (!selectedSong || !playlist?.Id) return;
+    console.log("Eliminando canción de la lista:", selectedSong, playlist.Id);
     try {
       const body = {
         idLista: playlist.Id,
@@ -123,7 +135,6 @@ export default function PlaylistDetail({ navigation, route }) {
         },
         body: JSON.stringify(body),
       });
-      const resultText = await response.text();
       if (!response.ok) throw new Error("Error al eliminar la canción de la lista");
       Alert.alert("Éxito", "Canción eliminada de la lista");
       setSongOptionsVisible(false);
@@ -140,6 +151,25 @@ export default function PlaylistDetail({ navigation, route }) {
     setRefreshing(false);
   };
 
+  const handleOrderChange = async (orderValue) => {
+    if (orderValue === "original") {
+      // Restauramos el orden original sin llamar a la API.
+      setSongs(ordenOriginal);
+      setOrderDropdownVisible(false);
+      return;
+    }
+    try {
+      const response = await fetch(`https://echobeatapi.duckdns.org/playlists/ordenar-canciones/${playlist.Id}/${orderValue}`);
+      const data = await response.json();
+      // Se supone que la API devuelve un objeto con un array de canciones similar al obtenido en loadData.
+      setSongs(data.canciones || []);
+      setOrderDropdownVisible(false);
+    } catch (error) {
+      console.error("Error al cambiar el orden de canciones:", error);
+      Alert.alert("Error", "No se pudo cambiar el orden de las canciones.");
+    }
+  };
+
   // Render unificado para cada canción en PlaylistDetails: se muestra la imagen a la izquierda,
   // el nombre de la canción a la derecha de la imagen y los íconos (like y opciones) al final, con el like pegado a la izquierda de los tres puntos.
   const renderSong = ({ item, drag, isActive }) => {
@@ -152,9 +182,7 @@ export default function PlaylistDetail({ navigation, route }) {
         onPress={() => iniciarReproduccionDesdeCancion(item, songs.findIndex(s => s.id === item.id))}
       >
         <Image
-          source={item.portada === "URL"
-            ? require("../assets/default_song_portada.jpg")
-            : { uri: item.portada }}
+          source={{ uri: item.portada }}
           style={styles.songImage}
         />
         <View style={styles.songTextContainer}>
@@ -254,7 +282,7 @@ export default function PlaylistDetail({ navigation, route }) {
   const ListHeader = () => (
     <View style={styles.headerContent}>
       <Image
-        source={playlist.Portada ? { uri: playlist.Portada } : require("../assets/default_playlist_portada.jpg")}
+        source={{ uri: playlist.Portada }}
         style={styles.playlistImage}
       />
       <Text style={styles.playlistTitle}>{playlist.Nombre}</Text>
@@ -271,9 +299,24 @@ export default function PlaylistDetail({ navigation, route }) {
           <Text style={styles.playButtonText}>Reproducir</Text>
         </TouchableOpacity>
       </View>
-      <Text style={styles.sectionTitle}>Canciones</Text>
-      {songs.length === 0 && (
-        <Text style={styles.noSongsText}>No hay canciones en la lista.</Text>
+      <View style={styles.songsHeaderRow}>
+        <Text style={styles.sectionTitle}>Canciones</Text>
+        <TouchableOpacity style={styles.orderButton} onPress={() => setOrderDropdownVisible(!orderDropdownVisible)}>
+          <Ionicons name="filter" size={20} color="#f2ab55" />
+        </TouchableOpacity>
+      </View>
+      {orderDropdownVisible && (
+        <View style={styles.orderDropdown}>
+          {orderOptions.map((option) => (
+            <TouchableOpacity 
+              key={option.value} 
+              style={styles.orderOption} 
+              onPress={() => handleOrderChange(option.value)}
+            >
+              <Text style={styles.orderOptionText}>{option.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
       )}
     </View>
   );
@@ -386,10 +429,10 @@ export default function PlaylistDetail({ navigation, route }) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#121111",
-    paddingTop: 30,
+  container: { 
+    flex: 1, 
+    backgroundColor: "#121111", 
+    paddingTop: 30 
   },
   header: {
     flexDirection: "row",
@@ -428,14 +471,40 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     color: "#f2ab55",
     marginBottom: 10,
-    alignSelf: "flex-start",
-    paddingLeft: 5,
   },
   flatListContent: {
     paddingBottom: 20,
     paddingHorizontal: 10,
   },
-  // Estilos unificados para el item de canción en PlaylistDetails:
+  // NUEVO: songsHeaderRow: contenedor con posición relativa para que el dropdown se superponga sin empujar contenido.
+  songsHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    position: "relative",
+    paddingHorizontal: 16,
+    marginBottom: 8,
+  },
+  orderButton: {
+    padding: 4,
+    marginLeft: 8,
+  },
+  // El dropdown se posiciona de forma absoluta dentro del contenedor songsHeaderRow.
+  orderDropdown: {
+    marginBottom: 10,
+    backgroundColor: "#333",
+    borderRadius: 4,
+  },
+  orderOption: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#555",
+  },
+  orderOptionText: {
+    color: "#fff",
+    fontSize: 16,
+  },
+  // Estilos unificados para el item de canción:
   songItem: {
     flexDirection: "row",
     alignItems: "center",
@@ -468,7 +537,7 @@ const styles = StyleSheet.create({
     marginRight: 5,
   },
   songOptionsButton: {},
-  // Fin de estilos unificados para los items de canción.
+  // Fin de estilos unificados para el item de canción.
   controlsRow: {
     flexDirection: "row",
     justifyContent: "center",
@@ -523,6 +592,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     alignSelf: "center",
     marginTop: 20,
+    marginBottom: 80,
   },
   addButtonText: {
     color: "#000",
