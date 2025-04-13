@@ -178,7 +178,7 @@ export default function HomeScreen({ navigation }) {
         >
           <TouchableOpacity
             style={styles.botonMenuSecundario}
-            onPress={() => navigation.navigate(boton.screen)}
+            onPress={() => navigation.navigate(boton.screen, { userEmail})}
           >
             <Ionicons name={boton.icon} size={24} color="#fff" style={{ marginBottom: 5 }} />
             <Text style={styles.botonTexto}>{boton.label}</Text>

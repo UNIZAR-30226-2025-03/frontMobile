@@ -13,7 +13,6 @@ import {
   Animated 
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { io } from 'socket.io-client';
 
 const { width } = Dimensions.get('window');
 
@@ -33,7 +32,6 @@ export default function ChatScreen({ navigation, route }) {
   const [chatMessages, setChatMessages] = useState([]);
   // Suponemos que el usuario autenticado es este (puedes reemplazarlo o recuperarlo de AsyncStorage)
   const [userEmail] = useState('userA@gmail.com');
-  const socketRef = useRef(null);
 
   // Ocultar el header nativo para usar uno personalizado.
   useLayoutEffect(() => {
@@ -82,7 +80,7 @@ export default function ChatScreen({ navigation, route }) {
     }
   }, [chatDetail]);
 
-  // MODO CONVERSACIÓN: Cargar historial de mensajes vía API
+  // MODO CONVERSACIÓN: Cargar historial de mensajes vía API mediante polling cada 3 segundos
   useEffect(() => {
     if (chatDetail) {
       const fetchHistory = async () => {
@@ -98,65 +96,28 @@ export default function ChatScreen({ navigation, route }) {
             text: item.Mensaje,
             type: item.posicion === 'izquierda' ? 'received' : 'sent'
           }));
+          // Solo actualizamos si hay cambios (podrías hacer una comparación más sofisticada)
           setChatMessages(mappedMessages);
         } catch (error) {
           console.error("Error al cargar historial:", error);
         }
       };
+
+      // Cargar inmediatamente y luego establecer el polling
       fetchHistory();
-    }
-  }, [chatDetail, userEmail]);
-
-  // MODO CONVERSACIÓN: Conexión automática al WebSocket para enviar/recibir mensajes
-  useEffect(() => {
-    if (chatDetail) {
-      socketRef.current = io("https://cdn.socket.io/4.6.1/socket.io.min.js://localhost:3000");
-      socketRef.current.on("connect", () => {
-        console.log("Conectado con ID:", socketRef.current.id);
-        socketRef.current.emit("register", userEmail);
-      });
-
-      socketRef.current.on("receiveMessage", (mensaje) => {
-        console.log("Mensaje recibido:", mensaje);
-        setChatMessages(prev => [
-          ...prev,
-          { key: String(Date.now()), text: `${mensaje.EmailSender}: ${mensaje.Mensaje}`, type: 'received' }
-        ]);
-      });
-
-      socketRef.current.on("messageSent", (mensaje) => {
-        console.log("Mensaje enviado:", mensaje);
-        setChatMessages(prev => [
-          ...prev,
-          { key: String(Date.now()), text: `Tú: ${mensaje.Mensaje}`, type: 'sent' }
-        ]);
-      });
-
-      return () => {
-        if (socketRef.current) {
-          socketRef.current.disconnect();
-          socketRef.current = null;
-        }
-      };
+      const pollingInterval = setInterval(fetchHistory, 3000);
+      return () => clearInterval(pollingInterval);
     }
   }, [chatDetail, userEmail]);
 
   // Función para enviar mensaje en modo conversación.
-  // Esta función emite el mensaje vía WebSocket y además llama a la API para guardar el mensaje.
   const sendMessage = async () => {
-    if (!socketRef.current || !socketRef.current.connected) {
-      alert("No estás conectado al chat.");
-      return;
-    }
     if (!message.trim()) return;
     
     const senderId = userEmail;
     const receiverId = chatDetail.contact;
     const content = message.trim();
 
-    // Emitir el mensaje vía WebSocket
-    socketRef.current.emit("enviarMensaje", { senderId, receiverId, content });
-    
     // Llamada a la API para guardar el mensaje.
     try {
       const url = `https://echobeatapi.duckdns.org/chat/guardarMensaje?senderId=${encodeURIComponent(senderId)}&receiverId=${encodeURIComponent(receiverId)}&content=${encodeURIComponent(content)}`;
@@ -173,7 +134,7 @@ export default function ChatScreen({ navigation, route }) {
       console.error("Error al guardar el mensaje:", error);
     }
 
-    // Actualizar localmente la lista de mensajes
+    // Actualizar localmente la lista de mensajes (se actualizará igualmente en el polling)
     setChatMessages(prev => [
       ...prev,
       { key: String(Date.now()), text: `Tú: ${content}`, type: 'sent' }
@@ -185,7 +146,7 @@ export default function ChatScreen({ navigation, route }) {
   const renderChatItem = ({ item }) => (
     <TouchableOpacity 
       style={styles.chatItem} 
-      onPress={() => navigation.navigate('ChatScreen', { chat: item })}
+      onPress={() => navigation.navigate('ChatScreen', { chat: item, userEmail })}
     >
       {item.foto ? (
         <Image source={{ uri: item.foto }} style={styles.profileImage} />
@@ -193,14 +154,15 @@ export default function ChatScreen({ navigation, route }) {
         <Image source={require('../assets/default_user_icon.png')} style={styles.profileImage} />
       )}
       <View style={styles.chatInfo}>
-        <Text style={styles.nickname}>{item.contact}</Text>
+        {/* Mostrar el correo del amigo encima del último mensaje */}
+        <Text style={styles.friendEmail}>{item.friendEmail}</Text>
         <Text style={styles.lastSong}>{item.mensaje}</Text>
       </View>
       <Ionicons name="chatbubble-ellipses-outline" size={20} color="#f2ab55" />
     </TouchableOpacity>
   );
 
-  // Si estamos en modo conversación, renderizamos la vista de chat detail.
+  // MODO CONVERSACIÓN: Renderizamos la vista de chat detail.
   if (chatDetail) {
     return (
       <KeyboardAvoidingView
@@ -340,10 +302,11 @@ const styles = StyleSheet.create({
   chatInfo: {
     flex: 1,
   },
-  nickname: {
-    fontSize: 18,
+  friendEmail: {
+    fontSize: 16,
     fontWeight: 'bold',
     color: '#ffffff',
+    marginBottom: 2,
   },
   lastSong: {
     fontSize: 14,
