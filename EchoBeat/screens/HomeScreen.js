@@ -244,7 +244,7 @@ export default function HomeScreen({ navigation }) {
             Id: item.IdLista, // Usa el nombre como ID
             Nombre: item.NombreGenero,
             Portada: item.FotoGenero || '',
-            Descripcion: item.Descripcion || "Lista predefinida de ${item.NombreGenero}",
+            Descripcion: item.Descripcion || `Lista predefinida de ${item.NombreGenero}`,
           }
         })
       }

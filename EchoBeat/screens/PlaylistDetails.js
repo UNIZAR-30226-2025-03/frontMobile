@@ -210,6 +210,7 @@ export default function PlaylistDetail({ navigation, route }) {
         reproduccionAleatoria: shuffle,
         colaReproduccion: cola,
       };
+      console.log("Reproduccion aleatoria,", shuffle);
   
       const response = await fetch('https://echobeatapi.duckdns.org/cola-reproduccion/play-list', {
         method: 'POST',
