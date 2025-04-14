@@ -1,4 +1,4 @@
-import React, { useState, useRef, useLayoutEffect, useEffect } from 'react';
+import React, { useState, useRef, useLayoutEffect, useEffect, useCallback } from 'react';
 import { 
   View, 
   Text, 
@@ -7,7 +7,8 @@ import {
   StyleSheet, 
   Dimensions, 
   TouchableOpacity, 
-  Animated 
+  Animated,
+  RefreshControl
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -17,7 +18,8 @@ export default function Chats({ navigation, route }) {
   const { userEmail } = route.params;  // Se recibe el email del usuario desde los parámetros
   const [cancionSonando, setCancionSonando] = useState(true);
   const [chats, setChats] = useState([]);
-  
+  const [refreshing, setRefreshing] = useState(false); // Nuevo estado para refrescar
+
   const rotation = useRef(new Animated.Value(0)).current;
 
   useLayoutEffect(() => {
@@ -37,37 +39,42 @@ export default function Chats({ navigation, route }) {
     outputRange: ['0deg', '360deg'],
   });
 
-  useEffect(() => {
-    console.log("userEmail en Chats:", userEmail); // Verifica que el email se recibe correctamente
-    const fetchChats = async () => {
-      try {
-        // Se utiliza el userEmail recibido como parámetro
-        const encodedEmail = encodeURIComponent(userEmail);
-        const response = await fetch(`https://echobeatapi.duckdns.org/chat/chatsDelUsuario?userEmail=${encodedEmail}`, {
-          headers: { accept: '*/*' }
-        });
-        if (!response.ok) {
-          throw new Error('Error al obtener los chats'); 
-        }
-        const data = await response.json();
-  
-        // Para cada chat se asigna el email del amigo
-        // Se asume que cada objeto "item" tiene la propiedad "friendEmail"
-        const chatsWithEmail = data.map(item => ({
-          ...item,
-          contact: item.contact, // Se muestra el email del amigo
-          foto: item.foto,           // Se mantiene la foto ya cargada
-        }));
-        
-        setChats(chatsWithEmail);
-      } catch (error) {
-        console.error("Error al cargar chats:", error);
+  // Función para cargar chats vía API
+  const fetchChats = useCallback(async () => {
+    try {
+      const encodedEmail = encodeURIComponent(userEmail);
+      const response = await fetch(`https://echobeatapi.duckdns.org/chat/chatsDelUsuario?userEmail=${encodedEmail}`, {
+        headers: { accept: '*/*' }
+      });
+      if (!response.ok) {
+        throw new Error('Error al obtener los chats');
       }
-    };
-  
-    fetchChats();
+      const data = await response.json();
+      // Se asume que cada objeto "item" tiene la propiedad "contact" (correo del amigo) y "mensaje"
+      const chatsWithEmail = data.map(item => ({
+        ...item,
+        contact: item.contact,
+        foto: item.foto,
+      }));
+      setChats(chatsWithEmail);
+    } catch (error) {
+      console.error("Error al cargar chats:", error);
+    }
   }, [userEmail]);
-  
+
+  // Cargar chats al montar la pantalla
+  useEffect(() => {
+    if (userEmail) {
+      fetchChats();
+    }
+  }, [userEmail, fetchChats]);
+
+  // Función para refrescar la lista de chats (pull to refresh)
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchChats();
+    setRefreshing(false);
+  };
 
   const renderChatItem = ({ item }) => (
     <TouchableOpacity 
@@ -80,7 +87,7 @@ export default function Chats({ navigation, route }) {
         <Image source={require('../assets/default_user_icon.png')} style={styles.profileImage} />
       )}
       <View style={styles.chatInfo}>
-        {/* Se muestra el correo (friendEmail) encima del último mensaje */}
+        {/* Se muestra el correo (contact) encima del último mensaje */}
         <Text style={styles.friendEmail}>{item.contact}</Text>
         <Text style={styles.lastSong}>{item.mensaje}</Text>
       </View>
@@ -94,9 +101,7 @@ export default function Chats({ navigation, route }) {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color="#f2ab55" />
         </TouchableOpacity>
-
         <Text style={styles.title}>Chats con amigos</Text>
-
         <TouchableOpacity style={{ opacity: 0 }}>
           <Ionicons name="arrow-back" size={24} color="transparent" />
         </TouchableOpacity>
@@ -107,6 +112,14 @@ export default function Chats({ navigation, route }) {
         renderItem={renderChatItem}
         keyExtractor={(item, index) => index.toString()}
         contentContainerStyle={styles.chatList}
+        refreshControl={
+          <RefreshControl 
+            refreshing={refreshing} 
+            onRefresh={onRefresh} 
+            colors={['#f2ab55']}
+            tintColor="#f2ab55"
+          />
+        }
       />
 
       {cancionSonando && (

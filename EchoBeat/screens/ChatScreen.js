@@ -1,18 +1,19 @@
 import React, { useState, useRef, useLayoutEffect, useEffect } from 'react';
-import { 
-  View, 
-  Text, 
-  FlatList, 
-  Image, 
-  TextInput, 
-  TouchableOpacity, 
-  StyleSheet, 
-  Dimensions, 
+import {
+  View,
+  Text,
+  FlatList,
+  Image,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  Dimensions,
   KeyboardAvoidingView,
   Platform,
-  Animated 
+  Animated
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width } = Dimensions.get('window');
 
@@ -30,8 +31,23 @@ export default function ChatScreen({ navigation, route }) {
   // Estados para MODO CONVERSACIÓN:
   const [message, setMessage] = useState('');
   const [chatMessages, setChatMessages] = useState([]);
-  // Suponemos que el usuario autenticado es este (puedes reemplazarlo o recuperarlo de AsyncStorage)
-  const [userEmail] = useState('userA@gmail.com');
+  // Ahora userEmail se obtiene dinámicamente (por ejemplo, de AsyncStorage)
+  const [userEmail, setUserEmail] = useState('');
+
+  // Al montar el componente, obtenemos el email del usuario
+  useEffect(() => {
+    const fetchUserEmail = async () => {
+      try {
+        const email = await AsyncStorage.getItem('email');
+        if (email) {
+          setUserEmail(email);
+        }
+      } catch (error) {
+        console.error("Error al obtener el email del usuario:", error);
+      }
+    };
+    fetchUserEmail();
+  }, []);
 
   // Ocultar el header nativo para usar uno personalizado.
   useLayoutEffect(() => {
@@ -58,11 +74,10 @@ export default function ChatScreen({ navigation, route }) {
 
   // MODO LISTA: Cargar chats recientes vía API
   useEffect(() => {
-    if (!chatDetail) {
+    if (!chatDetail && userEmail) {
       const fetchChats = async () => {
         try {
-          const user = 'userA@gmail.com';
-          const encodedEmail = encodeURIComponent(user);
+          const encodedEmail = encodeURIComponent(userEmail);
           const response = await fetch(
             `https://echobeatapi.duckdns.org/chat/chatsDelUsuario?userEmail=${encodedEmail}`,
             { headers: { accept: '*/*' } }
@@ -78,11 +93,11 @@ export default function ChatScreen({ navigation, route }) {
       };
       fetchChats();
     }
-  }, [chatDetail]);
+  }, [chatDetail, userEmail]);
 
   // MODO CONVERSACIÓN: Cargar historial de mensajes vía API mediante polling cada 3 segundos
   useEffect(() => {
-    if (chatDetail) {
+    if (chatDetail && userEmail) {
       const fetchHistory = async () => {
         try {
           const url = `https://echobeatapi.duckdns.org/chat/historialDelChat?userPrincipal=${encodeURIComponent(userEmail)}&userAmigo=${encodeURIComponent(chatDetail.contact)}`;
@@ -96,7 +111,7 @@ export default function ChatScreen({ navigation, route }) {
             text: item.Mensaje,
             type: item.posicion === 'izquierda' ? 'received' : 'sent'
           }));
-          // Solo actualizamos si hay cambios (podrías hacer una comparación más sofisticada)
+          // Actualizamos siempre el historial (podrías refinar comparando si hay cambios)
           setChatMessages(mappedMessages);
         } catch (error) {
           console.error("Error al cargar historial:", error);
@@ -113,7 +128,7 @@ export default function ChatScreen({ navigation, route }) {
   // Función para enviar mensaje en modo conversación.
   const sendMessage = async () => {
     if (!message.trim()) return;
-    
+
     const senderId = userEmail;
     const receiverId = chatDetail.contact;
     const content = message.trim();
@@ -134,7 +149,7 @@ export default function ChatScreen({ navigation, route }) {
       console.error("Error al guardar el mensaje:", error);
     }
 
-    // Actualizar localmente la lista de mensajes (se actualizará igualmente en el polling)
+    // Actualizar localmente la lista de mensajes (se actualizará igual en el polling)
     setChatMessages(prev => [
       ...prev,
       { key: String(Date.now()), text: `Tú: ${content}`, type: 'sent' }
@@ -144,8 +159,8 @@ export default function ChatScreen({ navigation, route }) {
 
   // MODO LISTA: Renderiza cada ítem del listado de chats recientes.
   const renderChatItem = ({ item }) => (
-    <TouchableOpacity 
-      style={styles.chatItem} 
+    <TouchableOpacity
+      style={styles.chatItem}
       onPress={() => navigation.navigate('ChatScreen', { chat: item, userEmail })}
     >
       {item.foto ? (
@@ -225,7 +240,7 @@ export default function ChatScreen({ navigation, route }) {
           <Ionicons name="arrow-back" size={24} color="transparent" />
         </TouchableOpacity>
       </View>
-      
+
       <FlatList
         data={chats}
         renderItem={renderChatItem}
@@ -234,8 +249,8 @@ export default function ChatScreen({ navigation, route }) {
       />
 
       {cancionSonando && (
-        <TouchableOpacity 
-          onPress={() => navigation.navigate('MusicPlayer')} 
+        <TouchableOpacity
+          onPress={() => navigation.navigate('MusicPlayer')}
           style={styles.musicIconContainer}
         >
           <Animated.Image
@@ -246,8 +261,8 @@ export default function ChatScreen({ navigation, route }) {
       )}
 
       <View style={styles.bottomContainer}>
-        <TouchableOpacity 
-          style={styles.halfCircleButton} 
+        <TouchableOpacity
+          style={styles.halfCircleButton}
           onPress={() => navigation.navigate('Amistades')}
         >
           <Ionicons name="people-outline" size={30} color="#fff" />

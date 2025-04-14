@@ -1,12 +1,39 @@
 import React, { useEffect, useState, useLayoutEffect } from 'react';
-import { View, Text, Image, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Dimensions } from 'react-native';
+import { 
+  View, 
+  Text, 
+  Image, 
+  StyleSheet, 
+  FlatList, 
+  TouchableOpacity, 
+  ActivityIndicator, 
+  Dimensions 
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const screenWidth = Dimensions.get('window').width;
 
 export default function ProfileAmistades({ route, navigation }) {
-  const { userEmail } = route.params;
+  const { userEmail } = route.params; // Este email es el del usuario (amigo) cuyo perfil se está viendo
   const [userData, setUserData] = useState(null);
+  // Estado para el email del usuario autenticado (logged-in)
+  const [loggedEmail, setLoggedEmail] = useState(null);
+
+  useEffect(() => {
+    // Obtener el email del usuario autenticado desde AsyncStorage
+    const fetchLoggedEmail = async () => {
+      try {
+        const email = await AsyncStorage.getItem('email');
+        if (email) {
+          setLoggedEmail(email);
+        }
+      } catch (error) {
+        console.error("Error al obtener el email autenticado:", error);
+      }
+    };
+    fetchLoggedEmail();
+  }, []);
 
   useEffect(() => {
     fetch(`https://echobeatapi.duckdns.org/users/profile-with-playlists?userEmail=${encodeURIComponent(userEmail)}`)
@@ -28,11 +55,29 @@ export default function ProfileAmistades({ route, navigation }) {
     );
   }
 
+  // Se crea un objeto chat con la información necesaria para abrir la conversación.
+  const chat = {
+    contact: userEmail,      // El email del amigo
+    foto: userData.LinkFoto, // La foto del perfil del amigo
+    mensaje: ""              // Inicialmente en blanco
+  };
+
   return (
     <View style={styles.container}>
+      {/* Back button */}
       <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
         <Ionicons name="arrow-back" size={28} color="#f2ab55" />
       </TouchableOpacity>
+
+      {/* Icono para abrir chat (posición superior derecha) */}
+      {loggedEmail && (
+        <TouchableOpacity 
+          style={styles.chatIcon}
+          onPress={() => navigation.navigate('ChatScreen', { chat, userEmail: loggedEmail })}
+        >
+          <Ionicons name="chatbubble-ellipses-outline" size={20} color="#f2ab55" />
+        </TouchableOpacity>
+      )}
 
       <View style={styles.profileContainer}>
         <Image
@@ -88,6 +133,12 @@ const styles = StyleSheet.create({
   },
   backButton: {
     marginBottom: 20,
+  },
+  chatIcon: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+    zIndex: 10,
   },
   profileContainer: {
     alignItems: 'center',
