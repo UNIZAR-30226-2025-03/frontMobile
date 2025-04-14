@@ -5,6 +5,10 @@ import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { TextInput} from "react-native";
+import { Picker } from "@react-native-picker/picker"; 
+import * as ImagePicker from "expo-image-picker";
+
 
 const { width } = Dimensions.get("window");
 
@@ -23,6 +27,13 @@ export default function PlaylistDetail({ navigation, route }) {
   const [cola, setCola] = useState(null);
   const [esAutor, setEsAutor] = useState(false);
   const [orderDropdownVisible, setOrderDropdownVisible] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+  const [playlistEdit, setPlaylistEdit] = useState({
+    Nombre: "",
+    Descripcion: "",
+    TipoPrivacidad: "Publica",
+  });
+
 
   const orderOptions = [
     { value: "original", label: "Orden original" },
@@ -35,23 +46,38 @@ export default function PlaylistDetail({ navigation, route }) {
     navigation.setOptions({ headerShown: false });
   }, [navigation]);
 
+  const convertirPrivacidad = (valor) => {
+    if (!valor) return "Publica";
+    const lower = valor.toLowerCase();
+    if (lower === "privado") return "Privada";
+    if (lower === "protegido") return "Protegida";
+    if (lower === "publico") return "Publica";
+  };
+
   const loadData = async () => {
     try {
       const email = await AsyncStorage.getItem("email");
       if (!email) return;
       setUserEmail(email);
       const encodedEmail = encodeURIComponent(email);
-      const [cancionesData, playlistData, favoritosData, listasDelUsuario] = await Promise.all([
+      const [cancionesData, playlistData, favoritosData, listasDelUsuario, infoPlaylist] = await Promise.all([
         fetch(`https://echobeatapi.duckdns.org/playlists/${playlist.Id}/songs`).then((res) => res.json()),
         fetch(`https://echobeatapi.duckdns.org/playlists/playlist/${playlist.Id}`).then((res) => res.json()),
         fetch(`https://echobeatapi.duckdns.org/cancion/favorites?email=${encodedEmail}`).then((res) => res.json()),
         fetch(`https://echobeatapi.duckdns.org/playlists/user/${encodedEmail}`).then((res) => res.json()),
+        fetch(`https://echobeatapi.duckdns.org/playlists/lista/${playlist.Id}`).then((res) => res.json()),
       ]);
       setCola(cancionesData);
       setSongs(cancionesData.canciones || []);
       setOrdenOriginal(cancionesData.canciones);
       console.log("Orden original:", cancionesData);
       setPlaylistInfo(playlistData);
+      setPlaylistEdit({
+        Nombre: infoPlaylist.Nombre || "",
+        Descripcion: infoPlaylist.Descripcion || "",
+        TipoPrivacidad: convertirPrivacidad(playlistData.TipoPrivacidad),
+      });
+      console.log("Tipo de privacidad", convertirPrivacidad(playlistData.TipoPrivacidad));
       setFavoritos((favoritosData.canciones || []).map((c) => c.id));
       const nombresDelUsuario = listasDelUsuario.map((p) => p.Nombre);
       const esPropia = nombresDelUsuario.includes(playlist.Nombre);
@@ -170,6 +196,19 @@ export default function PlaylistDetail({ navigation, route }) {
     }
   };
 
+  //Funcion para mover de posicion las canciones
+  const moverCancion = (cancion, direccion) => {
+    const index = songs.findIndex((s) => s.id === cancion.id);
+    const nuevoIndex = index + direccion;
+  
+    if (nuevoIndex < 0 || nuevoIndex >= songs.length) return;
+  
+    const nuevaLista = [...songs];
+    const [m] = nuevaLista.splice(index, 1);
+    nuevaLista.splice(nuevoIndex, 0, m);
+    setSongs(nuevaLista);
+  };
+
   // Render unificado para cada canción en PlaylistDetails: se muestra la imagen a la izquierda,
   // el nombre de la canción a la derecha de la imagen y los íconos (like y opciones) al final, con el like pegado a la izquierda de los tres puntos.
   const renderSong = ({ item, drag, isActive }) => {
@@ -188,19 +227,82 @@ export default function PlaylistDetail({ navigation, route }) {
         <View style={styles.songTextContainer}>
           <Text style={styles.songTitle} numberOfLines={1}>{item.nombre}</Text>
         </View>
+
         <View style={styles.songIconsContainer}>
-          <TouchableOpacity onPress={() => toggleFavorito(item.id)} style={styles.heartButton}>
-            <Ionicons name="heart" size={22} color={favoritos.includes(item.id) ? "#f2ab55" : "#fff"} />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.songOptionsButton} onPress={() => {
-            setSelectedSong(item);
-            setSongOptionsVisible(true);
-          }}>
-            <Ionicons name="ellipsis-vertical" size={20} color="#fff" />
-          </TouchableOpacity>
-        </View>
+        {editMode ? (
+          <View style={{ marginRight: 8, alignItems: "center" }}>
+            <TouchableOpacity onPress={() => moverCancion(item, -1)} style={{ marginBottom: 4 }}>
+              <Ionicons name="arrow-up" size={20} color="#fff" />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => moverCancion(item, 1)}>
+              <Ionicons name="arrow-down" size={20} color="#fff" />
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <>
+            <TouchableOpacity onPress={() => toggleFavorito(item.id)} style={styles.heartButton}>
+              <Ionicons name="heart" size={22} color={esFavorita ? "#f2ab55" : "#fff"} />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.songOptionsButton} onPress={() => {
+              setSelectedSong(item);
+              setSongOptionsVisible(true);
+            }}>
+              <Ionicons name="ellipsis-vertical" size={20} color="#fff" />
+            </TouchableOpacity>
+          </>
+        )}
+      </View>
       </TouchableOpacity>
     );
+  };
+
+  //Funcion para modificar la imagen
+  const uploadPlaylistImage = async (uri) => {
+    // similar a tu lógica en ProfileScreen pero con endpoint playlist
+    const formData = new FormData();
+    formData.append("file", {
+      uri,
+      name: "playlist.jpg",
+      type: "image/jpeg",
+    });
+  
+    const response = await fetch(`https://echobeatapi.duckdns.org/playlists/update-portada/${playlist.Id}`, {
+      method: "POST",
+      body: formData,
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
+  
+    if (!response.ok) throw new Error("No se pudo actualizar la portada");
+  
+    loadData(); // recarga datos actualizados
+  };
+
+  const handleImagePick = async () => {
+    try {
+      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permissionResult.granted) {
+        Alert.alert("Permiso denegado", "Se necesita acceso a la galería para cambiar la imagen.");
+        return;
+      }
+  
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.7,
+      });
+  
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const image = result.assets[0];
+        await uploadPlaylistImage(image.uri);
+        loadData(); // Vuelve a cargar la información con la nueva portada
+      }
+    } catch (error) {
+      console.error("Error al seleccionar imagen:", error);
+      Alert.alert("Error", "No se pudo seleccionar la imagen.");
+    }
   };
 
   const iniciarReproduccion = async () => {
@@ -210,7 +312,6 @@ export default function PlaylistDetail({ navigation, route }) {
         reproduccionAleatoria: shuffle,
         colaReproduccion: cola,
       };
-      console.log("Reproduccion aleatoria,", shuffle);
   
       const response = await fetch('https://echobeatapi.duckdns.org/cola-reproduccion/play-list', {
         method: 'POST',
@@ -227,11 +328,23 @@ export default function PlaylistDetail({ navigation, route }) {
         Alert.alert("Error", result.message || "No se pudo iniciar la reproducción");
         return;
       }
-  
-      if (songs.length > 0) {
+
+      const primeraCancionId = result.primeraCancionId;
+
+      if (primeraCancionId) {
+        const detalleResp = await fetch(`https://echobeatapi.duckdns.org/playlists/song-details/${primeraCancionId}`);
+        const detalle = await detalleResp.json();
+
+        if (!detalleResp.ok) {
+          console.error("❌ Error al obtener detalles de la canción:", detalle.message);
+          Alert.alert("Error", detalle.message || "No se pudo obtener el nombre de la canción");
+          return;
+        }
+        console.log("primera cancion", primeraCancionId);
+
         navigation.navigate('MusicPlayer', {
-          songId: songs[0].id,
-          songName: songs[0].nombre,
+          songId: primeraCancionId,
+          songName: detalle.nombre, 
           userEmail: userEmail,
         });
       }
@@ -268,7 +381,7 @@ export default function PlaylistDetail({ navigation, route }) {
         Alert.alert("Error", result.message || "No se pudo iniciar la reproducción");
         return;
       }
-  
+      
       navigation.navigate('MusicPlayer', {
         songId: songs[index].id,
         songName: songs[index].nombre,
@@ -280,59 +393,131 @@ export default function PlaylistDetail({ navigation, route }) {
     }
   };
 
+  //Funcion para guardar los cambios tras modificar la playlist
+  const guardarCambiosPlaylist = async () => {
+    try {
+      const baseUrl = `https://echobeatapi.duckdns.org/playlists`;
+      await Promise.all([
+        fetch(`${baseUrl}/update-nombre/${playlist.Id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ nuevoNombre: playlistEdit.Nombre }),
+        }),
+        fetch(`${baseUrl}/update-descripcion/${playlist.Id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ nuevaDescripcion: playlistEdit.Descripcion }),
+        }),
+        fetch(`${baseUrl}/update-privacidad/${playlist.Id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ nuevaPrivacidad: playlistEdit.TipoPrivacidad }),
+        }),
+        guardarNuevoOrden(songs),
+      ]);
+
+      setPlaylistInfo((prev) => ({
+        ...prev,
+        Nombre: playlistEdit.Nombre,
+        Descripcion: playlistEdit.Descripcion,
+        TipoPrivacidad: playlistEdit.TipoPrivacidad,
+      }));
+  
+      setEditMode(false);
+      Alert.alert("Cambios guardados");
+    } catch (error) {
+      console.error("Error al guardar cambios:", error);
+      Alert.alert("Error", "No se pudieron guardar los cambios");
+    }
+  };
+
   const ListHeader = () => (
-    <View style={styles.headerContent}>
-      <Image
-        source={{ uri: playlist.Portada }}
-        style={styles.playlistImage}
-      />
-      <Text style={styles.playlistTitle}>{playlist.Nombre}</Text>
-      <Text style={styles.playlistDescription}>{playlist.Descripcion}</Text>
-      <View style={styles.controlsRow}>
-        <TouchableOpacity style={[styles.shuffleButton, shuffle && styles.shuffleActive]} onPress={() => setShuffle(prev => !prev)}>
-          <Ionicons name="shuffle" size={20} color={shuffle ? "#121111" : "#f2ab55"} />
-          <Text style={[styles.shuffleButtonText, shuffle && styles.shuffleButtonTextActive]}>
-            {shuffle ? "Aleatorio activado" : "Aleatorio desactivado"}
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.playButton} onPress={() => iniciarReproduccion()}>
-          <Ionicons name="play" size={20} color="#121111" />
-          <Text style={styles.playButtonText}>Reproducir</Text>
-        </TouchableOpacity>
-      </View>
-      <View style={styles.songsHeaderRow}>
-        <Text style={styles.sectionTitle}>Canciones</Text>
-        <TouchableOpacity style={styles.orderButton} onPress={() => setOrderDropdownVisible(!orderDropdownVisible)}>
-          <Ionicons name="filter" size={20} color="#f2ab55" />
-        </TouchableOpacity>
-      </View>
-      {orderDropdownVisible && (
-        <View style={styles.orderDropdown}>
-          {orderOptions.map((option) => (
-            <TouchableOpacity 
-              key={option.value} 
-              style={styles.orderOption} 
-              onPress={() => handleOrderChange(option.value)}
+    <View style={{ paddingHorizontal: 20, paddingTop: 10, alignItems: "center" }}>
+      {/* Imagen redonda editable */}
+      <TouchableOpacity style={{ marginBottom: 20, position: "relative" }} disabled={!editMode} onPress={handleImagePick}>
+        <Image
+          source={{ uri: playlistInfo?.Portada || playlist.Portada }}
+          style={{ width: 200, height: 200, borderRadius: 100 }}
+        />
+        {editMode && (
+          <View style={{
+            position: 'absolute',
+            bottom: 0,
+            right: 0,
+            backgroundColor: 'rgba(0,0,0,0.6)',
+            borderRadius: 12,
+            padding: 4,
+          }}>
+            <Ionicons name="pencil" size={20} color="#fff" />
+          </View>
+        )}
+      </TouchableOpacity>
+        
+      {/* Campos editables si está en modo edición */}
+      {editMode ? (
+        <>
+          {/* Nombre */}
+          <Text style={styles.label}>Nombre de la Playlist *</Text>
+          <TextInput
+            style={styles.input}
+            value={playlistEdit?.Nombre}
+            onChangeText={(text) => setPlaylistEdit({ ...playlistEdit, Nombre: text })}
+          />
+  
+          {/* Privacidad */}
+          <Text style={styles.label}>Privacidad *</Text>
+          <View style={styles.pickerContainer}>
+            <Picker
+              selectedValue={playlistEdit?.TipoPrivacidad}
+              onValueChange={(value) => setPlaylistEdit({ ...playlistEdit, TipoPrivacidad: value })}
+              style={styles.picker}
             >
-              <Text style={styles.orderOptionText}>{option.label}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+              <Picker.Item label="Pública" value="Publica" />
+              <Picker.Item label="Protegida" value="Protegida" />
+              <Picker.Item label="Privada" value="Privada" />
+            </Picker>
+          </View>
+  
+          {/* Descripción */}
+          <Text style={styles.label}>Descripción</Text>
+          <TextInput
+            style={[styles.input, { height: 80, textAlignVertical: "top" }]}
+            multiline
+            maxLength={150}
+            value={playlistEdit?.Descripcion}
+            onChangeText={(text) => setPlaylistEdit({ ...playlistEdit, Descripcion: text })}
+          />
+        </>
+      ) : (
+        <>
+          {/* Modo vista */}
+          <Text style={styles.playlistTitle}>{playlist.Nombre}</Text>
+          <Text style={styles.playlistDescription}>{playlist.Descripcion}</Text>
+        </>
       )}
     </View>
   );
 
   const ListFooter = () => {
     if (!esAutor) return null;
-
+  
     return (
-      <View style={{ marginBottom: 80 }}> 
-        <TouchableOpacity
-          style={styles.addButton}
-          onPress={() => navigation.navigate("Search", { defaultFilter: "Canción" })}
-        >
-          <Text style={styles.addButtonText}>+ Añadir canciones</Text>
-        </TouchableOpacity>
+      <View style={{ marginBottom: 80, alignItems: "center", paddingHorizontal: 20 }}>
+        {!editMode ? (
+          <TouchableOpacity
+            style={styles.addButton}
+            onPress={() => navigation.navigate("Search", { defaultFilter: "Canción" })}
+          >
+            <Text style={styles.addButtonText}>+ Añadir canciones</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity
+            style={styles.submitButton}
+            onPress={guardarCambiosPlaylist}
+          >
+            <Text style={styles.submitButtonText}>Guardar cambios</Text>
+          </TouchableOpacity>
+        )}
       </View>
     );
   };
@@ -412,7 +597,10 @@ export default function PlaylistDetail({ navigation, route }) {
               )}
               {esAutor && (
                 <>
-                  <TouchableOpacity style={styles.editButton} onPress={() => {}}>
+                  <TouchableOpacity style={styles.editButton} onPress={() => {
+                    setEditMode(true);
+                    setInfoVisible(false);
+                  }}>
                     <Text style={styles.editButtonText}>Editar playlist</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={styles.deleteButton} onPress={eliminarPlaylist}>
@@ -700,4 +888,46 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "bold",
   },
+  label: {
+    fontSize: 16,
+    color: '#f2ab55',
+    marginBottom: 5,
+    alignSelf: 'flex-start',
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#f2ab55',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 16,
+    color: '#ffffff',
+    marginBottom: 15,
+    width: '100%',
+  },
+  pickerContainer: {
+    borderWidth: 1,
+    borderColor: '#f2ab55',
+    borderRadius: 8,
+    overflow: 'hidden',
+    marginBottom: 15,
+    width: '100%',
+  },
+  picker: {
+    color: '#ffffff',
+  },
+  submitButton: {
+    backgroundColor: '#ffb723',
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 10,
+    width: '100%',
+  },
+  submitButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  
 });
