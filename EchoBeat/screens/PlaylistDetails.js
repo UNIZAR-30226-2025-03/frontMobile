@@ -340,8 +340,6 @@ export default function PlaylistDetail({ navigation, route }) {
           Alert.alert("Error", detalle.message || "No se pudo obtener el nombre de la canción");
           return;
         }
-        console.log("primera cancion", primeraCancionId);
-        console.log("Detalle de la respuesta ", detalle);
 
         navigation.navigate('MusicPlayer', {
           songId: primeraCancionId,

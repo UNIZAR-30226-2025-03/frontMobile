@@ -124,31 +124,51 @@ export default function AlbumDetails({ navigation, route }) {
 
   const iniciarReproduccion = async () => {
     try {
-      const body = {
-        userEmail: userEmail,
-        reproduccionAleatoria: shuffle,
-        colaReproduccion: cola,
-      };
-      const response = await fetch("https://echobeatapi.duckdns.org/cola-reproduccion/play-list", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      const result = await response.json();
-      if (!response.ok) {
-        Alert.alert("Error", result.message || "No se pudo iniciar la reproducción");
-        return;
-      }
-      if (songs.length > 0) {
-        navigation.navigate("MusicPlayer", {
-          songId: songs[0].id,
-          songName: songs[0].nombre,
-          userEmail: userEmail,
-        });
-      }
-    } catch (error) {
-      Alert.alert("Error", "Error inesperado al iniciar la reproducción");
-    }
+          const body = {
+            userEmail: userEmail,
+            reproduccionAleatoria: shuffle,
+            colaReproduccion: cola,
+          };
+      
+          const response = await fetch('https://echobeatapi.duckdns.org/cola-reproduccion/play-list', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(body),
+          });
+      
+          const result = await response.json();
+      
+          if (!response.ok) {
+            console.error("❌ Error en reproducción:", result.message);
+            Alert.alert("Error", result.message || "No se pudo iniciar la reproducción");
+            return;
+          }
+    
+          console.log("✅ Respuesta de la API:", result);
+          const primeraCancionId = result.primeraCancionId;
+    
+          if (primeraCancionId) {
+            const detalleResp = await fetch(`https://echobeatapi.duckdns.org/playlists/song-details/${primeraCancionId}`);
+            const detalle = await detalleResp.json();
+    
+            if (!detalleResp.ok) {
+              console.error("❌ Error al obtener detalles de la canción:", detalle.message);
+              Alert.alert("Error", detalle.message || "No se pudo obtener el nombre de la canción");
+              return;
+            }
+    
+            navigation.navigate('MusicPlayer', {
+              songId: primeraCancionId,
+              songName: detalle.Nombre, 
+              userEmail: userEmail,
+            });
+          }
+        } catch (error) {
+          console.error("❌ Error al iniciar reproducción:", error);
+          Alert.alert("Error", "Error inesperado al iniciar la reproducción");
+        }
   };
 
   const iniciarReproduccionDesdeCancion = async (song, index) => {
