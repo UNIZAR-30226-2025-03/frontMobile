@@ -11,6 +11,7 @@ import {
   RefreshControl
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 
 const { width } = Dimensions.get('window');
 
@@ -63,11 +64,13 @@ export default function Chats({ navigation, route }) {
   }, [userEmail]);
 
   // Cargar chats al montar la pantalla
-  useEffect(() => {
-    if (userEmail) {
-      fetchChats();
-    }
-  }, [userEmail, fetchChats]);
+  useFocusEffect(
+    useCallback(() => {
+      if (userEmail) {
+        fetchChats();
+      }
+    }, [userEmail, fetchChats])
+  );
 
   // Función para refrescar la lista de chats (pull to refresh)
   const onRefresh = async () => {
