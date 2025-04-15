@@ -3,6 +3,8 @@ import { View, Text, FlatList, Image, StyleSheet, Dimensions, TouchableOpacity,
          TouchableWithoutFeedback, Animated, Alert, Easing,RefreshControl, ScrollView } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
+
 
 const { width, height } = Dimensions.get('window');
 
@@ -18,10 +20,18 @@ export default function HomeScreen({ navigation }) {
   const [userName, setUserName] = useState('');
   const [refreshing, setRefreshing] = useState(false);
   const [profilePhoto, setProfilePhoto] = useState(null);
+  
 
   useLayoutEffect(() => {
     navigation.setOptions({ headerShown: false });
   }, [navigation]);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      obtenerInfoUser();
+      checkSongPlaying();
+    }, [])
+  );
 
   useEffect(() => {
     obtenerInfoUser();

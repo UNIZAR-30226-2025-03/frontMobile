@@ -1,5 +1,5 @@
 import React, { useState, useLayoutEffect, useEffect, useCallback } from "react";
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Image, Dimensions, Alert, RefreshControl } from "react-native";
+import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Image, Dimensions, Alert, RefreshControl} from "react-native";
 import DraggableFlatList from "react-native-draggable-flatlist";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
@@ -45,14 +45,6 @@ export default function PlaylistDetail({ navigation, route }) {
     navigation.setOptions({ headerShown: false });
   }, [navigation]);
 
-  const convertirPrivacidad = (valor) => {
-    if (!valor) return "Publica";
-    const lower = valor.toLowerCase();
-    if (lower === "privado") return "Privada";
-    if (lower === "protegido") return "Protegida";
-    if (lower === "publico") return "Publica";
-  };
-
   const loadData = async () => {
     try {
       const email = await AsyncStorage.getItem("email");
@@ -74,12 +66,13 @@ export default function PlaylistDetail({ navigation, route }) {
       setPlaylistEdit({
         Nombre: infoPlaylist.Nombre || "",
         Descripcion: infoPlaylist.Descripcion || "",
-        TipoPrivacidad: convertirPrivacidad(playlistData.TipoPrivacidad),
+        TipoPrivacidad: playlistData.TipoPrivacidad,
       });
       setInfoLista(infoPlaylist);
       setFavoritos((favoritosData.canciones || []).map((c) => c.id));
       const nombresDelUsuario = listasDelUsuario.map((p) => p.Nombre);
-      const esPropia = nombresDelUsuario.includes(playlist.Nombre);
+      const idsDelUsuario = listasDelUsuario.map((p) => p.Id);
+      const esPropia = idsDelUsuario.includes(playlist.Id);
       setEsAutor(esPropia);
     } catch (error) {
       console.error("Error en loadData:", error);
@@ -431,15 +424,15 @@ export default function PlaylistDetail({ navigation, route }) {
     }
   };
 
-  const ListHeader = () => (
-    <View style={{ paddingHorizontal: 20, paddingTop: 10, alignItems: "center" }}>
-      {/* Imagen redonda editable */}
-      <TouchableOpacity style={{ marginBottom: 20, position: "relative" }} disabled={!editMode} onPress={handleImagePick}>
-        <Image
-          source={{ uri: playlistInfo?.Portada || playlist.Portada }}
-          style={{ width: 200, height: 200, borderRadius: 100 }}
-        />
-        {editMode && (
+  const PlaylistEditForm = ({ playlistEdit, setPlaylistEdit, handleImagePick }) => {
+    return (
+      <>
+        {/* Imagen editable */}
+        <TouchableOpacity style={{ marginBottom: 20, position: "relative" }} onPress={handleImagePick}>
+          <Image
+            source={{ uri: playlistEdit?.Portada }}
+            style={{ width: 200, height: 200, borderRadius: 100 }}
+          />
           <View style={{
             position: 'absolute',
             bottom: 0,
@@ -450,83 +443,103 @@ export default function PlaylistDetail({ navigation, route }) {
           }}>
             <Ionicons name="pencil" size={20} color="#fff" />
           </View>
-        )}
-      </TouchableOpacity>
-        
-      {/* Campos editables si está en modo edición */}
-      {editMode ? (
-        <>
-          {/* Nombre */}
-          <Text style={styles.label}>Nombre de la Playlist *</Text>
-          <TextInput
-            style={styles.input}
-            value={playlistEdit?.Nombre}
-            onChangeText={(text) => setPlaylistEdit({ ...playlistEdit, Nombre: text })}
-          />
+        </TouchableOpacity>
   
-          {/* Privacidad */}
-          <Text style={styles.label}>Privacidad *</Text>
-          <View style={styles.pickerContainer}>
-            <Picker
-              selectedValue={playlistEdit?.TipoPrivacidad}
-              onValueChange={(value) => setPlaylistEdit({ ...playlistEdit, TipoPrivacidad: value })}
-              style={styles.picker}
-            >
-              <Picker.Item label="Pública" value="publico" />
-              <Picker.Item label="Protegida" value="protegido" />
-              <Picker.Item label="Privada" value="privado" />
-            </Picker>
-          </View>
+        {/* Nombre */}
+        <Text style={styles.label}>Nombre de la Playlist *</Text>
+        <TextInput
+          style={styles.input}
+          value={playlistEdit.Nombre}
+          onChangeText={(text) => setPlaylistEdit((prev) => ({ ...prev, Nombre: text }))}
+        />
   
-          {/* Descripción */}
-          <Text style={styles.label}>Descripción</Text>
-          <TextInput
-            style={[styles.input, { height: 80, textAlignVertical: "top" }]}
-            multiline
-            maxLength={150}
-            value={playlistEdit?.Descripcion}
-            onChangeText={(text) => setPlaylistEdit({ ...playlistEdit, Descripcion: text })}
-          />
-        </>
-      ) : (
-        <View style={styles.headerContent}>
-          <Text style={styles.playlistTitle}>{playlist.Nombre}</Text>
-          <Text style={styles.playlistDescription}>{infoLista?.Descripcion}</Text>
-          <View style={styles.controlsRow}>
-            <TouchableOpacity style={[styles.shuffleButton, shuffle && styles.shuffleActive]} onPress={() => setShuffle(prev => !prev)}>
-              <Ionicons name="shuffle" size={20} color={shuffle ? "#121111" : "#121111"} />
-              <Text style={[styles.shuffleButtonText, shuffle && styles.shuffleButtonTextActive]}>
-                {shuffle ? "Aleatorio activado" : "Aleatorio desactivado"}
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.playButton} onPress={() => iniciarReproduccion()}>
-              <Ionicons name="play" size={20} color="#121111" />
-              {/*<Text style={styles.playButtonText}>Reproducir</Text>*/}
-            </TouchableOpacity>
-          </View>
-          <View style={styles.songsHeaderRow}>
-            <Text style={styles.sectionTitle}>Canciones</Text>
-            <TouchableOpacity style={styles.orderButton} onPress={() => setOrderDropdownVisible(!orderDropdownVisible)}>
-              <Ionicons name="filter" size={20} color="#f2ab55" />
-            </TouchableOpacity>
-          </View>
-          {orderDropdownVisible && (
-            <View style={styles.orderDropdown}>
-              {orderOptions.map((option) => (
-                <TouchableOpacity 
-                  key={option.value} 
-                  style={styles.orderOption} 
-                  onPress={() => handleOrderChange(option.value)}
-                >
-                  <Text style={styles.orderOptionText}>{option.label}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
+        {/* Privacidad */}
+        <Text style={styles.label}>Privacidad *</Text>
+        <View style={styles.pickerContainer}>
+          <Picker
+            selectedValue={playlistEdit.TipoPrivacidad}
+            onValueChange={(value) => setPlaylistEdit((prev) => ({ ...prev, TipoPrivacidad: value }))}
+            style={styles.picker}
+          >
+            <Picker.Item label="Pública" value="Publica" />
+            <Picker.Item label="Protegida" value="Protegida" />
+            <Picker.Item label="Privada" value="Privada" />
+          </Picker>
         </View>
-      )}
-    </View>
-  );
+  
+        {/* Descripción */}
+        <Text style={styles.label}>Descripción</Text>
+        <TextInput
+          style={[styles.input, { height: 80, textAlignVertical: "top" }]}
+          multiline
+          maxLength={150}
+          value={playlistEdit.Descripcion}
+          onChangeText={(text) => setPlaylistEdit((prev) => ({ ...prev, Descripcion: text }))}
+        />
+      </>
+    );
+  };
+
+  const ListHeader = () => {
+    const portada = playlistInfo?.Portada || playlist.Portada;
+  
+    return (
+      <View style={{ paddingHorizontal: 20, paddingTop: 10, alignItems: "center" }}>
+        {editMode ? (
+          <PlaylistEditForm
+            playlistEdit={{ ...playlistEdit, Portada: portada }}
+            setPlaylistEdit={setPlaylistEdit}
+            handleImagePick={handleImagePick}
+          />
+        ) : (
+          <View style={styles.headerContent}>
+            <Image
+              source={{ uri: portada }}
+              style={styles.playlistImage}
+            />
+            <Text style={styles.playlistTitle}>{infoLista?.Nombre || playlist.Nombre}</Text>
+            <Text style={styles.playlistDescription}>{playlistInfo?.Descripcion || infoLista?.Descripcion}</Text>
+  
+            <View style={styles.controlsRow}>
+              <TouchableOpacity
+                style={[styles.shuffleButton, shuffle && styles.shuffleActive]}
+                onPress={() => setShuffle(prev => !prev)}
+              >
+                <Ionicons name="shuffle" size={20} color={shuffle ? "#121111" : "#121111"} />
+                <Text style={[styles.shuffleButtonText, shuffle && styles.shuffleButtonTextActive]}>
+                  {shuffle ? "Aleatorio activado" : "Aleatorio desactivado"}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.playButton} onPress={iniciarReproduccion}>
+                <Ionicons name="play" size={20} color="#121111" />
+              </TouchableOpacity>
+            </View>
+  
+            <View style={styles.songsHeaderRow}>
+              <Text style={styles.sectionTitle}>Canciones</Text>
+              <TouchableOpacity style={styles.orderButton} onPress={() => setOrderDropdownVisible(!orderDropdownVisible)}>
+                <Ionicons name="filter" size={20} color="#f2ab55" />
+              </TouchableOpacity>
+            </View>
+  
+            {orderDropdownVisible && (
+              <View style={styles.orderDropdown}>
+                {orderOptions.map((option) => (
+                  <TouchableOpacity
+                    key={option.value}
+                    style={styles.orderOption}
+                    onPress={() => handleOrderChange(option.value)}
+                  >
+                    <Text style={styles.orderOptionText}>{option.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </View>
+        )}
+      </View>
+    );
+  };
 
   const ListFooter = () => {
     if (!esAutor) return null;
@@ -629,7 +642,19 @@ export default function PlaylistDetail({ navigation, route }) {
               {esAutor && (
                 <>
                   <TouchableOpacity style={styles.editButton} onPress={() => {
-                    setEditMode(true);
+                    navigation.navigate("EditPlaylistScreen", {
+                      playlistEdit: {
+                        Nombre: playlistEdit.Nombre,
+                        Descripcion: playlistEdit.Descripcion,
+                        TipoPrivacidad: playlistEdit.TipoPrivacidad,
+                        Portada: playlistInfo?.Portada || playlist.Portada,
+                      },
+                      playlistId: playlist.Id,
+                      songs: songs,
+                      onSave: async () => {
+                        await loadData();
+                      }
+                    });
                     setInfoVisible(false);
                   }}>
                     <Text style={styles.editButtonText}>Editar playlist</Text>
