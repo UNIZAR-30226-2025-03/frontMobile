@@ -182,7 +182,7 @@ export default function AlbumDetails({ navigation, route }) {
   const ListHeader = () => (
     <View style={styles.headerContent}>
       <Image
-        source={playlist.Portada ? { uri: playlist.Portada } : require("../assets/default_playlist_portada.jpg")}
+        source={{ uri: playlist.Portada }}
         style={styles.playlistImage}
       />
       <Text style={styles.playlistTitle}>{playlist.Nombre}</Text>
@@ -402,19 +402,6 @@ const styles = StyleSheet.create({
     color: "#ffffff",
     textAlign: "center",
     marginVertical: 20,
-  },
-  addButton: {
-    backgroundColor: "#ffffff",
-    borderRadius: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    alignSelf: "center",
-    marginTop: 20,
-  },
-  addButtonText: {
-    color: "#000",
-    fontSize: 16,
-    fontWeight: "bold",
   },
   // Estilos para modales y overlays.
   songOptionsOverlay: {

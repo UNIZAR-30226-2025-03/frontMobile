@@ -28,16 +28,15 @@ export default function PlaylistDetail({ navigation, route }) {
   const [esAutor, setEsAutor] = useState(false);
   const [orderDropdownVisible, setOrderDropdownVisible] = useState(false);
   const [editMode, setEditMode] = useState(false);
+  const [infoLista, setInfoLista] = useState(null);
   const [playlistEdit, setPlaylistEdit] = useState({
     Nombre: "",
     Descripcion: "",
     TipoPrivacidad: "Publica",
   });
 
-
   const orderOptions = [
-    { value: "original", label: "Orden original" },
-    { value: 0, label: "Orden EchoBeat" },
+    { value: 0, label: "Orden original" },
     { value: 1, label: "Orden por nombre" },
     { value: 2, label: "Orden por reproducciones" },
   ];
@@ -68,16 +67,16 @@ export default function PlaylistDetail({ navigation, route }) {
         fetch(`https://echobeatapi.duckdns.org/playlists/lista/${playlist.Id}`).then((res) => res.json()),
       ]);
       setCola(cancionesData);
-      setSongs(cancionesData.canciones || []);
-      setOrdenOriginal(cancionesData.canciones);
-      console.log("Orden original:", cancionesData);
+      const loadedSongs = cancionesData.canciones || [];
+      setSongs([...loadedSongs]);
+      setOrdenOriginal([...loadedSongs]);
       setPlaylistInfo(playlistData);
       setPlaylistEdit({
         Nombre: infoPlaylist.Nombre || "",
         Descripcion: infoPlaylist.Descripcion || "",
         TipoPrivacidad: convertirPrivacidad(playlistData.TipoPrivacidad),
       });
-      console.log("Tipo de privacidad", convertirPrivacidad(playlistData.TipoPrivacidad));
+      setInfoLista(infoPlaylist);
       setFavoritos((favoritosData.canciones || []).map((c) => c.id));
       const nombresDelUsuario = listasDelUsuario.map((p) => p.Nombre);
       const esPropia = nombresDelUsuario.includes(playlist.Nombre);
@@ -329,6 +328,7 @@ export default function PlaylistDetail({ navigation, route }) {
         return;
       }
 
+      console.log("✅ Respuesta de la API:", result);
       const primeraCancionId = result.primeraCancionId;
 
       if (primeraCancionId) {
@@ -341,10 +341,11 @@ export default function PlaylistDetail({ navigation, route }) {
           return;
         }
         console.log("primera cancion", primeraCancionId);
+        console.log("Detalle de la respuesta ", detalle);
 
         navigation.navigate('MusicPlayer', {
           songId: primeraCancionId,
-          songName: detalle.nombre, 
+          songName: detalle.Nombre, 
           userEmail: userEmail,
         });
       }
@@ -393,6 +394,7 @@ export default function PlaylistDetail({ navigation, route }) {
     }
   };
 
+  {/*CAMBIAR GORDITO */}
   //Funcion para guardar los cambios tras modificar la playlist
   const guardarCambiosPlaylist = async () => {
     try {
@@ -489,11 +491,41 @@ export default function PlaylistDetail({ navigation, route }) {
           />
         </>
       ) : (
-        <>
-          {/* Modo vista */}
+        <View style={styles.headerContent}>
           <Text style={styles.playlistTitle}>{playlist.Nombre}</Text>
-          <Text style={styles.playlistDescription}>{playlist.Descripcion}</Text>
-        </>
+          <Text style={styles.playlistDescription}>{infoLista?.Descripcion}</Text>
+          <View style={styles.controlsRow}>
+            <TouchableOpacity style={[styles.shuffleButton, shuffle && styles.shuffleActive]} onPress={() => setShuffle(prev => !prev)}>
+              <Ionicons name="shuffle" size={20} color={shuffle ? "#121111" : "#121111"} />
+              <Text style={[styles.shuffleButtonText, shuffle && styles.shuffleButtonTextActive]}>
+                {shuffle ? "Aleatorio activado" : "Aleatorio desactivado"}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.playButton} onPress={() => iniciarReproduccion()}>
+              <Ionicons name="play" size={20} color="#121111" />
+              {/*<Text style={styles.playButtonText}>Reproducir</Text>*/}
+            </TouchableOpacity>
+          </View>
+          <View style={styles.songsHeaderRow}>
+            <Text style={styles.sectionTitle}>Canciones</Text>
+            <TouchableOpacity style={styles.orderButton} onPress={() => setOrderDropdownVisible(!orderDropdownVisible)}>
+              <Ionicons name="filter" size={20} color="#f2ab55" />
+            </TouchableOpacity>
+          </View>
+          {orderDropdownVisible && (
+            <View style={styles.orderDropdown}>
+              {orderOptions.map((option) => (
+                <TouchableOpacity 
+                  key={option.value} 
+                  style={styles.orderOption} 
+                  onPress={() => handleOrderChange(option.value)}
+                >
+                  <Text style={styles.orderOptionText}>{option.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+        </View>
       )}
     </View>
   );
@@ -550,8 +582,9 @@ export default function PlaylistDetail({ navigation, route }) {
           keyExtractor={(item) => item.id.toString()}
           renderItem={renderSong}
           onDragEnd={({ data }) => {
-            setSongs(data);
-            guardarNuevoOrden(data);
+            const newData = data.map(item => ({ ...item }));
+            setSongs(newData);
+            guardarNuevoOrden(newData);
           }}
           ListHeaderComponent={ListHeader}
           contentContainerStyle={styles.flatListContent}
@@ -650,6 +683,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   playlistDescription: {
+    marginTop: 10,
     fontSize: 16,
     color: "#ffffff",
     marginBottom: 20,

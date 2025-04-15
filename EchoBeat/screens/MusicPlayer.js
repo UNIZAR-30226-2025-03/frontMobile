@@ -70,7 +70,7 @@ export default function MusicPlayer({ navigation, route }) {
           console.error("Error obteniendo el estado del sonido:", error);
         }
       }
-    }, 2000);
+    }, 1500);
   
     // Al desmontarse el componente se limpia el intervalo
     return () => clearInterval(progressInterval);
@@ -442,7 +442,6 @@ export default function MusicPlayer({ navigation, route }) {
             </View>
           </View>
         </Modal>
-
       </View>
     );
 } 
@@ -513,7 +512,6 @@ const styles = StyleSheet.create({
     gap: 10,
     marginTop: -100,
   },
-  
   topControls: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -524,17 +522,14 @@ const styles = StyleSheet.create({
     zIndex: 1,
     position: 'relative',
   },
-  
   loopButton: {
     padding: 8,
   },
-  
   addButton: {
     backgroundColor: '#f2ab55',
     borderRadius: 20,
     padding: 10,
   },
-  
   modalOverlay: {
     position: 'absolute',
     top: 0,
@@ -546,29 +541,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     zIndex: 999,
   },
-  
   modalContent: {
     width: '80%',
     backgroundColor: '#333',
     borderRadius: 10,
     padding: 20,
   },
-  
   playlistOption: {
     paddingVertical: 10,
     borderBottomWidth: 1,
     borderBottomColor: '#444',
   },
-  
   playlistOptionText: {
     color: '#f2ab55',
     fontSize: 16,
   },
-  
   cancelText: {
     color: '#aaa',
     textAlign: 'right',
     marginTop: 10,
   },
-  
 });

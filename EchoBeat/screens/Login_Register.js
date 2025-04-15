@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView, Image, Alert, TouchableWithoutFeedback, Keyboard } from 'react-native';
 import AsyncStorage from "@react-native-async-storage/async-storage";
-//import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
+import * as Google from 'expo-auth-session/providers/google';
 
 export default function Login_Register({ navigation }) {
   const [email, setEmail] = useState('');
@@ -9,13 +9,33 @@ export default function Login_Register({ navigation }) {
   const [errorMessage, setErrorMessage] = useState('');
   const [loading, setLoading] = useState(false);
 
-  /*GoogleSignin.configure({
-    webClientId: '726836881808-tho26qmoe5sp996bebnl0vh26f9l9amv.apps.googleusercontent.com',
-    offlineAccess: true, // Opcional: para obtener un refreshToken
-  });*/
+  const [request, response, promptAsync] = Google.useAuthRequest({
+    androidClientId: '251988611522-0klcocrp7913fsk46e9d93rl6crue1r3.apps.googleusercontent.com',
+  });
 
   useEffect(() => {
-  }, []);
+    const fetchUserInfo = async () => {
+      if (response?.type === 'success') {
+        const { access_token } = response.authentication;
+        
+        try {
+          const userInfoResponse = await fetch("https://www.googleapis.com/userinfo/v2/me", 
+            { headers: { Authorization: `Bearer ${access_token}` }}
+          );
+          const userInfo = await userInfoResponse.json();
+          console.log("Información del usuario: ", userInfo);
+
+        } catch (error) {
+          console.error("Error al obtener la información del usuario: ", error);
+          Alert.alert("Error", "Error al obtener la información del usuario");
+        }
+      }
+      if (response?.type === 'error') {
+        console.error("Error al iniciar sesión con Google: ", response.error);
+        Alert.alert("Error", "Error al iniciar sesión con Google");
+      }
+    }
+  }, [response]);
 
   const handleLogin = async () => {
     try {
@@ -38,48 +58,6 @@ export default function Login_Register({ navigation }) {
       Alert.alert("Error", error.message);
     }
   };
-
-  /*const loginWithGoogle = async () => {
-    try {
-      console.log("Verificando Google Play Services...");
-      await GoogleSignin.hasPlayServices();
-      console.log("Google Play Services está disponible. Iniciando sesión...");
-      const userInfo = await GoogleSignin.signIn();
-  
-      const { idToken } = userInfo;
-      console.log("idToken:", idToken);
-
-      // Envía el idToken a tu backend
-      const backendResponse = await fetch("https://echobeatapi.duckdns.org/auth/google/mobile", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ Token: idToken }),
-      });
-      const backendData = await backendResponse.json();
-      console.log("Respuesta del backend:", backendData);
-  
-      if (!backendResponse.ok) {
-        throw new Error(backendData.message || "Error al iniciar sesión con Google");
-      }
-  
-      if (backendData.accessToken) {
-        await AsyncStorage.setItem("token", backendData.accessToken);
-        await AsyncStorage.setItem("email", backendData.email);
-        navigation.replace("Welcome");
-      }
-    } catch (error) {
-      console.log("Error en loginWithGoogle:", error);
-      if (error.code === statusCodes.SIGN_IN_CANCELLED) {
-        console.log("El usuario canceló el inicio de sesión");
-      } else if (error.code === statusCodes.IN_PROGRESS) {
-        console.log("Operación en progreso");
-      } else if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
-        console.log("Google Play Services no está disponible o está desactualizado");
-      } else {
-        console.log("Error desconocido:", error);
-      }
-    }
-  };*/
 
   return (
     <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
@@ -131,7 +109,9 @@ export default function Login_Register({ navigation }) {
         {/* Botón de Iniciar con Google */}
         <TouchableOpacity 
           style={styles.googleButton} 
-          onPress={() => console.log("Iniciar con Google")} //loginWithGoogle
+          onPress={() => promptAsync().catch((e) => {
+            console.error("Error al inciar sesión con Google ",e);
+          })} //loginWithGoogle
         >
           <Text style={styles.googleButtonText}>INICIAR CON </Text>
           <Image 

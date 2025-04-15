@@ -48,21 +48,6 @@ export default function HomeScreen({ navigation }) {
     }
   }, [cancionSonando, estaReproduciendo]);
 
-  const checkSongPlaying = async () => {
-    const lastSong = await AsyncStorage.getItem('lastSong');
-    const isPlaying = await AsyncStorage.getItem('isPlaying');
-
-    const hayCancion = !!lastSong;
-    const reproduciendo = isPlaying === 'true';
-
-    setCancionSonando(hayCancion);
-    setEstaReproduciendo(reproduciendo);
-
-    if (hayCancion && reproduciendo) {
-      startRotationLoop();
-    }
-  };
-
   const obtenerInfoUser = async () => {
     try {
       const email = await AsyncStorage.getItem('email');
@@ -79,8 +64,37 @@ export default function HomeScreen({ navigation }) {
       setProfilePhoto(data.LinkFoto);
       await obtenerPlaylistsCreadas(email);
       await obtenerRecomendaciones(email);
+      await ultimaCancion();
     } catch (error) {
       Alert.alert("Error", error.message);
+    }
+  };
+
+  const ultimaCancion = async () => {
+    try {
+      const response = await fetch(`https://echobeatapi.duckdns.org/users/first-song?Email=${userEmail}`);
+      const data = await response.json(); 
+      if (!response.ok) throw new Error(data.message || "WWWWWWW");
+
+      await AsyncStorage.setItem('Minuto', data.MinutoEscucha.toString());
+    } catch (error) {
+      console.error("Error al obtener la última canción joder:", error);
+      Alert.alert("Error", "No se pudo obtener la última canción");
+    }
+  };
+
+  const checkSongPlaying = async () => {
+    const lastSong = await AsyncStorage.getItem('lastSong');
+    const isPlaying = await AsyncStorage.getItem('isPlaying');
+
+    const hayCancion = !!lastSong;
+    const reproduciendo = isPlaying === 'true';
+
+    setCancionSonando(hayCancion);
+    setEstaReproduciendo(reproduciendo);
+
+    if (hayCancion && reproduciendo) {
+      startRotationLoop();
     }
   };
 

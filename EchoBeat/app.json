@@ -6,19 +6,22 @@
     "newArchEnabled": true,
     "scheme": "EchoBeat",
     "android": {
-      "package": "com.anonymous.EchoBeat"
+      "package": "com.app.EchoBeat"
     },
     "plugins": [
       "expo-router"
     ],
     "ios": {
-      "bundleIdentifier": "com.anonymous.EchoBeat"
+      "bundleIdentifier": "com.app.EchoBeat"
     },
     "extra": {
       "router": {
         "origin": false
       },
-      "debug": true
+      "debug": true,
+      "eas": {
+        "projectId": "98a4faf7-f2cd-432c-9fe6-e474e6f6412b"
+      }
     }
   }
 }
