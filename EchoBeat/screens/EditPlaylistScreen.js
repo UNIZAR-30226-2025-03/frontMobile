@@ -248,18 +248,20 @@ export default function EditPlaylistScreen({ route, navigation }) {
             right: '10%',
             backgroundColor: '#1e1e1e',
             padding: 20,
-            borderRadius: 12,
-            borderWidth: 1,
-            borderColor: '#f2ab55',
+            borderRadius: 16,
             alignItems: 'center',
             justifyContent: 'center',
-            zIndex: 100,
-        }}>
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.3,
+            shadowRadius: 4,
+            elevation: 5,
+          }}>
             <Ionicons name="checkmark-circle" size={36} color="#f2ab55" style={{ marginBottom: 10 }} />
             <Text style={{ color: '#f2ab55', fontSize: 16, fontWeight: 'bold' }}>
-            Cambios guardados
+              Cambios guardados
             </Text>
-        </View>
+          </View>
       )}
     </SafeAreaView>
   );
