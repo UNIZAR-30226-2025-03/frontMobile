@@ -472,9 +472,9 @@ export default function PlaylistDetail({ navigation, route }) {
               onValueChange={(value) => setPlaylistEdit({ ...playlistEdit, TipoPrivacidad: value })}
               style={styles.picker}
             >
-              <Picker.Item label="Pública" value="Publica" />
-              <Picker.Item label="Protegida" value="Protegida" />
-              <Picker.Item label="Privada" value="Privada" />
+              <Picker.Item label="Pública" value="publico" />
+              <Picker.Item label="Protegida" value="protegido" />
+              <Picker.Item label="Privada" value="privado" />
             </Picker>
           </View>
   
