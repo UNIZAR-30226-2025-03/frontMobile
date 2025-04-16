@@ -8,7 +8,7 @@ import { useFocusEffect } from '@react-navigation/native';
 
 const { width, height } = Dimensions.get('window');
 
-export default function HomeScreen({ navigation }) {
+export default function HomeScreen({ navigation, route }) {
   const [playlistCreadas, setPlaylistCreadas] = useState([]);
   const [cancionSonando, setCancionSonando] = useState(false);
   const [estaReproduciendo, setEstaReproduciendo] = useState(false);
@@ -74,22 +74,8 @@ export default function HomeScreen({ navigation }) {
       setProfilePhoto(data.LinkFoto);
       await obtenerPlaylistsCreadas(email);
       await obtenerRecomendaciones(email);
-      await ultimaCancion();
     } catch (error) {
       Alert.alert("Error", error.message);
-    }
-  };
-
-  const ultimaCancion = async () => {
-    try {
-      const response = await fetch(`https://echobeatapi.duckdns.org/users/first-song?Email=${userEmail}`);
-      const data = await response.json(); 
-      if (!response.ok) throw new Error(data.message || "WWWWWWW");
-
-      await AsyncStorage.setItem('Minuto', data.MinutoEscucha.toString());
-    } catch (error) {
-      console.error("Error al obtener la última canción joder:", error);
-      Alert.alert("Error", "No se pudo obtener la última canción");
     }
   };
 
@@ -256,9 +242,7 @@ export default function HomeScreen({ navigation }) {
   };
 
   const renderRecomendationsItem = ({ item }) => {
-    const imageSource = item.FotoGenero && item.FotoGenero !== "URL_por_defecto"  //item.FotoGenero o item.Portada
-      ? { uri: item.FotoGenero }  //Seria item.FotoGenero o item.Portada
-      : require('../assets/darkraul.jpg');
+    const imageSource = { uri: item.FotoGenero };
 
     return (
       <TouchableOpacity 
@@ -282,6 +266,10 @@ export default function HomeScreen({ navigation }) {
 
   const handleOpenMusicPlayer = async () => {
     try {
+      if (route.params?.fromWelcome) {
+        await AsyncStorage.setItem('isPlaying', 'false');
+      }
+
       const lastSong = await AsyncStorage.getItem('lastSong');
       const lastSongIdStr = await AsyncStorage.getItem('lastSongId');
       const lastSongId = parseInt(lastSongIdStr);

@@ -97,7 +97,9 @@ export default function AlbumDetails({ navigation, route }) {
   const renderSong = ({ item }) => {
     const esFavorita = favoritos.includes(item.id);
     return (
-      <View style={styles.songItem}>
+      <TouchableOpacity
+        onPress={() => iniciarReproduccionDesdeCancion(item, songs.indexOf(item))}
+        style={styles.songItem}>
         <Image
           source={{ uri: item.portada || item.Portada }}
           style={styles.songImage}
@@ -118,7 +120,7 @@ export default function AlbumDetails({ navigation, route }) {
             <Ionicons name="ellipsis-vertical" size={20} color="#fff" />
           </TouchableOpacity>
         </View>
-      </View>
+      </TouchableOpacity>
     );
   };
 

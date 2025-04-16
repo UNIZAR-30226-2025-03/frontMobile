@@ -27,6 +27,8 @@ export default function MusicPlayer({ navigation, route }) {
   const [loop, setLoop] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [playlists, setPlaylists] = useState([]);
+  const [portadaSong, setPortadaSong] = useState(null);
+  const [autoresSong, setAutoresSong] = useState([]);
 
   const audioChunksRef = useRef([]);
   const loopRef = useRef(loop);
@@ -223,9 +225,10 @@ export default function MusicPlayer({ navigation, route }) {
               encoding: FileSystem.EncodingType.Base64,
             });
 
+            const playFlag = (await AsyncStorage.getItem('isPlaying')) === 'true';
             const { sound: newSound } = await Audio.Sound.createAsync(
               { uri: fileUri },
-              { shouldPlay: true }
+              { shouldPlay: playFlag }
             );
 
             console.log('▶️ Reproduciendo audio');
@@ -263,7 +266,23 @@ export default function MusicPlayer({ navigation, route }) {
     };
 
     initPlayer();
+    infoCancion();
   }, [songId, songName]);
+
+  const infoCancion = async () => {
+    try {
+      const response = await fetch(`https://echobeatapi.duckdns.org/playlists/song-details/${songId}`);
+      const songData = await response.json();
+      if (!songData.Portada || !songData.Autores) {
+        console.warn("⚠️ Falta información de la canción");
+        return;
+      }
+      setPortadaSong(songData.Portada);
+      setAutoresSong(songData.Autores);
+    } catch (error) {
+      console.error("Error al obtener información de la canción:", error);
+    }
+  };
 
   const siguienteCancion = async () => {
     if (loopRef.current && sound) {
@@ -280,6 +299,8 @@ export default function MusicPlayer({ navigation, route }) {
       if (!response.ok) return;
       const res2 = await fetch(`https://echobeatapi.duckdns.org/playlists/song-details/${data.siguienteCancionId}`);
       const songData = await res2.json();
+      setPortadaSong(songData.Portada);
+      setAutoresSong(songData.Autores);
       navigation.replace('MusicPlayer', {
         songId: data.siguienteCancionId,
         songName: songData.Nombre,
@@ -312,6 +333,8 @@ export default function MusicPlayer({ navigation, route }) {
       const data = await response.json();
       const res2 = await fetch(`https://echobeatapi.duckdns.org/playlists/song-details/${data.cancionAnteriorId}`);
       const songData = await res2.json();
+      setPortadaSong(songData.Portada);
+      setAutoresSong(songData.Autores);
       navigation.replace('MusicPlayer', {
         songId: data.cancionAnteriorId,
         songName: songData.Nombre,
@@ -344,7 +367,7 @@ export default function MusicPlayer({ navigation, route }) {
 
   return (
     <View style={styles.container}>
-      <Image source={require('../assets/favorites.jpg')} style={styles.backgroundImage} />
+      <Image source={portadaSong? {uri: portadaSong }: require('../assets/favorites.jpg')} style={styles.backgroundImage} />
   
       {/* Header con botón de volver */}
       <View style={styles.header}>
@@ -352,213 +375,244 @@ export default function MusicPlayer({ navigation, route }) {
           <Ionicons name="arrow-back" size={24} color="#f2ab55" />
         </TouchableOpacity>
       </View>
-  
-      {/* Título y corazón */}
-      <View style={styles.titleRow}>
-        <Text style={styles.songTitle}>{currentSong}</Text>
-        <TouchableOpacity onPress={toggleFavorito}>
-          <Ionicons name="heart" size={30} color={isFavorita ? "#f2ab55" : "#fff"} />
-        </TouchableOpacity>
-      </View>
-  
-      {/* Controles encima del slider */}
-      <View style={styles.topControls}>
-        {/* Loop */}
-        <TouchableOpacity
-        onPress={async () => {
-          const newLoop = !loop;
-          setLoop(newLoop);
-          loopRef.current = newLoop;
-          await AsyncStorage.setItem('loopMode', JSON.stringify(newLoop));
-        }}
-      >
-        <Ionicons name="repeat" size={28} color={loop ? "#f2ab55" : "#fff"} />
-      </TouchableOpacity>
-  
-        {/* Botón añadir a playlist */}
-        <TouchableOpacity
-          style={styles.addButton}
-          onPress={() => {
-            fetchPlaylists();
-            setModalVisible(true);
+    
+      <View style={styles.footer}>
+        {/* Título y corazón */}
+        <View style={styles.titleRow}>
+          <Text style={styles.songTitle}>{currentSong}</Text>
+          <TouchableOpacity onPress={toggleFavorito}>
+            <Ionicons name="heart" size={30} color={isFavorita ? "#f2ab55" : "#fff"} />
+          </TouchableOpacity>
+        </View>
+        {/* Nueva sección para mostrar el/los autor/es */}
+        <View style={styles.authorRow}>
+          <TouchableOpacity onPress={() => navigation.navigate('ArtistDetails', { artist: { nombre: autoresSong[0] }})}>
+            <Text style={styles.authorText}>
+              {autoresSong.length > 0 ? `${autoresSong.join(', ')}` : 'Unknown Artist'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+    
+        {/* Controles encima del slider */}
+        <View style={styles.topControls}>
+          {/* Loop */}
+          <TouchableOpacity
+          onPress={async () => {
+            const newLoop = !loop;
+            setLoop(newLoop);
+            loopRef.current = newLoop;
+            await AsyncStorage.setItem('loopMode', JSON.stringify(newLoop));
           }}
         >
-          <Ionicons name="add" size={24} color="#121111" />
+          <Ionicons name="repeat" size={28} color={loop ? "#f2ab55" : "#fff"} />
         </TouchableOpacity>
-      </View>
-  
-      {/* Slider */}
-      <Slider
-        style={styles.slider}
-        minimumValue={0}
-        maximumValue={duration}
-        value={position}
-        onSlidingComplete={handleSeek}
-        minimumTrackTintColor="#f2ab55"
-        maximumTrackTintColor="#ffffff"
-        thumbTintColor="#f2ab55"
-      />
-  
-      {/* Controles */}
-      <View style={styles.controls}>
-        <TouchableOpacity onPress={anteriorCancion}>
-          <Ionicons name="play-back" size={40} color="#f2ab55" />
-        </TouchableOpacity>
-  
-        <TouchableOpacity onPress={togglePlayPause}>
-          <Image
-            source={isPlaying ? require('../assets/pause.png') : require('../assets/play.png')}
-            style={styles.playPauseButton}
-          />
-        </TouchableOpacity>
-  
-        <TouchableOpacity onPress={siguienteCancion} disabled={colaUnica}>
-          <Ionicons name="play-forward" size={40} color={colaUnica ? "#888" : "#f2ab55"} />
-        </TouchableOpacity>
+    
+          {/* Botón añadir a playlist */}
+          <TouchableOpacity
+            style={styles.addButton}
+            onPress={() => {
+              fetchPlaylists();
+              setModalVisible(true);
+            }}
+          >
+            <Ionicons name="add" size={24} color="#121111" />
+          </TouchableOpacity>
+        </View>
+    
+        {/* Slider */}
+        <Slider
+          style={styles.slider}
+          minimumValue={0}
+          maximumValue={duration}
+          value={position}
+          onSlidingComplete={handleSeek}
+          minimumTrackTintColor="#f2ab55"
+          maximumTrackTintColor="#ffffff"
+          thumbTintColor="#f2ab55"
+        />
+    
+        {/* Controles */}
+        <View style={styles.controls}>
+          <TouchableOpacity onPress={anteriorCancion}>
+            <Ionicons name="play-back" size={40} color="#f2ab55" />
+          </TouchableOpacity>
+    
+          <TouchableOpacity onPress={togglePlayPause}>
+            <Image
+              source={isPlaying ? require('../assets/pause.png') : require('../assets/play.png')}
+              style={styles.playPauseButton} // Se mantiene el estilo original del botón play.
+            />
+          </TouchableOpacity>
+    
+          <TouchableOpacity onPress={siguienteCancion} disabled={colaUnica}>
+            <Ionicons name="play-forward" size={40} color={colaUnica ? "#888" : "#f2ab55"} />
+          </TouchableOpacity>
+        </View>
       </View>
   
       {/* Modal para seleccionar playlist */}
-        <Modal
-          animationType="fade"
-          transparent={true}
-          visible={modalVisible}
-          onRequestClose={() => setModalVisible(false)}
-        >
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>Añadir a Playlist</Text>
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={modalVisible}
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Añadir a Playlist</Text>
               {playlists.map(pl => (
-                <TouchableOpacity
-                  key={pl.id || pl.Id || `playlist-${index}`} 
-                  onPress={() => addSongToPlaylist(pl.id || pl.Id, songId)}
-                  style={styles.playlistOption}
-                >
-                  <Text style={styles.playlistOptionText}>{pl.nombre || pl.Nombre}</Text>
-                </TouchableOpacity>
-              ))}
-              <TouchableOpacity onPress={() => setModalVisible(false)}>
-                <Text style={styles.cancelText}>Cancelar</Text>
+              <TouchableOpacity
+                key={pl.id || pl.Id || `playlist-${index}`} 
+                onPress={() => addSongToPlaylist(pl.id || pl.Id, songId)}
+                style={styles.playlistOption}
+              >
+                <Text style={styles.playlistOptionText}>{pl.nombre || pl.Nombre}</Text>
               </TouchableOpacity>
-            </View>
+            ))}
+            <TouchableOpacity onPress={() => setModalVisible(false)}>
+              <Text style={styles.cancelText}>Cancelar</Text>
+            </TouchableOpacity>
           </View>
-        </Modal>
-      </View>
-    );
+        </View>
+      </Modal>
+    </View>
+  );
 } 
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#1e1e1e',
     alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#121111',
+    justifyContent: 'flex-start',
   },
   backgroundImage: {
     position: 'absolute',
     width: '100%',
     height: '100%',
-    opacity: 0.15,
+    opacity: 0.1,
+  },
+  footer: {
+    position: 'absolute',
+    bottom: 40,
+    left: 0,
+    right: 0,
+    paddingVertical: 20,
+    alignItems: 'center',
   },
   header: {
     position: 'absolute',
     top: 50,
-    width: '100%',
+    left: 0,
+    right: 0,
     paddingHorizontal: 20,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   headerButton: {
-    fontSize: 24,
-    color: '#ffffff',
-  },
-  songTitle: {
-    fontSize: 24,
-    color: '#ffffff',
-    fontWeight: 'bold',
-    marginBottom: 20,
-  },
-  slider: {
-    width: '80%',
-    marginBottom: 20,
-    marginTop: 250,
-    thumbTintColor: '#f2ab55',
-  },
-  controls: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: -380,
-  },
-  playPauseButton: {
-    width: 60,
-    height: 60,
-    tintColor: '#f2ab55',
-    marginHorizontal: 30,
-  },
-  disabledButton: {
-    width: 60,
-    height: 60,
-    marginHorizontal: 30,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(242,171,85,0.5)',
-    borderRadius: 30,
-  },
-  disabledText: {
-    color: '#ffffff',
-    fontSize: 24,
-    fontWeight: 'bold',
+    fontSize: 28,
+    color: '#f2ab55',
   },
   titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    marginTop: -100,
+    justifyContent: 'center',
+    marginTop: 120,
+    width: '90%',
+  },
+  songTitle: {
+    flex: 1,
+    fontSize: 26,
+    color: '#fff',
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  authorRow: {
+    marginTop: 10,
+    marginBottom: 20,
+    width: '90%',
+  },
+  authorText: {
+    fontSize: 18,
+    color: '#f2ab55',
+    fontStyle: 'italic',
+    textAlign: 'center',
+  },
+  slider: {
+    width: '85%',
+    height: 40,
+    marginVertical: 20,
   },
   topControls: {
     flexDirection: 'row',
+    width: '85%',
     justifyContent: 'space-between',
     alignItems: 'center',
-    width: '60%',
-    marginBottom: 10,
-    marginTop: -150, // para que quede encima del slider
-    zIndex: 1,
-    position: 'relative',
+    marginVertical: 10,
   },
   loopButton: {
     padding: 8,
   },
   addButton: {
     backgroundColor: '#f2ab55',
-    borderRadius: 20,
+    borderRadius: 25,
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    elevation: 8,
+  },
+  controls: {
+    flexDirection: 'row',
+    width: '100%',
+    justifyContent: 'space-evenly',
+    alignItems: 'center',
+    marginTop: 15,
+    marginBottom: 20,
+    paddingHorizontal: 20,
+  },
+  playPauseButton: {
+    width: 70,
+    height: 70,
+    resizeMode: 'contain',
+    borderRadius: 35,
+    backgroundColor: '#f2ab55',
     padding: 10,
   },
   modalOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
     justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 999,
   },
   modalContent: {
     width: '80%',
-    backgroundColor: '#333',
-    borderRadius: 10,
-    padding: 20,
+    backgroundColor: '#2e2e2e',
+    borderRadius: 15,
+    padding: 25,
+  },
+  modalTitle: {
+    fontSize: 22,
+    color: '#f2ab55',
+    textAlign: 'center',
+    marginBottom: 20,
   },
   playlistOption: {
-    paddingVertical: 10,
+    paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#444',
   },
   playlistOptionText: {
     color: '#f2ab55',
-    fontSize: 16,
+    fontSize: 18,
   },
   cancelText: {
     color: '#aaa',
     textAlign: 'right',
-    marginTop: 10,
+    marginTop: 15,
+    fontSize: 16,
   },
 });

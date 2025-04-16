@@ -34,7 +34,7 @@ export default function Welcome({ navigation }) {
 
   useEffect(() => {
     const timeout = setTimeout(() => {
-      navigation.replace('HomeScreen');
+      navigation.replace('HomeScreen', {fromWelcome: true});
     }, 2000);
     return () => clearTimeout(timeout);
   }, [navigation]);
