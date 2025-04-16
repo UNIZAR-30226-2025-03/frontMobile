@@ -76,20 +76,21 @@ export default function EditPlaylistScreen({ route, navigation }) {
       // Subir portada si se cambió
       if (nuevaPortada) {
         const formData = new FormData();
+        formData.append("userEmail", userEmail);
         formData.append("file", {
           uri: nuevaPortada,
           name: "playlist.jpg",
           type: "image/jpeg",
         });
 
-        const resPortada = await fetch(`${baseUrl}/update-portada/${playlistId}`, {
+        await new Promise((resolve) => setTimeout(resolve, 700));
+
+        const resPortada = await fetch(`${baseUrl}/update-photo/${playlistId}`, {
           method: "POST",
           body: formData,
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
         });
-        if (!resPortada.ok) {
+        
+        if (resPortada.status != 200 && resPortada.status != 201) {
           const msg = await resPortada.text();
           throw new Error(`Portada: ${msg}`);
         }
@@ -140,7 +141,6 @@ export default function EditPlaylistScreen({ route, navigation }) {
         throw new Error(`Privacidad: ${msg}`);
       }
 
-      console.log("[DEBUG] Orden final enviado a la API:", songs.map((s) => s.nombre));
       // Reordenar canciones
       const resOrden = await fetch(`${baseUrl}/reordenar-canciones`, {
         method: "POST",

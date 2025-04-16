@@ -2,6 +2,7 @@ import React, { useState, useEffect, useLayoutEffect } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Image, FlatList, ActivityIndicator, Modal, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 
 export default function MyLists({ navigation }) {
   const [playlists, setPlaylists] = useState([]);
@@ -18,6 +19,12 @@ export default function MyLists({ navigation }) {
     obtenerPlaylists();
     obtenerEmail();
   }, []);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      obtenerPlaylists();
+    }, [])
+  );
 
   const obtenerEmail = async () => {
     try {

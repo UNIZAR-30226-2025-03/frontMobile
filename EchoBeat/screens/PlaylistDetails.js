@@ -74,6 +74,8 @@ export default function PlaylistDetail({ navigation, route }) {
       const idsDelUsuario = listasDelUsuario.map((p) => p.Id);
       const esPropia = idsDelUsuario.includes(playlist.Id);
       setEsAutor(esPropia);
+      console.log("Info de la playlist", infoPlaylist);
+      return infoPlaylist;
     } catch (error) {
       console.error("Error en loadData:", error);
     }
@@ -82,6 +84,7 @@ export default function PlaylistDetail({ navigation, route }) {
   useFocusEffect(
     useCallback(() => {
       loadData();
+
     }, [])
   );
 
@@ -248,55 +251,6 @@ export default function PlaylistDetail({ navigation, route }) {
     );
   };
 
-  //Funcion para modificar la imagen
-  const uploadPlaylistImage = async (uri) => {
-    // similar a tu lógica en ProfileScreen pero con endpoint playlist
-    const formData = new FormData();
-    formData.append("file", {
-      uri,
-      name: "playlist.jpg",
-      type: "image/jpeg",
-    });
-  
-    const response = await fetch(`https://echobeatapi.duckdns.org/playlists/update-portada/${playlist.Id}`, {
-      method: "POST",
-      body: formData,
-      headers: {
-        "Content-Type": "multipart/form-data",
-      },
-    });
-  
-    if (!response.ok) throw new Error("No se pudo actualizar la portada");
-  
-    loadData(); // recarga datos actualizados
-  };
-
-  const handleImagePick = async () => {
-    try {
-      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!permissionResult.granted) {
-        Alert.alert("Permiso denegado", "Se necesita acceso a la galería para cambiar la imagen.");
-        return;
-      }
-  
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.7,
-      });
-  
-      if (!result.canceled && result.assets && result.assets.length > 0) {
-        const image = result.assets[0];
-        await uploadPlaylistImage(image.uri);
-        loadData(); // Vuelve a cargar la información con la nueva portada
-      }
-    } catch (error) {
-      console.error("Error al seleccionar imagen:", error);
-      Alert.alert("Error", "No se pudo seleccionar la imagen.");
-    }
-  };
-
   const iniciarReproduccion = async () => {
     try {
       const body = {
@@ -424,27 +378,9 @@ export default function PlaylistDetail({ navigation, route }) {
     }
   };
 
-  const PlaylistEditForm = ({ playlistEdit, setPlaylistEdit, handleImagePick }) => {
+  const PlaylistEditForm = ({ playlistEdit, setPlaylistEdit}) => {
     return (
       <>
-        {/* Imagen editable */}
-        <TouchableOpacity style={{ marginBottom: 20, position: "relative" }} onPress={handleImagePick}>
-          <Image
-            source={{ uri: playlistEdit?.Portada }}
-            style={{ width: 200, height: 200, borderRadius: 100 }}
-          />
-          <View style={{
-            position: 'absolute',
-            bottom: 0,
-            right: 0,
-            backgroundColor: 'rgba(0,0,0,0.6)',
-            borderRadius: 12,
-            padding: 4,
-          }}>
-            <Ionicons name="pencil" size={20} color="#fff" />
-          </View>
-        </TouchableOpacity>
-  
         {/* Nombre */}
         <Text style={styles.label}>Nombre de la Playlist *</Text>
         <TextInput
@@ -481,7 +417,7 @@ export default function PlaylistDetail({ navigation, route }) {
   };
 
   const ListHeader = () => {
-    const portada = playlistInfo?.Portada || playlist.Portada;
+    const portada = infoLista?.Portada || playlist.Portada;
   
     return (
       <View style={{ paddingHorizontal: 20, paddingTop: 10, alignItems: "center" }}>
@@ -489,7 +425,6 @@ export default function PlaylistDetail({ navigation, route }) {
           <PlaylistEditForm
             playlistEdit={{ ...playlistEdit, Portada: portada }}
             setPlaylistEdit={setPlaylistEdit}
-            handleImagePick={handleImagePick}
           />
         ) : (
           <View style={styles.headerContent}>

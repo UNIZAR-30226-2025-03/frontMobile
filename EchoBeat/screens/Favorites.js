@@ -1,17 +1,5 @@
 import React, { useState, useLayoutEffect, useEffect, useCallback } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  SafeAreaView, 
-  TouchableOpacity, 
-  Image, 
-  FlatList, 
-  Dimensions, 
-  Alert, 
-  RefreshControl, 
-  TouchableWithoutFeedback 
-} from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Image, FlatList, Dimensions, Alert, RefreshControl, TouchableWithoutFeedback, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -27,6 +15,9 @@ export default function FavoritesScreen({ navigation }) {
   const [refreshing, setRefreshing] = useState(false);
   const [shuffle, setShuffle] = useState(false);
   const [cola, setCola] = useState(null);
+  const [orden, setOrden] = useState('');
+  const [ordenOriginal, setOrdenOriginal] = useState([]);
+  const [orderDropdownVisible, setOrderDropdownVisible] = useState(false);
 
   useLayoutEffect(() => {
     navigation.setOptions({ headerShown: false });
@@ -57,10 +48,26 @@ export default function FavoritesScreen({ navigation }) {
       if (!response.ok) throw new Error(data.message || "Error al obtener las canciones de favoritos");
 
       setSongs(data.canciones || []);
+      setOrdenOriginal([...data.canciones]);
       setCola({ canciones: data.canciones });
     } catch (error) {
       console.error("Error en obtenerCanciones:", error);
     }
+  };
+
+  const cancionesFiltradas = [...songs].sort((a, b) => {
+    if (orden === 'nombre') return a.nombre.localeCompare(b.nombre);
+    return 0; // Sin orden = orden original
+  });
+
+  const handleOrderChange = (orderValue) => {
+    if (orderValue === 'original') {
+      setSongs(ordenOriginal);
+    } else if (orderValue === 'nombre') {
+      setSongs([...songs].sort((a, b) => a.nombre.localeCompare(b.nombre)));
+    } 
+    setOrden(orderValue);
+    setOrderDropdownVisible(false);
   };
 
   const loadData = async () => {
@@ -170,20 +177,20 @@ export default function FavoritesScreen({ navigation }) {
   };
 
   const renderSong = ({ item }) => (
-    <View style={styles.songItem}>
-      <TouchableOpacity
-        style={{ flex: 1 }}
-        onPress={() => iniciarReproduccionDesdeCancion(item, songs.findIndex(s => s.id === item.id))}
-      >
-        <Image
-          source={item.portada === "URL"
-            ? require('../assets/default_song_portada.jpg')
-            : { uri: item.portada }
-          }
-          style={styles.songImage}
-        />
+    <TouchableOpacity
+      style={styles.songItem}
+      onPress={() => iniciarReproduccionDesdeCancion(item, songs.findIndex(s => s.id === item.id))}
+    >
+      <Image
+        source={item.portada === "URL"
+          ? require('../assets/default_song_portada.jpg')
+          : { uri: item.portada }
+        }
+        style={styles.songImage}
+      />
+      <View style={styles.songTextContainer}>
         <Text style={styles.songTitle} numberOfLines={1}>{item.nombre}</Text>
-      </TouchableOpacity>
+      </View>
       <TouchableOpacity
         style={styles.songOptionsButton}
         onPress={() => {
@@ -193,7 +200,7 @@ export default function FavoritesScreen({ navigation }) {
       >
         <Ionicons name="ellipsis-vertical" size={20} color="#fff" />
       </TouchableOpacity>
-    </View>
+    </TouchableOpacity>
   );
 
   // Renderiza el modal de opciones para la canción (incluyendo eliminar)
@@ -227,7 +234,7 @@ export default function FavoritesScreen({ navigation }) {
     <View style={styles.headerContent}>
       <Image source={require('../assets/favorites.jpg')} style={styles.playlistImage} />
       <Text style={styles.playlistTitle}>Favoritos</Text>
-      <Text style={styles.playlistDescription}>{""}</Text>
+      <Text style={styles.playlistDescription}>{"Lista de canciones favoritas"}</Text>
 
       <View style={styles.controlsRow}>
         <TouchableOpacity
@@ -249,7 +256,24 @@ export default function FavoritesScreen({ navigation }) {
         </TouchableOpacity>
       </View>
 
+      <View style={styles.songsHeaderRow}>
       <Text style={styles.sectionTitle}>Canciones</Text>
+      <TouchableOpacity style={styles.orderButton} onPress={() => setOrderDropdownVisible(prev => !prev)}>
+        <Ionicons name="filter" size={20} color="#f2ab55" />
+      </TouchableOpacity>
+    </View>
+
+    {orderDropdownVisible && (
+      <View style={styles.orderDropdown}>
+        <TouchableOpacity style={styles.orderOption} onPress={() => handleOrderChange('original')}>
+          <Text style={styles.orderOptionText}>Orden original</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.orderOption} onPress={() => handleOrderChange('nombre')}>
+          <Text style={styles.orderOptionText}>Orden por nombre</Text>
+        </TouchableOpacity>
+      </View>
+    )}
+
       {songs.length === 0 && <Text style={styles.noSongsText}>No hay canciones en favoritos.</Text>}
     </View>
   );
@@ -266,7 +290,7 @@ export default function FavoritesScreen({ navigation }) {
         </TouchableOpacity>
       </View>
       <FlatList
-        data={songs}
+        data={cancionesFiltradas}
         renderItem={renderSong}
         keyExtractor={(item, index) => index.toString()}
         showsVerticalScrollIndicator={false}
@@ -310,29 +334,26 @@ const styles = StyleSheet.create({
     width: 200,
     height: 200,
     borderRadius: 10,
-    marginBottom: 10,
-    marginTop: 20,
+    marginVertical: 20,
   },
   playlistTitle: {
     fontSize: 28,
-    fontWeight: 'bold',
-    color: '#f2ab55',
-    marginBottom: -25,
-    textAlign: 'center',
+    fontWeight: "bold",
+    color: "#f2ab55",
+    textAlign: "center",
   },
   playlistDescription: {
+    marginTop: 10,
     fontSize: 16,
-    color: '#ffffff',
+    color: "#ffffff",
     marginBottom: 20,
-    textAlign: 'center',
+    textAlign: "center",
   },
   sectionTitle: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#f2ab55',
+    fontWeight: "bold",
+    color: "#f2ab55",
     marginBottom: 10,
-    alignSelf: 'flex-start',
-    paddingLeft: 5,
   },
   flatListContent: {
     paddingBottom: 20,
@@ -525,5 +546,35 @@ const styles = StyleSheet.create({
     marginLeft: 6,
     color: '#121111',
     fontWeight: 'bold',
+  },
+  songTextContainer: {
+    flex: 1,
+    marginHorizontal: 10,
+    justifyContent: 'center',
+  },
+  songsHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    position: 'relative',
+    marginBottom: 8,
+  },
+  orderButton: {
+    padding: 4,
+    marginLeft: 8,
+  },
+  orderDropdown: {
+    marginBottom: 10,
+    backgroundColor: "#333",
+    borderRadius: 4,
+  },
+  orderOption: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#555",
+  },
+  orderOptionText: {
+    color: "#fff",
+    fontSize: 16,
   },
 });
