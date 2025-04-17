@@ -24,12 +24,26 @@ export default function EditPlaylistScreen({ route, navigation }) {
       if (email) setUserEmail(email);
   
       try {
-        const res = await fetch(`https://echobeatapi.duckdns.org/playlists/${playlistId}/songs`);
-        const json = await res.json();
-        setSongs(json.canciones); 
+        const [songsRes, infoRes] = await Promise.all([
+          fetch(`https://echobeatapi.duckdns.org/playlists/${playlistId}/songs`),
+          fetch(`https://echobeatapi.duckdns.org/playlists/lista/${playlistId}`)
+        ]);
+  
+        const songsJson = await songsRes.json();
+        const infoJson = await infoRes.json();
+  
+        setSongs(songsJson.canciones);
+        setPlaylistEdit({
+          Nombre: infoJson.Nombre || '',
+          Descripcion: infoJson.Descripcion || '',
+          TipoPrivacidad: infoJson.TipoPrivacidad || 'publico',
+        });
+  
+        // Usa la portada más reciente
+        setPortadaUri(infoJson.Portada);
       } catch (err) {
-        console.error("Error al cargar canciones:", err);
-        Alert.alert("Error", "No se pudieron cargar las canciones.");
+        console.error("Error al cargar datos:", err);
+        Alert.alert("Error", "No se pudieron cargar los datos.");
       }
     };
   
@@ -184,7 +198,6 @@ export default function EditPlaylistScreen({ route, navigation }) {
             <Ionicons name="pencil" size={20} color="#fff" />
           </View>
         </TouchableOpacity>
-
         <Text style={styles.label}>Nombre de la Playlist *</Text>
         <TextInput
           style={styles.input}
