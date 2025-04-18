@@ -6,13 +6,19 @@
     "newArchEnabled": true,
     "scheme": "EchoBeat",
     "android": {
-      "package": "com.app.EchoBeat"
+      "package": "com.unizar.EchoBeat",
+      "permissions": [
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.DOWNLOAD_WITHOUT_NOTIFICATION",
+        "android.permission.ACCESS_NETWORK_STATE"
+      ]
     },
     "plugins": [
       "expo-router"
     ],
     "ios": {
-      "bundleIdentifier": "com.app.EchoBeat"
+      "bundleIdentifier": "com.unizar.EchoBeat"
     },
     "extra": {
       "router": {

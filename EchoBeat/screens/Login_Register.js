@@ -10,7 +10,7 @@ export default function Login_Register({ navigation }) {
   const [loading, setLoading] = useState(false);
 
   const [request, response, promptAsync] = Google.useAuthRequest({
-    androidClientId: '251988611522-0klcocrp7913fsk46e9d93rl6crue1r3.apps.googleusercontent.com',
+    androidClientId: '610424945572-uli0863e2m1d12nkqf10c9f7nq8ahp1b.apps.googleusercontent.com',
   });
 
   useEffect(() => {
