@@ -1,44 +1,23 @@
 import React, { useState, useRef, useLayoutEffect, useEffect, useCallback } from 'react';
-import { 
-  View, 
-  Text, 
-  FlatList, 
-  Image, 
-  StyleSheet, 
-  Dimensions, 
-  TouchableOpacity, 
-  Animated,
-  RefreshControl
-} from 'react-native';
+import { View, Text, FlatList, Image, StyleSheet, Dimensions, TouchableOpacity, Animated, Easing, RefreshControl } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width } = Dimensions.get('window');
 
 export default function Chats({ navigation, route }) {
   const { userEmail } = route.params;  // Se recibe el email del usuario desde los parámetros
-  const [cancionSonando, setCancionSonando] = useState(true);
   const [chats, setChats] = useState([]);
   const [refreshing, setRefreshing] = useState(false); // Nuevo estado para refrescar
-
+  const [cancionSonando, setCancionSonando] = useState(false);
+  const [estaReproduciendo, setEstaReproduciendo] = useState(false);
   const rotation = useRef(new Animated.Value(0)).current;
 
   useLayoutEffect(() => {
     navigation.setOptions({ headerShown: false });
   }, [navigation]);
 
-  Animated.loop(
-    Animated.timing(rotation, {
-      toValue: 1,
-      duration: 4000,
-      useNativeDriver: true,
-    })
-  ).start();
-
-  const spin = rotation.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '360deg'],
-  });
 
   // Función para cargar chats vía API
   const fetchChats = useCallback(async () => {
@@ -66,12 +45,77 @@ export default function Chats({ navigation, route }) {
   // Cargar chats al montar la pantalla
   useFocusEffect(
     useCallback(() => {
+      checkSongPlaying();
       if (userEmail) {
         fetchChats();
       }
     }, [userEmail, fetchChats])
   );
 
+  useEffect(() => {
+    checkSongPlaying();
+  }, []);
+
+  const checkSongPlaying = async () => {
+    const lastSong = await AsyncStorage.getItem('lastSong');
+    const isPlaying = await AsyncStorage.getItem('isPlaying');
+
+    const hayCancion = !!lastSong;
+    const reproduciendo = isPlaying === 'true';
+
+    setCancionSonando(hayCancion);
+    setEstaReproduciendo(reproduciendo);
+
+    if (hayCancion && reproduciendo) {
+      startRotationLoop();
+    } else {
+      stopRotation();
+    }
+  };
+
+  const startRotationLoop = () => {
+    rotation.setValue(0);
+    Animated.loop(
+      Animated.timing(rotation, {
+        toValue: 1,
+        duration: 4000,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      })
+    ).start();
+  };
+
+  const stopRotation = () => {
+    rotation.stopAnimation(() => {
+      rotation.setValue(0);
+    });
+  };
+
+  const spin = rotation.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  });
+
+  const handleOpenMusicPlayer = async () => {
+    try {
+      const lastSong = await AsyncStorage.getItem('lastSong');
+      const lastSongIdStr = await AsyncStorage.getItem('lastSongId');
+      const lastSongId = parseInt(lastSongIdStr);
+
+      if (lastSong && !isNaN(lastSongId)) {
+        navigation.navigate('MusicPlayer', {
+          songName: lastSong,
+          songId: lastSongId,
+          userEmail: userEmail
+        });
+      } else {
+        Alert.alert("No hay ninguna canción en reproducción");
+      }
+    } catch (error) {
+      console.error("Error obteniendo la última canción:", error);
+    }
+  };
+    
   // Función para refrescar la lista de chats (pull to refresh)
   const onRefresh = async () => {
     setRefreshing(true);
@@ -125,18 +169,6 @@ export default function Chats({ navigation, route }) {
         }
       />
 
-      {cancionSonando && (
-        <TouchableOpacity 
-          onPress={() => navigation.navigate('MusicPlayer', { userEmail })} 
-          style={styles.musicIconContainer}
-        >
-          <Animated.Image
-            source={require('../assets/disc.png')}
-            style={[styles.musicIcon, { transform: [{ rotate: spin }] }]}
-          />
-        </TouchableOpacity>
-      )}
-
       <View style={styles.bottomContainer}>
         <TouchableOpacity 
           style={styles.halfCircleButton} 
@@ -145,6 +177,14 @@ export default function Chats({ navigation, route }) {
           <Ionicons name="people-outline" size={30} color="#fff" />
         </TouchableOpacity>
       </View>
+      {cancionSonando && (
+          <TouchableOpacity onPress={handleOpenMusicPlayer} style={styles.playerButton}>
+            <Animated.Image
+              source={require('../assets/disc.png')}
+              style={[styles.playerIcon, { transform: [{ rotate: spin }] }]} 
+            />
+          </TouchableOpacity>
+        )}
     </View>
   );
 }
@@ -226,5 +266,22 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: -20,
+  },
+  playerButton: {
+    position: 'absolute',
+    bottom: 15,
+    right: 16,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+    zIndex: 5,
+  },
+  playerIcon: { 
+    width: 80, 
+    height: 80, 
+    borderRadius: 35 
   },
 });

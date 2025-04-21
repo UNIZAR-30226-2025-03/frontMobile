@@ -1,5 +1,5 @@
-import React, { useState, useLayoutEffect, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Image, FlatList, Dimensions, Alert, RefreshControl, TouchableWithoutFeedback, TextInput } from 'react-native';
+import React, { useState, useLayoutEffect, useEffect, useCallback, useRef } from 'react';
+import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Image, Animated, Easing, FlatList, Dimensions, Alert, RefreshControl, TouchableWithoutFeedback, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -18,6 +18,9 @@ export default function FavoritesScreen({ navigation }) {
   const [orden, setOrden] = useState('');
   const [ordenOriginal, setOrdenOriginal] = useState([]);
   const [orderDropdownVisible, setOrderDropdownVisible] = useState(false);
+  const [cancionSonando, setCancionSonando] = useState(false);
+  const [estaReproduciendo, setEstaReproduciendo] = useState(false);
+  const rotation = useRef(new Animated.Value(0)).current;
 
   useLayoutEffect(() => {
     navigation.setOptions({ headerShown: false });
@@ -77,12 +80,74 @@ export default function FavoritesScreen({ navigation }) {
   useFocusEffect(
     useCallback(() => {
       loadData();
+      checkSongPlaying();
     }, [])
   );
 
   useEffect(() => {
     loadData();
+    checkSongPlaying();
   }, []);
+
+  const checkSongPlaying = async () => {
+    const lastSong = await AsyncStorage.getItem('lastSong');
+    const isPlaying = await AsyncStorage.getItem('isPlaying');
+
+    const hayCancion = !!lastSong;
+    const reproduciendo = isPlaying === 'true';
+
+    setCancionSonando(hayCancion);
+    setEstaReproduciendo(reproduciendo);
+
+    if (hayCancion && reproduciendo) {
+      startRotationLoop();
+    } else {
+      stopRotation();
+    }
+  };
+
+  const startRotationLoop = () => {
+    rotation.setValue(0);
+    Animated.loop(
+      Animated.timing(rotation, {
+        toValue: 1,
+        duration: 4000,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      })
+    ).start();
+  };
+
+  const stopRotation = () => {
+    rotation.stopAnimation(() => {
+      rotation.setValue(0);
+    });
+  };
+
+  const spin = rotation.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  });
+
+  const handleOpenMusicPlayer = async () => {
+    try {
+      const lastSong = await AsyncStorage.getItem('lastSong');
+      const lastSongIdStr = await AsyncStorage.getItem('lastSongId');
+      const lastSongId = parseInt(lastSongIdStr);
+
+      if (lastSong && !isNaN(lastSongId)) {
+        navigation.navigate('MusicPlayer', {
+          songName: lastSong,
+          songId: lastSongId,
+          userEmail: userEmail
+        });
+      } else {
+        Alert.alert("No hay ninguna canción en reproducción");
+      }
+    } catch (error) {
+      console.error("Error obteniendo la última canción:", error);
+    }
+  };
 
   const iniciarReproduccion = async () => {
     try {
@@ -305,6 +370,14 @@ export default function FavoritesScreen({ navigation }) {
           />
         }
       />
+        {cancionSonando && (
+              <TouchableOpacity onPress={handleOpenMusicPlayer} style={styles.playerButton}>
+                <Animated.Image
+                  source={require('../assets/disc.png')}
+                  style={[styles.playerIcon, { transform: [{ rotate: spin }] }]} 
+                />
+              </TouchableOpacity>
+        )}
       {songOptionsVisible && renderSongOptionsModal()}
     </SafeAreaView>
   );
@@ -576,5 +649,22 @@ const styles = StyleSheet.create({
   orderOptionText: {
     color: "#fff",
     fontSize: 16,
+  },
+  playerButton: {
+    position: 'absolute',
+    bottom: 15,
+    right: 16,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+    zIndex: 4,
+  },
+  playerIcon: { 
+    width: 80, 
+    height: 80, 
+    borderRadius: 35 
   },
 });

@@ -44,6 +44,7 @@ export default function SearchResults({ route, navigation }) {
     }, [])
   );  
 
+
   // Al montar, obtenemos el email y el nick del usuario.
   useEffect(() => {
     const loadUserData = async () => {
@@ -122,7 +123,7 @@ export default function SearchResults({ route, navigation }) {
         navigation.navigate('MusicPlayer', {
           songName: lastSong,
           songId: lastSongId,
-          userEmail: userEmail
+          userEmail: email
         });
       } else {
         Alert.alert("No hay ninguna canción en reproducción");

@@ -1,16 +1,9 @@
-import React, { useEffect, useState, useLayoutEffect } from 'react';
-import { 
-  View, 
-  Text, 
-  Image, 
-  StyleSheet, 
-  FlatList, 
-  TouchableOpacity, 
-  ActivityIndicator, 
-  Dimensions 
-} from 'react-native';
+import React, { useEffect, useState, useLayoutEffect, useCallback, useRef } from 'react';
+import { View, Text, Image, StyleSheet, FlatList, Animated, Easing, TouchableOpacity, ActivityIndicator, Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useFocusEffect } from "@react-navigation/native";
+
 
 const screenWidth = Dimensions.get('window').width;
 
@@ -19,6 +12,9 @@ export default function ProfileAmistades({ route, navigation }) {
   const [userData, setUserData] = useState(null);
   // Estado para el email del usuario autenticado (logged-in)
   const [loggedEmail, setLoggedEmail] = useState(null);
+  const [cancionSonando, setCancionSonando] = useState(false);
+  const [estaReproduciendo, setEstaReproduciendo] = useState(false);
+  const rotation = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     // Obtener el email del usuario autenticado desde AsyncStorage
@@ -33,6 +29,7 @@ export default function ProfileAmistades({ route, navigation }) {
       }
     };
     fetchLoggedEmail();
+    checkSongPlaying();
   }, []);
 
   useEffect(() => {
@@ -41,6 +38,72 @@ export default function ProfileAmistades({ route, navigation }) {
       .then(data => setUserData(data))
       .catch(err => console.error("Error cargando perfil:", err));
   }, [userEmail]);
+
+    useFocusEffect(
+      useCallback(() => {
+        checkSongPlaying();
+      }, [])
+    );
+
+    const checkSongPlaying = async () => {
+      const lastSong = await AsyncStorage.getItem('lastSong');
+      const isPlaying = await AsyncStorage.getItem('isPlaying');
+  
+      const hayCancion = !!lastSong;
+      const reproduciendo = isPlaying === 'true';
+  
+      setCancionSonando(hayCancion);
+      setEstaReproduciendo(reproduciendo);
+  
+      if (hayCancion && reproduciendo) {
+        startRotationLoop();
+      } else {
+        stopRotation();
+      }
+    };
+  
+    const startRotationLoop = () => {
+      rotation.setValue(0);
+      Animated.loop(
+        Animated.timing(rotation, {
+          toValue: 1,
+          duration: 4000,
+          easing: Easing.linear,
+          useNativeDriver: true,
+        })
+      ).start();
+    };
+  
+    const stopRotation = () => {
+      rotation.stopAnimation(() => {
+        rotation.setValue(0);
+      });
+    };
+  
+    const spin = rotation.interpolate({
+      inputRange: [0, 1],
+      outputRange: ['0deg', '360deg'],
+    });
+  
+    const handleOpenMusicPlayer = async () => {
+      try {
+        const lastSong = await AsyncStorage.getItem('lastSong');
+        const lastSongIdStr = await AsyncStorage.getItem('lastSongId');
+        const lastSongId = parseInt(lastSongIdStr);
+  
+        if (lastSong && !isNaN(lastSongId)) {
+          navigation.navigate('MusicPlayer', {
+            songName: lastSong,
+            songId: lastSongId,
+            userEmail: userEmail
+          });
+        } else {
+          Alert.alert("No hay ninguna canción en reproducción");
+        }
+      } catch (error) {
+        console.error("Error obteniendo la última canción:", error);
+      }
+    };  
 
   useLayoutEffect(() => {
     navigation.setOptions({ headerShown: false });
@@ -111,7 +174,7 @@ export default function ProfileAmistades({ route, navigation }) {
                   ? { uri: item.Portada }
                   : require('../assets/default_playlist_portada.jpg')}
                 style={styles.playlistImage}
-              />
+              />     
               <View style={styles.playlistInfo}>
                 <Text style={styles.playlistName}>{item.Nombre}</Text>
               </View>
@@ -120,6 +183,14 @@ export default function ProfileAmistades({ route, navigation }) {
           )}
         />
       )}
+      {cancionSonando && (
+                <TouchableOpacity onPress={handleOpenMusicPlayer} style={styles.playerButton}>
+                  <Animated.Image
+                    source={require('../assets/disc.png')}
+                    style={[styles.playerIcon, { transform: [{ rotate: spin }] }]} 
+                  />
+                </TouchableOpacity>
+              )}         
     </View>
   );
 }
@@ -209,4 +280,22 @@ const styles = StyleSheet.create({
     color: '#ccc',
     marginTop: 10,
   },
+  playerButton: {
+    position: 'absolute',
+    bottom: 15,
+    right: 16,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+    zIndex: 4,
+  },
+  playerIcon: { 
+    width: 80, 
+    height: 80, 
+    borderRadius: 35 
+  },
+
 });

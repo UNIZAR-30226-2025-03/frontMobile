@@ -5,7 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { TextInput} from "react-native";
+import { TextInput } from "react-native";
 import { Picker } from "@react-native-picker/picker"; 
 import * as ImagePicker from "expo-image-picker";
 
@@ -336,8 +336,7 @@ export default function PlaylistDetail({ navigation, route }) {
       const result = await response.json();
   
       if (!response.ok) {
-        console.error("❌ Error en reproducción:", result.message);
-        Alert.alert("Error", result.message || "No se pudo iniciar la reproducción");
+        Alert.alert("Añade canciones para reproducir");
         return;
       }
 
