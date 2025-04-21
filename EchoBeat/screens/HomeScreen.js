@@ -51,12 +51,12 @@ export default function HomeScreen({ navigation, route }) {
   };
 
   useEffect(() => {
-    if (cancionSonando && estaReproduciendo) {
+    if (cancionSonando && estaReproduciendo && !menuAbierto) {
       startRotationLoop();
     } else {
       stopRotation();
     }
-  }, [cancionSonando, estaReproduciendo]);
+  }, [cancionSonando, estaReproduciendo, menuAbierto]);
 
   const obtenerInfoUser = async () => {
     try {
@@ -89,7 +89,7 @@ export default function HomeScreen({ navigation, route }) {
     setCancionSonando(hayCancion);
     setEstaReproduciendo(reproduciendo);
 
-    if (hayCancion && reproduciendo) {
+    if (hayCancion && reproduciendo && !menuAbierto) {
       startRotationLoop();
     }
   };
@@ -164,7 +164,6 @@ export default function HomeScreen({ navigation, route }) {
       { id: 2, label: 'FAVS', screen: 'Favorites', icon: 'heart' },
       { id: 3, label: 'BUSCAR', screen: 'Search', icon: 'search' },
       { id: 4, label: 'CHATS', screen: 'Chats', icon: 'chatbubbles' },
-      { id: 5, label: 'AJUSTES', screen: 'Settings', icon: 'settings' },
     ];
 
     return botones.map((boton, index) => {

@@ -377,6 +377,12 @@ export default function MusicPlayer({ navigation, route }) {
       </View>
     
       <View style={styles.footer}>
+        {portadaSong && (
+          <Image
+            source={{ uri: portadaSong }}
+            style={styles.coverImage}
+          />
+        )}
         {/* Título y corazón */}
         <View style={styles.titleRow}>
           <Text style={styles.songTitle}>{currentSong}</Text>
@@ -514,6 +520,12 @@ const styles = StyleSheet.create({
     fontSize: 28,
     color: '#f2ab55',
   },
+  coverImage: {
+    width: 250,
+    height: 250,
+    borderRadius: 15,
+    marginBottom: -90,
+  },
   titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -579,7 +591,7 @@ const styles = StyleSheet.create({
     height: 70,
     resizeMode: 'contain',
     borderRadius: 35,
-    backgroundColor: '#f2ab55',
+    tintColor: '#f2ab55',
     padding: 10,
   },
   modalOverlay: {

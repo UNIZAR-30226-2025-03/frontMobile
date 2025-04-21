@@ -1,16 +1,7 @@
-import React, { useState, useLayoutEffect, useEffect } from 'react';
-import { 
-  View, 
-  Text, 
-  TouchableOpacity, 
-  TextInput, 
-  StyleSheet, 
-  TouchableWithoutFeedback, 
-  Keyboard, 
-  Modal, 
-  ScrollView 
-} from 'react-native';
+import React, { useState, useLayoutEffect, useEffect, useCallback, useRef } from 'react';
+import { View, Text, TouchableOpacity, TextInput, StyleSheet, Animated, Easing, TouchableWithoutFeedback, Keyboard, Modal, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function Search({ navigation, route }) {
@@ -20,6 +11,9 @@ export default function Search({ navigation, route }) {
   const [userEmail, setUserEmail] = useState('');
   const [modalVisible, setModalVisible] = useState(false);
   const [availableGeneros, setAvailableGeneros] = useState([]);
+  const [cancionSonando, setCancionSonando] = useState(false);
+  const [estaReproduciendo, setEstaReproduciendo] = useState(false);
+  const rotation = useRef(new Animated.Value(0)).current;
 
   // Para evitar problemas con las tildes, usamos "Generos" sin tilde en el valor interno.
   const options = ["Canción", "Playlist", "Artista", "Álbum", "Generos"];
@@ -27,6 +21,12 @@ export default function Search({ navigation, route }) {
   useLayoutEffect(() => {
     navigation.setOptions({ headerShown: false });
   }, [navigation]);
+
+  useFocusEffect(
+    useCallback(() => {
+      checkSongPlaying();
+    }, [])
+  );
 
   // Cargamos el email (otros datos se cargarán en SearchResults)
   useEffect(() => {
@@ -47,7 +47,68 @@ export default function Search({ navigation, route }) {
     if (route.params && route.params.defaultFilter) {
       setSelectedOption(route.params.defaultFilter);
     }
+    checkSongPlaying();
   }, [route.params]);
+
+  const checkSongPlaying = async () => {
+    const lastSong = await AsyncStorage.getItem('lastSong');
+    const isPlaying = await AsyncStorage.getItem('isPlaying');
+
+    const hayCancion = !!lastSong;
+    const reproduciendo = isPlaying === 'true';
+
+    setCancionSonando(hayCancion);
+    setEstaReproduciendo(reproduciendo);
+
+    if (hayCancion && reproduciendo) {
+      startRotationLoop();
+    } else {
+      stopRotation();
+    }
+  };
+
+  const startRotationLoop = () => {
+    rotation.setValue(0);
+    Animated.loop(
+      Animated.timing(rotation, {
+        toValue: 1,
+        duration: 4000,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      })
+    ).start();
+  };
+
+  const stopRotation = () => {
+    rotation.stopAnimation(() => {
+      rotation.setValue(0);
+    });
+  };
+
+  const spin = rotation.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  });
+
+  const handleOpenMusicPlayer = async () => {
+    try {
+      const lastSong = await AsyncStorage.getItem('lastSong');
+      const lastSongIdStr = await AsyncStorage.getItem('lastSongId');
+      const lastSongId = parseInt(lastSongIdStr);
+
+      if (lastSong && !isNaN(lastSongId)) {
+        navigation.navigate('MusicPlayer', {
+          songName: lastSong,
+          songId: lastSongId,
+          userEmail: userEmail
+        });
+      } else {
+        Alert.alert("No hay ninguna canción en reproducción");
+      }
+    } catch (error) {
+      console.error("Error obteniendo la última canción:", error);
+    }
+  };
 
   const handleOptionPress = (option) => {
     if (option === "Generos") {
@@ -151,7 +212,14 @@ export default function Search({ navigation, route }) {
             <Text style={styles.errorText}>{errorMessage}</Text>
           ) : null}
         </View>
-
+        {cancionSonando && (
+              <TouchableOpacity onPress={handleOpenMusicPlayer} style={styles.playerButton}>
+                <Animated.Image
+                  source={require('../assets/disc.png')}
+                  style={[styles.playerIcon, { transform: [{ rotate: spin }] }]} 
+                />
+              </TouchableOpacity>
+            )}
         {modalVisible && (
           <Modal
             transparent={true}
@@ -305,5 +373,22 @@ const styles = StyleSheet.create({
     color: '#fff', 
     fontSize: 18, 
     fontWeight: 'bold' 
+  },
+  playerButton: {
+    position: 'absolute',
+    bottom: 15,
+    right: 16,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+    zIndex: 4,
+  },
+  playerIcon: { 
+    width: 80, 
+    height: 80, 
+    borderRadius: 35 
   },
 });

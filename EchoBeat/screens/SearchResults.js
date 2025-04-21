@@ -1,6 +1,7 @@
-import React, { useState, useLayoutEffect, useEffect } from 'react';
-import { View, Text, FlatList, StyleSheet, TouchableOpacity, Image, Modal, TouchableWithoutFeedback, TextInput, Keyboard, Alert } from 'react-native';
+import React, { useState, useLayoutEffect, useEffect, useCallback, useRef } from 'react';
+import { View, Text, FlatList, StyleSheet, TouchableOpacity, Image, Animated, Easing, Modal, TouchableWithoutFeedback, TextInput, Keyboard, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function SearchResults({ route, navigation }) {
@@ -20,6 +21,10 @@ export default function SearchResults({ route, navigation }) {
   const [showPlaylists, setShowPlaylists] = useState(false);
   const [playlists, setPlaylists] = useState([]);
 
+  const [cancionSonando, setCancionSonando] = useState(false);
+  const [estaReproduciendo, setEstaReproduciendo] = useState(false);
+  const rotation = useRef(new Animated.Value(0)).current;
+
   // Mapeo de opciones: usamos "Generos" sin tilde para la búsqueda por género.
   const optionMap = {
     "Canción": "canciones",
@@ -32,6 +37,12 @@ export default function SearchResults({ route, navigation }) {
   useLayoutEffect(() => {
     navigation.setOptions({ headerShown: false });
   }, [navigation]);
+
+  useFocusEffect(
+    useCallback(() => {
+      checkSongPlaying();
+    }, [])
+  );  
 
   // Al montar, obtenemos el email y el nick del usuario.
   useEffect(() => {
@@ -58,8 +69,69 @@ export default function SearchResults({ route, navigation }) {
     if (searchText && email && userNick) {
       handleSearch();
     }
+    checkSongPlaying();
   }, [email, userNick]);
 
+  const checkSongPlaying = async () => {
+    const lastSong = await AsyncStorage.getItem('lastSong');
+    const isPlaying = await AsyncStorage.getItem('isPlaying');
+
+    const hayCancion = !!lastSong;
+    const reproduciendo = isPlaying === 'true';
+
+    setCancionSonando(hayCancion);
+    setEstaReproduciendo(reproduciendo);
+
+    if (hayCancion && reproduciendo) {
+      startRotationLoop();
+    } else {
+      stopRotation();
+    }
+  };
+
+  const startRotationLoop = () => {
+    rotation.setValue(0);
+    Animated.loop(
+      Animated.timing(rotation, {
+        toValue: 1,
+        duration: 4000,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      })
+    ).start();
+  };
+
+  const stopRotation = () => {
+    rotation.stopAnimation(() => {
+      rotation.setValue(0);
+    });
+  };
+
+  const spin = rotation.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  });
+
+  const handleOpenMusicPlayer = async () => {
+    try {
+      const lastSong = await AsyncStorage.getItem('lastSong');
+      const lastSongIdStr = await AsyncStorage.getItem('lastSongId');
+      const lastSongId = parseInt(lastSongIdStr);
+
+      if (lastSong && !isNaN(lastSongId)) {
+        navigation.navigate('MusicPlayer', {
+          songName: lastSong,
+          songId: lastSongId,
+          userEmail: userEmail
+        });
+      } else {
+        Alert.alert("No hay ninguna canción en reproducción");
+      }
+    } catch (error) {
+      console.error("Error obteniendo la última canción:", error);
+    }
+  };
+  
   // Función para procesar (normalizar) los resultados agregando el tipo a cada objeto.
   const processResults = (data, tipo) => {
     // Función de mapeo para cada categoría.
@@ -485,6 +557,14 @@ export default function SearchResults({ route, navigation }) {
             <Text style={styles.errorText}>{errorMessage}</Text>
           ) : null}
         </View>
+        {cancionSonando && (
+              <TouchableOpacity onPress={handleOpenMusicPlayer} style={styles.playerButton}>
+                <Animated.Image
+                  source={require('../assets/disc.png')}
+                  style={[styles.playerIcon, { transform: [{ rotate: spin }] }]} 
+                />
+              </TouchableOpacity>
+            )}        
         
         {/* Condiciones para mostrar mensajes de carga o sin resultados */}
         {loading ? (
@@ -659,5 +739,22 @@ const styles = StyleSheet.create({
   playlistItemText: { 
     color: '#fff', 
     fontSize: 16 
+  },
+  playerButton: {
+    position: 'absolute',
+    bottom: 15,
+    right: 16,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+    zIndex: 4,
+  },
+  playerIcon: { 
+    width: 80, 
+    height: 80, 
+    borderRadius: 35 
   },
 });

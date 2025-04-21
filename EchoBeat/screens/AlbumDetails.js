@@ -1,17 +1,5 @@
-import React, { useState, useLayoutEffect, useEffect, useCallback } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  SafeAreaView,
-  TouchableOpacity,
-  Image,
-  FlatList,
-  Dimensions,
-  Alert,
-  RefreshControl,
-  Keyboard,
-} from "react-native";
+import React, { useState, useLayoutEffect, useEffect, useCallback, useRef } from "react";
+import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Image, Animated, Easing, FlatList, Dimensions, Alert, RefreshControl, Keyboard, } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -30,6 +18,9 @@ export default function AlbumDetails({ navigation, route }) {
   const [favoritos, setFavoritos] = useState([]);
   const [shuffle, setShuffle] = useState(false);
   const [cola, setCola] = useState(null);
+  const [cancionSonando, setCancionSonando] = useState(false);
+  const [estaReproduciendo, setEstaReproduciendo] = useState(false);
+  const rotation = useRef(new Animated.Value(0)).current;
 
   useLayoutEffect(() => {
     navigation.setOptions({ headerShown: false });
@@ -57,12 +48,74 @@ export default function AlbumDetails({ navigation, route }) {
   useFocusEffect(
     useCallback(() => {
       loadData();
+      checkSongPlaying();
     }, [])
   );
 
   useEffect(() => {
     loadData();
+    checkSongPlaying();
   }, []);
+
+  const checkSongPlaying = async () => {
+    const lastSong = await AsyncStorage.getItem('lastSong');
+    const isPlaying = await AsyncStorage.getItem('isPlaying');
+
+    const hayCancion = !!lastSong;
+    const reproduciendo = isPlaying === 'true';
+
+    setCancionSonando(hayCancion);
+    setEstaReproduciendo(reproduciendo);
+
+    if (hayCancion && reproduciendo) {
+      startRotationLoop();
+    } else {
+      stopRotation();
+    }
+  };
+
+  const startRotationLoop = () => {
+    rotation.setValue(0);
+    Animated.loop(
+      Animated.timing(rotation, {
+        toValue: 1,
+        duration: 4000,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      })
+    ).start();
+  };
+
+  const stopRotation = () => {
+    rotation.stopAnimation(() => {
+      rotation.setValue(0);
+    });
+  };
+
+  const spin = rotation.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  });
+
+  const handleOpenMusicPlayer = async () => {
+    try {
+      const lastSong = await AsyncStorage.getItem('lastSong');
+      const lastSongIdStr = await AsyncStorage.getItem('lastSongId');
+      const lastSongId = parseInt(lastSongIdStr);
+
+      if (lastSong && !isNaN(lastSongId)) {
+        navigation.navigate('MusicPlayer', {
+          songName: lastSong,
+          songId: lastSongId,
+          userEmail: userEmail
+        });
+      } else {
+        Alert.alert("No hay ninguna canción en reproducción");
+      }
+    } catch (error) {
+      console.error("Error obteniendo la última canción:", error);
+    }
+  };
 
   const toggleFavorito = async (songId) => {
     if (!userEmail) {
@@ -254,6 +307,16 @@ export default function AlbumDetails({ navigation, route }) {
           />
         }
       />
+
+      {cancionSonando && (
+        <TouchableOpacity onPress={handleOpenMusicPlayer} style={styles.playerButton}>
+          <Animated.Image
+            source={require('../assets/disc.png')}
+            style={[styles.playerIcon, { transform: [{ rotate: spin }] }]} 
+          />
+        </TouchableOpacity>
+      )}
+
       {songOptionsVisible && (
         <View style={styles.songOptionsOverlay}>
           <View style={styles.songOptionsContainer}>
@@ -500,5 +563,22 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginBottom: 5,
     color: "#000",
+  },
+  playerButton: {
+    position: 'absolute',
+    bottom: 15,
+    right: 16,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+    zIndex: 4,
+  },
+  playerIcon: { 
+    width: 80, 
+    height: 80, 
+    borderRadius: 35 
   },
 });

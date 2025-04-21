@@ -1,5 +1,5 @@
-import React, { useState, useLayoutEffect, useEffect, useCallback } from "react";
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Image, Dimensions, Alert, RefreshControl} from "react-native";
+import React, { useState, useLayoutEffect, useEffect, useCallback, useRef } from "react";
+import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Image, Animated, Easing, Dimensions, Alert, RefreshControl} from "react-native";
 import DraggableFlatList from "react-native-draggable-flatlist";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
@@ -40,6 +40,10 @@ export default function PlaylistDetail({ navigation, route }) {
     { value: 1, label: "Orden por nombre" },
     { value: 2, label: "Orden por reproducciones" },
   ];
+
+  const [cancionSonando, setCancionSonando] = useState(false);
+  const [estaReproduciendo, setEstaReproduciendo] = useState(false);
+  const rotation = useRef(new Animated.Value(0)).current;
 
   useLayoutEffect(() => {
     navigation.setOptions({ headerShown: false });
@@ -84,13 +88,75 @@ export default function PlaylistDetail({ navigation, route }) {
   useFocusEffect(
     useCallback(() => {
       loadData();
-
+      checkSongPlaying();
     }, [])
   );
 
   useEffect(() => {
     loadData();
+    checkSongPlaying();
   }, []);
+
+  const checkSongPlaying = async () => {
+    const lastSong = await AsyncStorage.getItem('lastSong');
+    const isPlaying = await AsyncStorage.getItem('isPlaying');
+
+    const hayCancion = !!lastSong;
+    const reproduciendo = isPlaying === 'true';
+
+    setCancionSonando(hayCancion);
+    setEstaReproduciendo(reproduciendo);
+
+    if (hayCancion && reproduciendo) {
+      startRotationLoop();
+    } else {
+      stopRotation();
+    }
+  };
+
+  const startRotationLoop = () => {
+    rotation.setValue(0);
+    Animated.loop(
+      Animated.timing(rotation, {
+        toValue: 1,
+        duration: 4000,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      })
+    ).start();
+  };
+
+  const stopRotation = () => {
+    rotation.stopAnimation(() => {
+      rotation.setValue(0);
+    });
+  };
+
+  const spin = rotation.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  });
+
+  const handleOpenMusicPlayer = async () => {
+    try {
+      const lastSong = await AsyncStorage.getItem('lastSong');
+      const lastSongIdStr = await AsyncStorage.getItem('lastSongId');
+      const lastSongId = parseInt(lastSongIdStr);
+
+      if (lastSong && !isNaN(lastSongId)) {
+        navigation.navigate('MusicPlayer', {
+          songName: lastSong,
+          songId: lastSongId,
+          userEmail: userEmail
+        });
+      } else {
+        Alert.alert("No hay ninguna canción en reproducción");
+      }
+    } catch (error) {
+      console.error("Error obteniendo la última canción:", error);
+    }
+  };
+
 
   const toggleFavorito = async (songId) => {
     if (!userEmail) {
@@ -339,7 +405,7 @@ export default function PlaylistDetail({ navigation, route }) {
     }
   };
 
-  {/*CAMBIAR GORDITO */}
+  {/*CAMBIAR*/}
   //Funcion para guardar los cambios tras modificar la playlist
   const guardarCambiosPlaylist = async () => {
     try {
@@ -533,7 +599,7 @@ export default function PlaylistDetail({ navigation, route }) {
             guardarNuevoOrden(newData);
           }}
           ListHeaderComponent={ListHeader}
-          contentContainerStyle={styles.flatListContent}
+          con tentContainerStyle={styles.flatListContent}
           ListFooterComponent={ListFooter}
           refreshControl={
             <RefreshControl
@@ -544,6 +610,15 @@ export default function PlaylistDetail({ navigation, route }) {
             />
           }
         />
+
+        {cancionSonando && (
+          <TouchableOpacity onPress={handleOpenMusicPlayer} style={styles.playerButton}>
+            <Animated.Image
+              source={require('../assets/disc.png')}
+              style={[styles.playerIcon, { transform: [{ rotate: spin }] }]} 
+            />
+          </TouchableOpacity>
+        )}
 
         {songOptionsVisible && (
           <View style={styles.songOptionsOverlay}>
@@ -920,6 +995,23 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  playerButton: {
+    position: 'absolute',
+    bottom: 15,
+    right: 16,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+    zIndex: 4,
+  },
+  playerIcon: { 
+    width: 80, 
+    height: 80, 
+    borderRadius: 35 
   },
   
 });
