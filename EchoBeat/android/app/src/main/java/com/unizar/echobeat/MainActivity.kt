@@ -1,4 +1,4 @@
-package com.anonymous.EchoBeat
+package com.unizar.echobeat
 
 import android.os.Build
 import android.os.Bundle

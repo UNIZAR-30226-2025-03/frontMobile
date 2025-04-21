@@ -2,6 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView, Image, Alert, TouchableWithoutFeedback, Keyboard } from 'react-native';
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Google from 'expo-auth-session/providers/google';
+import * as WebBrowser from 'expo-web-browser';
+import { makeRedirectUri } from 'expo-auth-session';
+
+WebBrowser.maybeCompleteAuthSession();
 
 export default function Login_Register({ navigation }) {
   const [email, setEmail] = useState('');
@@ -9,33 +13,44 @@ export default function Login_Register({ navigation }) {
   const [errorMessage, setErrorMessage] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const [request, response, promptAsync] = Google.useAuthRequest({
-    androidClientId: '610424945572-uli0863e2m1d12nkqf10c9f7nq8ahp1b.apps.googleusercontent.com',
-  });
-
+  const [request, response, promptAsync] = Google.useAuthRequest(
+    {
+      androidClientId: '262081994570-up3usrguatvnbcpl6f9h4nkt3k9e05mq.apps.googleusercontent.com',
+    }
+  );
+  
   useEffect(() => {
-    const fetchUserInfo = async () => {
-      if (response?.type === 'success') {
-        const { access_token } = response.authentication;
-        
-        try {
-          const userInfoResponse = await fetch("https://www.googleapis.com/userinfo/v2/me", 
-            { headers: { Authorization: `Bearer ${access_token}` }}
-          );
-          const userInfo = await userInfoResponse.json();
-          console.log("Información del usuario: ", userInfo);
+    const checkLogin = async () => {
+      if(response) {
+        if (response.type === 'success') {
+          const { accessToken } = response.authentication;
+          try {
+            const userInfo =  await fetch('https://www.googleapis.com/userinfo/v2/me', {
+              headers: { Authorization: `Bearer ${accessToken}` },
+            });
+            const user = await userInfo.json();
 
-        } catch (error) {
-          console.error("Error al obtener la información del usuario: ", error);
-          Alert.alert("Error", "Error al obtener la información del usuario");
+            console.log("User info: ", user);
+            
+            const token = await fetch(`https://echobeatapi.duckdns.org/auth/google/mobile?email=${user.email}&fullName=${user.name}`);
+
+            const tokenResponse = await token.json();
+            if(!tokenResponse.accessToken) {
+              throw new Error(tokenResponse.message || "Error al iniciar sesión con Google");
+            }
+            await AsyncStorage.setItem("token", tokenResponse.accessToken);
+            await AsyncStorage.setItem("email", user.email);
+            navigation.replace("Welcome");
+          } catch (error) {
+            console.error("Error al obtener información del usuario: ", error);
+          }
+        } else {
+          console.error('Error en la respuesta de Google:', response);
         }
       }
-      if (response?.type === 'error') {
-        console.error("Error al iniciar sesión con Google: ", response.error);
-        Alert.alert("Error", "Error al iniciar sesión con Google");
-      }
     }
-  }, [response]);
+    checkLogin();
+  });
 
   const handleLogin = async () => {
     try {

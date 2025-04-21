@@ -1,4 +1,4 @@
-package com.anonymous.EchoBeat
+package com.unizar.echobeat
 
 import android.app.Application
 import android.content.res.Configuration

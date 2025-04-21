@@ -1,5 +1,8 @@
 # Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
 
+#Visual Studio Configuration
+.vscode/
+
 # dependencies
 node_modules/
 
@@ -37,5 +40,9 @@ yarn-error.*
 
 # android studio
 ios
+android/local.properties
+android/.gradle/
+android/app/build/
+android/build/
 
-echobeat-key.keystore
+credential*

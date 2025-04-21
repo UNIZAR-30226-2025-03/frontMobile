@@ -4,21 +4,21 @@
     "slug": "EchoBeat",
     "version": "1.0.0",
     "newArchEnabled": true,
-    "scheme": "EchoBeat",
+    "scheme": "com.unizar.echobeat",
     "android": {
-      "package": "com.unizar.EchoBeat",
+      "package": "com.unizar.echobeat",
       "permissions": [
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE",
         "android.permission.DOWNLOAD_WITHOUT_NOTIFICATION",
-        "android.permission.ACCESS_NETWORK_STATE"
+        "android.permiss  ion.ACCESS_NETWORK_STATE"
       ]
     },
     "plugins": [
       "expo-router"
     ],
     "ios": {
-      "bundleIdentifier": "com.unizar.EchoBeat"
+      "bundleIdentifier": "com.unizar.echobeat"
     },
     "extra": {
       "router": {
