@@ -32,14 +32,20 @@ export default function Login_Register({ navigation }) {
 
             console.log("User info: ", user);
             
-            const token = await fetch(`https://echobeatapi.duckdns.org/auth/google/mobile?email=${user.email}&fullName=${user.name}`);
+            const resp = await fetch(`https://echobeatapi.duckdns.org/auth/google/mobile?email=${user.email}&fullName=${user.name}`);
 
-            const tokenResponse = await token.json();
-            if(!tokenResponse.accessToken) {
-              throw new Error(tokenResponse.message || "Error al iniciar sesión con Google");
+            const response = await resp.json();
+            if(!response.accessToken) {
+              throw new Error(response.message || "Error al iniciar sesión con Google");
             }
-            await AsyncStorage.setItem("token", tokenResponse.accessToken);
+            await AsyncStorage.setItem("token", response.accessToken);
             await AsyncStorage.setItem("email", user.email);
+            
+            console.log("Respuesta de la API: ", response);
+            if(response.isNew) {
+              navigation.replace("GeneroPreferencesInit");
+              return;
+            }
             navigation.replace("Welcome");
           } catch (error) {
             console.error("Error al obtener información del usuario: ", error);

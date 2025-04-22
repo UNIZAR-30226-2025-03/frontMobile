@@ -76,8 +76,9 @@ export default function Register({ navigation }) {
   
       await AsyncStorage.setItem("email", correo);
       Alert.alert("Éxito", "Registro exitoso! Seleccione sus géneros preferidos e inicie sesión.");
-
-      navigation.navigate('GeneroPreferencesInit');
+      
+      //navigation.replace('Welcome');
+      navigation.replace('GeneroPreferencesInit');
     } catch (error) {
       Alert.alert("Error", error.message);
     }

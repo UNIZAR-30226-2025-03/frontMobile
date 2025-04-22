@@ -1,15 +1,6 @@
 import React, { useState, useEffect, useLayoutEffect } from "react";
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  Alert,
-  ScrollView,
-  ActivityIndicator,
-} from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, Alert, ScrollView, ActivityIndicator, } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Ionicons } from '@expo/vector-icons';
 
 export default function GeneroPreferencesInitScreen({ navigation }) {
   const [generos, setGeneros] = useState([]); 
@@ -127,7 +118,8 @@ export default function GeneroPreferencesInitScreen({ navigation }) {
       }
 
       Alert.alert("Éxito", "Tus preferencias de género han sido guardadas. Inicia sesión.");
-      navigation.navigate('Login_Register');
+      //navigation.navigate('Login_Register');
+      navigation.replace("Welcome");
     } catch (error) {
       console.error("❌ Error al enviar géneros:", error);
       Alert.alert("Error", error.message);
