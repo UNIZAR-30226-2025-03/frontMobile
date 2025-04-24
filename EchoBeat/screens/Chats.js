@@ -123,24 +123,62 @@ export default function Chats({ navigation, route }) {
     setRefreshing(false);
   };
 
-  const renderChatItem = ({ item }) => (
-    <TouchableOpacity 
-      style={styles.chatItem} 
-      onPress={() => navigation.navigate('ChatScreen', { chat: item, userEmail })}
-    >
-      {item.foto ? (
-        <Image source={{ uri: item.foto }} style={styles.profileImage} />
-      ) : (
-        <Image source={require('../assets/default_user_icon.png')} style={styles.profileImage} />
-      )}
-      <View style={styles.chatInfo}>
-        {/* Se muestra el correo (contact) encima del último mensaje */}
-        <Text style={styles.friendEmail}>{item.contact}</Text>
-        <Text style={styles.lastSong}>{item.mensaje}</Text>
-      </View>
-      <Ionicons name="chatbubble-ellipses-outline" size={20} color="#f2ab55" />
-    </TouchableOpacity>
-  );
+  const renderChatItem = ({ item }) => {
+    const tieneMensajeSinLeer = item.lastMensaje === item.contact && item.Leido === false;
+    const esUltimoMensajeDelContacto = item.lastMensaje === item.contact;
+    const mensajeLeido = item.Leido;
+  
+    return (
+      <TouchableOpacity 
+        style={[
+          styles.chatItem, 
+          tieneMensajeSinLeer && styles.chatItemResaltado
+        ]}
+        onPress={() => navigation.navigate('ChatScreen', { chat: item, userEmail })}
+      >
+        {item.foto ? (
+          <Image source={{ uri: item.foto }} style={styles.profileImage} />
+        ) : (
+          <Image source={require('../assets/default_user_icon.png')} style={styles.profileImage} />
+        )}
+  
+        <View style={styles.chatInfo}>
+          <Text style={styles.friendEmail}>{item.contact}</Text>
+          <View style={styles.mensajeConEstado}>
+            <Text style={styles.lastSong}>{item.mensaje}</Text>
+            
+            {/* Mostrar estado del mensaje solo si el último mensaje fue enviado por el usuario */}
+            {!esUltimoMensajeDelContacto && (
+              <Ionicons 
+                name={mensajeLeido ? "checkmark-done" : "checkmark"} 
+                size={16} 
+                color={mensajeLeido ? "#4fc3f7" : "#888"} 
+                style={{ marginLeft: 6 }} 
+              />
+            )}
+  
+            {/* Indicador de nuevo mensaje si es del contacto y no está leído */}
+            {tieneMensajeSinLeer && (
+              <Text style={{ 
+                color: '#f2ab55', 
+                fontSize: 11, 
+                marginLeft: 10, 
+                backgroundColor: '#2e2e2e', 
+                paddingHorizontal: 6, 
+                paddingVertical: 2, 
+                borderRadius: 4 
+              }}>
+                mensaje sin leer
+              </Text>
+            )}
+          </View>
+        </View>
+  
+        {/* Ícono del bocadillo siempre presente */}
+        <Ionicons name="chatbubble-ellipses-outline" size={20} color="#f2ab55" />
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -283,5 +321,16 @@ const styles = StyleSheet.create({
     width: 80, 
     height: 80, 
     borderRadius: 35 
+  },
+  chatItemResaltado: {
+    shadowColor: '#f2ab55',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 10,
+    elevation: 8, // para Android
+  },
+  mensajeConEstado: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
 });

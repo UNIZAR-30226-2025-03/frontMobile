@@ -125,6 +125,29 @@ export default function ChatScreen({ navigation, route }) {
     }
   }, [chatDetail, userEmail]);
 
+  //Marcar mensajes como leidos al abrir el chat.
+  useEffect(() => {
+    const marcarMensajesComoLeidos = async () => {
+      if (chatDetail && userEmail) {
+        try {
+          const url = `https://echobeatapi.duckdns.org/chat/marcarComoLeidos?contactEmail=${encodeURIComponent(chatDetail.contact)}&userEmail=${encodeURIComponent(userEmail)}`;
+          const response = await fetch(url, {
+            method: 'POST',
+            headers: { accept: '*/*' }
+          });
+          if (!response.ok) {
+            throw new Error("Error al marcar mensajes como leídos");
+          }
+          console.log(`Mensajes de ${chatDetail.contact} marcados como leídos por ${userEmail}`);
+        } catch (error) {
+          console.error("Error al marcar mensajes como leídos:", error);
+        }
+      }
+    };
+  
+    marcarMensajesComoLeidos();
+  }, [chatDetail, userEmail]);
+
   // Función para enviar mensaje en modo conversación.
   const sendMessage = async () => {
     if (!message.trim()) return;
