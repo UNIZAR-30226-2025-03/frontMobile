@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useLayoutEffect } from "react";
-import {View,Text,StyleSheet,SafeAreaView,TouchableOpacity,Image,Alert,ScrollView,TextInput} from "react-native";
+import {View,Text,StyleSheet,SafeAreaView,TouchableOpacity,Image,Alert,ScrollView,TextInput,Modal} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Picker } from "@react-native-picker/picker";
 import * as ImagePicker from "expo-image-picker";
@@ -13,6 +13,10 @@ export default function EditPlaylistScreen({ route, navigation }) {
   const [portadaUri, setPortadaUri] = useState(playlistEdit?.Portada);
   const [nuevaPortada, setNuevaPortada] = useState(null);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [showImageOptionsModal, setShowImageOptionsModal] = useState(false);
+  const [defaultPhotos, setDefaultPhotos] = useState([]);
+  const [showDefaultPhotosModal, setShowDefaultPhotosModal] = useState(false);
+  const [useDefaultImage, setUseDefaultImage] = useState(false);
 
   useLayoutEffect(() => {
     navigation.setOptions({ headerShown: false });
@@ -62,30 +66,78 @@ export default function EditPlaylistScreen({ route, navigation }) {
     console.log("[DEBUG] Lista de canciones reordenada:", nuevaLista.map((s) => s.nombre));
   };
 
-  const handleImagePick = async () => {
+  const handleImagePick = () => {
+    setShowImageOptionsModal(true);
+  };
+
+  const pickImageFromDevice = async () => {
+    setUseDefaultImage(false);
     const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permissionResult.granted) {
       Alert.alert("Permiso denegado", "Se necesita acceso a la galería.");
       return;
     }
-
+  
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.7,
     });
-
+  
     if (!result.canceled && result.assets.length > 0) {
       const image = result.assets[0];
-      setPortadaUri(image.uri); // Vista previa
-      setNuevaPortada(image.uri); // Guardar para envío posterior
+      setPortadaUri(image.uri);
+      setNuevaPortada(image.uri);
+      setShowImageOptionsModal(false);
     }
+  };
+  
+  const openDefaultPhotos = async () => {
+    try {
+      const res = await fetch('https://echobeatapi.duckdns.org/playlists/default-photos');
+      const data = await res.json();
+      setDefaultPhotos(data);
+      setShowImageOptionsModal(false);
+      setShowDefaultPhotosModal(true);
+    } catch (error) {
+      Alert.alert("Error", "No se pudieron cargar las imágenes predefinidas.");
+    }
+  };
+  
+  const selectDefaultPhoto = (uri) => {
+    setUseDefaultImage(true);
+    setNuevaPortada(null); // eliminamos si había una portada anterior del dispositivo
+    setPortadaUri(uri);
+    setShowDefaultPhotosModal(false);
   };
 
   const guardarCambios = async () => {
     try {
       const baseUrl = `https://echobeatapi.duckdns.org/playlists`;
+
+      // Subir portada default
+      if (useDefaultImage && portadaUri) {
+        const formData = new FormData();
+        formData.append("userEmail", userEmail);
+        formData.append("file", {
+          uri: portadaUri,
+          name: "playlist.jpg",
+          type: "image/jpeg",
+        });
+      
+        await new Promise((resolve) => setTimeout(resolve, 700));
+      
+        const resDefault = await fetch(`${baseUrl}/update-photo/${playlistId}`, {
+          method: "POST",
+          body: formData,
+        });
+      
+        if (resDefault.status !== 200 && resDefault.status !== 201) {
+          const msg = await resDefault.text();
+          throw new Error(`Portada por URL: ${msg}`);
+        }
+      }
 
       // Subir portada si se cambió
       if (nuevaPortada) {
@@ -192,12 +244,15 @@ export default function EditPlaylistScreen({ route, navigation }) {
             </TouchableOpacity>
         </View>
 
-        <TouchableOpacity style={{ marginBottom: 20, alignSelf: 'center' }} onPress={handleImagePick}>
-          <Image source={{ uri: portadaUri }} style={styles.image} />
-          <View style={styles.imageOverlay}>
+        <View style={{ marginBottom: 20, alignSelf: 'center', position: 'relative' }}>
+          <TouchableOpacity onPress={handleImagePick}>
+            <Image source={{ uri: portadaUri }} style={styles.image} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handleImagePick} style={styles.imageOverlay}>
             <Ionicons name="pencil" size={20} color="#fff" />
-          </View>
-        </TouchableOpacity>
+          </TouchableOpacity>
+        </View>
+
         <Text style={styles.label}>Nombre de la Playlist *</Text>
         <TextInput
           style={styles.input}
@@ -276,6 +331,76 @@ export default function EditPlaylistScreen({ route, navigation }) {
             </Text>
           </View>
       )}
+      {/* Modal de opciones de imagen */}
+      <Modal
+        visible={showImageOptionsModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowImageOptionsModal(false)}
+      >
+        <View style={{
+          ...StyleSheet.absoluteFillObject,
+          backgroundColor: 'rgba(0,0,0,0.6)',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 999
+        }}>
+          <View style={{
+            width: '80%',
+            backgroundColor: '#2e2e2e',
+            borderRadius: 12,
+            padding: 20,
+            position: 'relative',
+          }}>
+            <TouchableOpacity style={{ backgroundColor: '#ffb723', borderRadius: 8, paddingVertical: 12, marginTop: 18 }} onPress={pickImageFromDevice}>
+              <Text style={{ textAlign: 'center', fontWeight: 'bold', color: '#000' }}>Elegir imagen del dispositivo</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={{ backgroundColor: '#ffb723', borderRadius: 8, paddingVertical: 12, marginTop: 18 }} onPress={openDefaultPhotos}>
+              <Text style={{ textAlign: 'center', fontWeight: 'bold', color: '#000' }}>Elegir foto predefinida</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={{ position: 'absolute', top: 12, right: 12 }} onPress={() => setShowImageOptionsModal(false)}>
+              <Ionicons name="close" size={24} color="#fff" />
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal para mostrar fotos predefinidas */}
+      <Modal
+        visible={showDefaultPhotosModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowImageOptionsModal(false)}
+      >
+        <View style={{
+          ...StyleSheet.absoluteFillObject,
+          backgroundColor: 'rgba(0,0,0,0.6)',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 999
+        }}>
+          <View style={{
+            width: '90%',
+            maxHeight: '80%',
+            backgroundColor: '#fff',
+            borderRadius: 12,
+            paddingTop: 40,
+            paddingBottom: 20,
+            paddingHorizontal: 10,
+          }}>
+            <TouchableOpacity style={{ position: 'absolute', top: 12, right: 12 }} onPress={() => setShowDefaultPhotosModal(false)}>
+              <Ionicons name="close" size={24} color="#000" />
+            </TouchableOpacity>
+            <ScrollView contentContainerStyle={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center' }}>
+              {defaultPhotos.map((item) => (
+                <TouchableOpacity key={item} onPress={() => selectDefaultPhoto(item)} style={{ margin: 5 }}>
+                  <Image source={{ uri: item }} style={{ width: 140, height: 140, borderRadius: 8 }} />
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
