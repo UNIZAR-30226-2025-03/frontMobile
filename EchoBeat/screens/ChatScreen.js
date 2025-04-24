@@ -130,17 +130,22 @@ export default function ChatScreen({ navigation, route }) {
     const marcarMensajesComoLeidos = async () => {
       if (chatDetail && userEmail) {
         try {
-          const url = `https://echobeatapi.duckdns.org/chat/marcarComoLeidos?contactEmail=${encodeURIComponent(chatDetail.contact)}&userEmail=${encodeURIComponent(userEmail)}`;
+          const senderId = chatDetail.contact;
+          const receiverId = userEmail;
+  
+          const url = `https://echobeatapi.duckdns.org/chat/marcarComoLeidos?senderId=${encodeURIComponent(senderId)}&receiverId=${encodeURIComponent(receiverId)}`;
           const response = await fetch(url, {
             method: 'POST',
             headers: { accept: '*/*' }
           });
+  
           if (!response.ok) {
             throw new Error("Error al marcar mensajes como leídos");
           }
-          console.log(`Mensajes de ${chatDetail.contact} marcados como leídos por ${userEmail}`);
+  
+          console.log(`✅ Marcado como leído: de ${senderId} para ${receiverId}`);
         } catch (error) {
-          console.error("Error al marcar mensajes como leídos:", error);
+          console.error("❌ Error al marcar mensajes como leídos:", error);
         }
       }
     };

@@ -21,6 +21,8 @@ export default function AlbumDetails({ navigation, route }) {
   const [cancionSonando, setCancionSonando] = useState(false);
   const [estaReproduciendo, setEstaReproduciendo] = useState(false);
   const rotation = useRef(new Animated.Value(0)).current;
+  const [playlistsUsuario, setPlaylistsUsuario] = useState([]);
+  const [mostrarPlaylists, setMostrarPlaylists] = useState(false);
 
   useLayoutEffect(() => {
     navigation.setOptions({ headerShown: false });
@@ -31,6 +33,8 @@ export default function AlbumDetails({ navigation, route }) {
       const email = await AsyncStorage.getItem("email");
       if (!email) return;
       setUserEmail(email);
+      const listasDelUsuario = await fetch(`https://echobeatapi.duckdns.org/playlists/user/${encodeURIComponent(email)}`).then(res => res.json());
+      setPlaylistsUsuario(listasDelUsuario);
       const [cancionesData, playlistData, favoritosData] = await Promise.all([
         fetch(`https://echobeatapi.duckdns.org/playlists/${playlist.Id}/songs`).then((res) => res.json()),
         fetch(`https://echobeatapi.duckdns.org/playlists/playlist/${playlist.Id}`).then((res) => res.json()),
@@ -175,6 +179,21 @@ export default function AlbumDetails({ navigation, route }) {
         </View>
       </TouchableOpacity>
     );
+  };
+
+  const addSongToPlaylist = async (idLista, songId) => {
+    try {
+      const response = await fetch(`https://echobeatapi.duckdns.org/playlists/add-song/${idLista}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idLista, songId }),
+      });
+      if (!response.ok) throw new Error("No se pudo añadir");
+      Alert.alert("Éxito", "Añadida a la playlist");
+      setSongOptionsVisible(false);
+    } catch (error) {
+      Alert.alert("Error", "Ya estaba añadida o no se pudo añadir");
+    }
   };
 
   const iniciarReproduccion = async () => {
@@ -327,10 +346,41 @@ export default function AlbumDetails({ navigation, route }) {
               <Ionicons name="close" size={24} color="#000" />
             </TouchableOpacity>
             <Text style={styles.songOptionsTitle}>Opciones para la canción</Text>
+
+            {/* Opción Añadir a Playlist */}
+            <TouchableOpacity 
+              style={[styles.modalOption, { alignItems: 'center' }]} 
+              onPress={() => setMostrarPlaylists(!mostrarPlaylists)}
+            >
+              <View style={{ flexDirection: "row", alignItems: "center" }}>
+                <Text style={[styles.songOptionsTitle, { fontSize: 16 }]}>Añadir a Playlist</Text>
+                <Ionicons 
+                  name={mostrarPlaylists ? "chevron-up" : "chevron-down"} 
+                  size={18} 
+                  color="#000" 
+                  style={{ marginLeft: 6 }} 
+                />
+              </View>
+            </TouchableOpacity>
+
+            {mostrarPlaylists && (
+              <View style={{ width: "100%" }}>
+                {playlistsUsuario.map((pl) => (
+                  <TouchableOpacity
+                    key={pl.Id}
+                    style={{ paddingVertical: 8, paddingLeft: 12 }}
+                    onPress={() => addSongToPlaylist(pl.Id, selectedSong.id || selectedSong.Id)}
+                  >
+                    <Text style={[styles.songOptionsTitle, { fontSize: 15 }]}>• {pl.Nombre}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
           </View>
           <View style={styles.songOptionsBlur} />
         </View>
       )}
+
       {infoVisible && (
         <View style={styles.infoOverlay}>
           <View style={styles.infoContainer}>

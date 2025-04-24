@@ -29,6 +29,8 @@ export default function PlaylistDetail({ navigation, route }) {
   const [orderDropdownVisible, setOrderDropdownVisible] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [infoLista, setInfoLista] = useState(null);
+  const [playlistsUsuario, setPlaylistsUsuario] = useState([]);
+  const [mostrarPlaylists, setMostrarPlaylists] = useState(false);
   const [playlistEdit, setPlaylistEdit] = useState({
     Nombre: "",
     Descripcion: "",
@@ -78,6 +80,7 @@ export default function PlaylistDetail({ navigation, route }) {
       const idsDelUsuario = listasDelUsuario.map((p) => p.Id);
       const esPropia = idsDelUsuario.includes(playlist.Id);
       setEsAutor(esPropia);
+      setPlaylistsUsuario(listasDelUsuario);
       console.log("Info de la playlist", infoPlaylist);
       return infoPlaylist;
     } catch (error) {
@@ -229,6 +232,37 @@ export default function PlaylistDetail({ navigation, route }) {
     } catch (error) {
       console.error("Error al eliminar canción:", error);
       Alert.alert("Error", error.message || "No se pudo eliminar la canción de la lista");
+    }
+  };
+
+  const likeSong = async (song) => {
+    const songId = song.id || song.Id;
+    const encodedEmail = encodeURIComponent(userEmail);
+    try {
+      const response = await fetch(`https://echobeatapi.duckdns.org/cancion/like/${encodedEmail}/${songId}`, {
+        method: 'POST',
+        headers: { accept: '*/*' }
+      });
+      if (!response.ok) throw new Error("Error al dar like");
+      setFavoritos((prev) => [...prev, songId]);
+      Alert.alert("Éxito", "Canción añadida a favoritos");
+    } catch (error) {
+      Alert.alert("Error", "Ya estaba en favoritos o falló");
+    }
+  };
+  
+  const addSongToPlaylist = async (idLista, songId) => {
+    try {
+      const response = await fetch(`https://echobeatapi.duckdns.org/playlists/add-song/${idLista}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idLista, songId }),
+      });
+      if (!response.ok) throw new Error("No se pudo añadir");
+      Alert.alert("Éxito", "Añadida a la playlist");
+      setSongOptionsVisible(false);
+    } catch (error) {
+      Alert.alert("Error", "Ya estaba añadida o no se pudo añadir");
     }
   };
 
@@ -626,9 +660,48 @@ export default function PlaylistDetail({ navigation, route }) {
                 <Ionicons name="close" size={24} color="#000" />
               </TouchableOpacity>
               <Text style={styles.songOptionsTitle}>Opciones para la canción</Text>
-              <TouchableOpacity style={styles.modalOption} onPress={eliminarCancionDeLista}>
-                <Text style={styles.modalOptionText}>Eliminar de la lista</Text>
+
+              <TouchableOpacity 
+                style={[styles.modalOption, { alignItems: 'center' }]} 
+                onPress={() => setMostrarPlaylists(!mostrarPlaylists)}
+              >
+                <View style={{ flexDirection: "row", alignItems: "center" }}>
+                  <Text style={[styles.modalOptionText, { textAlign: "center", fontSize: 16 }]}>  Añadir a Playlist</Text>
+                  <Ionicons 
+                    name={mostrarPlaylists ? "chevron-up" : "chevron-down"} 
+                    size={18} 
+                    color="#000" 
+                    style={{ marginLeft: 6 }} 
+                  />
+                </View>
               </TouchableOpacity>
+
+              {mostrarPlaylists && (
+                <View style={{ width: "100%" }}>
+                  {playlistsUsuario.map((pl) => (
+                    <TouchableOpacity
+                      key={pl.Id}
+                      style={{ paddingVertical: 8, paddingLeft: 12 }}
+                      onPress={() => addSongToPlaylist(pl.Id, selectedSong.id || selectedSong.Id)}
+                    >
+                      <Text style={[styles.modalOptionText, { fontSize: 15 }]}>• {pl.Nombre}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+              {esAutor && (
+                <View>
+                  <View style={{ height: 12 }} />
+                  <TouchableOpacity 
+                    style={[styles.modalOption, { alignItems: 'center' }]} 
+                    onPress={eliminarCancionDeLista}
+                  >
+                    <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center" }}>
+                      <Text style={[styles.modalOptionText, { textAlign: "center", fontSize: 16 }]}>Eliminar de la lista</Text>
+                    </View>
+                  </TouchableOpacity>
+                </View>
+              )}
             </View>
             <View style={styles.songOptionsBlur} />
           </View>
