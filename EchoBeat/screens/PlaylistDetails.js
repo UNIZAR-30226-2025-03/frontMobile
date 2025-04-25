@@ -26,14 +26,13 @@ export default function PlaylistDetail({ navigation, route }) {
   const [cola, setCola] = useState(null);
   const [esAutor, setEsAutor] = useState(false);
   const [orderDropdownVisible, setOrderDropdownVisible] = useState(false);
-  const [editMode, setEditMode] = useState(false);
   const [infoLista, setInfoLista] = useState(null);
   const [playlistsUsuario, setPlaylistsUsuario] = useState([]);
   const [mostrarPlaylists, setMostrarPlaylists] = useState(false);
   const [playlistEdit, setPlaylistEdit] = useState({
     Nombre: "",
     Descripcion: "",
-    TipoPrivacidad: "Publica",
+    TipoPrivacidad: "",
   });
   const [creadorEmail, setCreadorEmail] = useState("");
   const [privCreador, setPrivCreador] = useState("");
@@ -86,6 +85,7 @@ export default function PlaylistDetail({ navigation, route }) {
         Descripcion: infoPlaylist.Descripcion || "",
         TipoPrivacidad: playlistData.TipoPrivacidad,
       });
+      console.log("La privacidad es", playlistData.TipoPrivacidad);
       setInfoLista(infoPlaylist);
       setFavoritos((favoritosData.canciones || []).map((c) => c.id));
       //console.log("Listas del usuario", listasDelUsuario);
@@ -301,19 +301,6 @@ export default function PlaylistDetail({ navigation, route }) {
     }
   };
 
-  //Funcion para mover de posicion las canciones
-  const moverCancion = (cancion, direccion) => {
-    const index = songs.findIndex((s) => s.id === cancion.id);
-    const nuevoIndex = index + direccion;
-  
-    if (nuevoIndex < 0 || nuevoIndex >= songs.length) return;
-  
-    const nuevaLista = [...songs];
-    const [m] = nuevaLista.splice(index, 1);
-    nuevaLista.splice(nuevoIndex, 0, m);
-    setSongs(nuevaLista);
-  };
-
   // Render unificado para cada canción en PlaylistDetails: se muestra la imagen a la izquierda,
   // el nombre de la canción a la derecha de la imagen y los íconos (like y opciones) al final, con el like pegado a la izquierda de los tres puntos.
   const renderSong = ({ item, drag, isActive }) => {
@@ -334,16 +321,6 @@ export default function PlaylistDetail({ navigation, route }) {
         </View>
 
         <View style={styles.songIconsContainer}>
-        {editMode ? (
-          <View style={{ marginRight: 8, alignItems: "center" }}>
-            <TouchableOpacity onPress={() => moverCancion(item, -1)} style={{ marginBottom: 4 }}>
-              <Ionicons name="arrow-up" size={20} color="#fff" />
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => moverCancion(item, 1)}>
-              <Ionicons name="arrow-down" size={20} color="#fff" />
-            </TouchableOpacity>
-          </View>
-        ) : (
           <>
             <TouchableOpacity onPress={() => toggleFavorito(item.id)} style={styles.heartButton}>
               <Ionicons name="heart" size={22} color={esFavorita ? "#f2ab55" : "#fff"} />
@@ -355,7 +332,6 @@ export default function PlaylistDetail({ navigation, route }) {
               <Ionicons name="ellipsis-vertical" size={20} color="#fff" />
             </TouchableOpacity>
           </>
-        )}
       </View>
       </TouchableOpacity>
     );
@@ -448,94 +424,11 @@ export default function PlaylistDetail({ navigation, route }) {
     }
   };
 
-  {/*CAMBIAR*/}
-  //Funcion para guardar los cambios tras modificar la playlist
-  const guardarCambiosPlaylist = async () => {
-    try {
-      const baseUrl = `https://echobeatapi.duckdns.org/playlists`;
-      await Promise.all([
-        fetch(`${baseUrl}/update-nombre/${playlist.Id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ nuevoNombre: playlistEdit.Nombre }),
-        }),
-        fetch(`${baseUrl}/update-descripcion/${playlist.Id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ nuevaDescripcion: playlistEdit.Descripcion }),
-        }),
-        fetch(`${baseUrl}/update-privacidad/${playlist.Id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ nuevaPrivacidad: playlistEdit.TipoPrivacidad }),
-        }),
-        guardarNuevoOrden(songs),
-      ]);
-
-      setPlaylistInfo((prev) => ({
-        ...prev,
-        Nombre: playlistEdit.Nombre,
-        Descripcion: playlistEdit.Descripcion,
-        TipoPrivacidad: playlistEdit.TipoPrivacidad,
-      }));
-  
-      setEditMode(false);
-      Alert.alert("Cambios guardados");
-    } catch (error) {
-      console.error("Error al guardar cambios:", error);
-      Alert.alert("Error", "No se pudieron guardar los cambios");
-    }
-  };
-
-  const PlaylistEditForm = ({ playlistEdit, setPlaylistEdit}) => {
-    return (
-      <>
-        {/* Nombre */}
-        <Text style={styles.label}>Nombre de la Playlist *</Text>
-        <TextInput
-          style={styles.input}
-          value={playlistEdit.Nombre}
-          onChangeText={(text) => setPlaylistEdit((prev) => ({ ...prev, Nombre: text }))}
-        />
-  
-        {/* Privacidad */}
-        <Text style={styles.label}>Privacidad *</Text>
-        <View style={styles.pickerContainer}>
-          <Picker
-            selectedValue={playlistEdit.TipoPrivacidad}
-            onValueChange={(value) => setPlaylistEdit((prev) => ({ ...prev, TipoPrivacidad: value }))}
-            style={styles.picker}
-          >
-            <Picker.Item label="Pública" value="Publica" />
-            <Picker.Item label="Protegida" value="Protegida" />
-            <Picker.Item label="Privada" value="Privada" />
-          </Picker>
-        </View>
-  
-        {/* Descripción */}
-        <Text style={styles.label}>Descripción</Text>
-        <TextInput
-          style={[styles.input, { height: 80, textAlignVertical: "top" }]}
-          multiline
-          maxLength={150}
-          value={playlistEdit.Descripcion}
-          onChangeText={(text) => setPlaylistEdit((prev) => ({ ...prev, Descripcion: text }))}
-        />
-      </>
-    );
-  };
-
   const ListHeader = () => {
     const portada = infoLista?.Portada || playlist.Portada;
   
     return (
       <View style={{ paddingHorizontal: 20, paddingTop: 10, alignItems: "center" }}>
-        {editMode ? (
-          <PlaylistEditForm
-            playlistEdit={{ ...playlistEdit, Portada: portada }}
-            setPlaylistEdit={setPlaylistEdit}
-          />
-        ) : (
           <View style={styles.headerContent}>
             <Image
               source={{ uri: portada }}
@@ -580,7 +473,6 @@ export default function PlaylistDetail({ navigation, route }) {
               </View>
             )}
           </View>
-        )}
       </View>
     );
   };
@@ -590,21 +482,12 @@ export default function PlaylistDetail({ navigation, route }) {
   
     return (
       <View style={{ marginBottom: 80, alignItems: "center", paddingHorizontal: 20 }}>
-        {!editMode ? (
           <TouchableOpacity
             style={styles.addButton}
             onPress={() => navigation.navigate("Search", { defaultFilter: "Canción" })}
           >
             <Text style={styles.addButtonText}>+ Añadir canciones</Text>
           </TouchableOpacity>
-        ) : (
-          <TouchableOpacity
-            style={styles.submitButton}
-            onPress={guardarCambiosPlaylist}
-          >
-            <Text style={styles.submitButtonText}>Guardar cambios</Text>
-          </TouchableOpacity>
-        )}
       </View>
     );
   };

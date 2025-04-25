@@ -38,6 +38,7 @@ export default function EditPlaylistScreen({ route, navigation }) {
         const infoJson = await infoRes.json();
   
         setSongs(songsJson.canciones);
+        console.log("A editar llega la privacidad:", infoJson.TipoPrivacidad);
         setPlaylistEdit({
           Nombre: infoJson.Nombre || '',
           Descripcion: infoJson.Descripcion || '',
