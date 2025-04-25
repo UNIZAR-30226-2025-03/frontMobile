@@ -71,6 +71,7 @@ export default function HomeScreen({ navigation, route }) {
       
       if (!response.ok) throw new Error(data.message || "Error al obtener el nombre del usuario");
       setUserName(data.Nick || 'Usuario');
+      await AsyncStorage.setItem("nick", data.Nick);
       setProfilePhoto(data.LinkFoto);
       await obtenerPlaylistsCreadas(email);
       await obtenerRecomendaciones(email);

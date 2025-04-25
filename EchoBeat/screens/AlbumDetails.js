@@ -283,14 +283,13 @@ export default function AlbumDetails({ navigation, route }) {
       <Text style={styles.playlistDescription}>{playlist.Descripcion}</Text>
       <View style={styles.controlsRow}>
         <TouchableOpacity style={[styles.shuffleButton, shuffle && styles.shuffleActive]} onPress={() => setShuffle(prev => !prev)}>
-          <Ionicons name="shuffle" size={20} color={shuffle ? "#121111" : "#f2ab55"} />
+          <Ionicons name="shuffle" size={20} color={shuffle ? "#121111" : "#121111"} />
           <Text style={[styles.shuffleButtonText, shuffle && styles.shuffleButtonTextActive]}>
             {shuffle ? "Aleatorio activado" : "Aleatorio desactivado"}
           </Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.playButton} onPress={() => iniciarReproduccion()}>
           <Ionicons name="play" size={20} color="#121111" />
-          <Text style={styles.playButtonText}>Reproducir</Text>
         </TouchableOpacity>
       </View>
       <Text style={styles.sectionTitle}>Canciones</Text>

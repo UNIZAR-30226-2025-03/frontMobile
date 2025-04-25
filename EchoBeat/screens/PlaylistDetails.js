@@ -15,7 +15,6 @@ const { width } = Dimensions.get("window");
 export default function PlaylistDetail({ navigation, route }) {
   const { playlist } = route.params;
   const [songs, setSongs] = useState([]);
-  const [ordenOriginal, setOrdenOriginal] = useState([]); // NUEVO: Orden original de la playlist
   const [userEmail, setUserEmail] = useState("");
   const [playlistInfo, setPlaylistInfo] = useState(null);
   const [infoVisible, setInfoVisible] = useState(false);
@@ -36,10 +35,15 @@ export default function PlaylistDetail({ navigation, route }) {
     Descripcion: "",
     TipoPrivacidad: "Publica",
   });
+  const [creadorEmail, setCreadorEmail] = useState("");
+  const [privCreador, setPrivCreador] = useState("");
+  const [creadorNick, setCreadorNick] = useState("");
+  const [numLikes, setNumLikes] = useState(0);
+  const [isFriend, setIsFriend] = useState(false);
 
   const orderOptions = [
     { value: 0, label: "Orden original" },
-    { value: 1, label: "Orden por nombre" },
+    { value: 1, label: "Orden alfabético A-Z" },
     { value: 2, label: "Orden por reproducciones" },
   ];
 
@@ -64,10 +68,18 @@ export default function PlaylistDetail({ navigation, route }) {
         fetch(`https://echobeatapi.duckdns.org/playlists/user/${encodedEmail}`).then((res) => res.json()),
         fetch(`https://echobeatapi.duckdns.org/playlists/lista/${playlist.Id}`).then((res) => res.json()),
       ]);
+      // Información del autor de la playlist
+      console.log("PlaylistData", playlistData);
+      setCreadorEmail(playlistData.EmailAutor);
+      setPrivCreador(playlistData.Autor.Privacidad);
+      setCreadorNick(playlistData.Autor.Nick);
+      // Número de Likes de la playlist
+      setNumLikes(infoPlaylist.NumLikes);
+
+      // Canciones de la playlist
       setCola(cancionesData);
       const loadedSongs = cancionesData.canciones || [];
       setSongs([...loadedSongs]);
-      setOrdenOriginal([...loadedSongs]);
       setPlaylistInfo(playlistData);
       setPlaylistEdit({
         Nombre: infoPlaylist.Nombre || "",
@@ -76,12 +88,16 @@ export default function PlaylistDetail({ navigation, route }) {
       });
       setInfoLista(infoPlaylist);
       setFavoritos((favoritosData.canciones || []).map((c) => c.id));
-      const nombresDelUsuario = listasDelUsuario.map((p) => p.Nombre);
-      const idsDelUsuario = listasDelUsuario.map((p) => p.Id);
+      //console.log("Listas del usuario", listasDelUsuario);
+      let listas = listasDelUsuario.playlists ?? listasDelUsuario;
+      const idsDelUsuario = listas.map((p) => p.Id);
       const esPropia = idsDelUsuario.includes(playlist.Id);
       setEsAutor(esPropia);
-      setPlaylistsUsuario(listasDelUsuario);
-      console.log("Info de la playlist", infoPlaylist);
+      const amigosRes = await fetch(`https://echobeatapi.duckdns.org/amistades/verAmigos/${playlistData.Autor.Nick}`);
+      const amigosJson = await amigosRes.json();
+      setIsFriend(Array.isArray(amigosJson) &&amigosJson.some((a) => a.Email === email));
+      setPlaylistsUsuario(listas);
+      //console.log("Info de la playlist", infoPlaylist);
       return infoPlaylist;
     } catch (error) {
       console.error("Error en loadData:", error);
@@ -273,12 +289,6 @@ export default function PlaylistDetail({ navigation, route }) {
   };
 
   const handleOrderChange = async (orderValue) => {
-    if (orderValue === "original") {
-      // Restauramos el orden original sin llamar a la API.
-      setSongs(ordenOriginal);
-      setOrderDropdownVisible(false);
-      return;
-    }
     try {
       const response = await fetch(`https://echobeatapi.duckdns.org/playlists/ordenar-canciones/${playlist.Id}/${orderValue}`);
       const data = await response.json();
@@ -717,6 +727,16 @@ export default function PlaylistDetail({ navigation, route }) {
                 <>
                   <Text style={styles.infoText}>Privacidad: {playlistInfo.TipoPrivacidad}</Text>
                   <Text style={styles.infoText}>Género: {playlistInfo.Genero}</Text>
+                  {(esAutor ||
+                    privCreador === "publico" ||
+                    (privCreador === "protegido" && isFriend)) && (
+                    <View style={{ flexDirection: "row", alignItems: "center", marginRight: 8 }}>
+                      <Text style={{ color: "#000", marginLeft: 4, fontWeight: "bold" }}>
+                        {numLikes}
+                      </Text>
+                      <Ionicons name="heart" size={20} color="#000" />
+                    </View>
+                  )}
                 </>
               ) : (
                 <Text style={styles.infoText}>Cargando información...</Text>
@@ -1085,5 +1105,4 @@ const styles = StyleSheet.create({
     height: 80, 
     borderRadius: 35 
   },
-  
 });

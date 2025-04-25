@@ -25,7 +25,7 @@ export default function SearchResults({ route, navigation }) {
   const [estaReproduciendo, setEstaReproduciendo] = useState(false);
   const rotation = useRef(new Animated.Value(0)).current;
 
-  // Mapeo de opciones: usamos "Generos" sin tilde para la búsqueda por género.
+  // Mapeo de opciones para la búsqueda.
   const optionMap = {
     "Canción": "canciones",
     "Playlist": "playlists",
@@ -519,7 +519,7 @@ export default function SearchResults({ route, navigation }) {
             <View style={styles.itemTextContainer}>
               <Text style={styles.itemTitle}>{item.nombre || item.Nombre}</Text>
               <Text style={styles.itemSubtitle}>
-                Playlist • {item.numeroLikes || item.NumLikes || 0} likes
+                Playlist
               </Text>
             </View>
             <TouchableOpacity onPress={() => openModal(item)}>

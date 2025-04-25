@@ -145,7 +145,7 @@ export default function MyLists({ navigation }) {
           style={styles.playlistMain}
           onPress={() => {
             console.log('📀 Playlist enviada desde MyLists:', normalizedPlaylist);
-            if (normalizedPlaylist.guardada) {
+            if (item.TipoLista === 'Album') {
               // Navegar a AlbumDetails para playlists guardadas
               navigation.navigate("AlbumDetails", { playlist: normalizedPlaylist });
             } else {
