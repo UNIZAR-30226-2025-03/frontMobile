@@ -282,7 +282,7 @@ export default function ChatScreen({ navigation, route }) {
           style={styles.musicIconContainer}
         >
           <Animated.Image
-            source={require('../assets/favicon.png')}
+            source={require('../assets/disc.png')}
             style={[styles.musicIcon, { transform: [{ rotate: spin }] }]}
           />
         </TouchableOpacity>

@@ -2,10 +2,15 @@
   "expo": {
     "name": "EchoBeat",
     "slug": "EchoBeat",
+    "icon": "./assets/logo.png",
     "version": "1.0.0",
     "newArchEnabled": true,
     "scheme": "com.unizar.echobeat",
     "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/logo.png",
+        "backgroundColor": "#FFFFFF"
+      },
       "package": "com.unizar.echobeat",
       "permissions": [
         "android.permission.READ_EXTERNAL_STORAGE",
@@ -18,7 +23,8 @@
       "expo-router"
     ],
     "ios": {
-      "bundleIdentifier": "com.unizar.echobeat"
+      "bundleIdentifier": "com.unizar.echobeat",
+      "icon": "./assets/logo.png"
     },
     "extra": {
       "router": {
