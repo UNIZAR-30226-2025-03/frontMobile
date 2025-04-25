@@ -35,18 +35,16 @@ export default function EditPlaylistScreen({ route, navigation }) {
         ]);
   
         const songsJson = await songsRes.json();
-        const infoJson = await infoRes.json();
   
         setSongs(songsJson.canciones);
-        console.log("A editar llega la privacidad:", infoJson.TipoPrivacidad);
         setPlaylistEdit({
-          Nombre: infoJson.Nombre || '',
-          Descripcion: infoJson.Descripcion || '',
-          TipoPrivacidad: infoJson.TipoPrivacidad || 'publico',
+          Nombre: playlistEdit.Nombre || '',
+          Descripcion: playlistEdit.Descripcion || '',
+          TipoPrivacidad: playlistEdit.TipoPrivacidad || '',
         });
   
         // Usa la portada más reciente
-        setPortadaUri(infoJson.Portada);
+        setPortadaUri(playlistEdit.Portada);
       } catch (err) {
         console.error("Error al cargar datos:", err);
         Alert.alert("Error", "No se pudieron cargar los datos.");
