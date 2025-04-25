@@ -1,7 +1,7 @@
 import React, { useState, useRef, useLayoutEffect, useEffect, useCallback } from 'react';
 import { View, Text, FlatList, Image, StyleSheet, Dimensions, TouchableOpacity, Animated, Easing, RefreshControl } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useIsFocused } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width } = Dimensions.get('window');
@@ -13,6 +13,7 @@ export default function Chats({ navigation, route }) {
   const [cancionSonando, setCancionSonando] = useState(false);
   const [estaReproduciendo, setEstaReproduciendo] = useState(false);
   const rotation = useRef(new Animated.Value(0)).current;
+  const isFocused = useIsFocused();
 
   useLayoutEffect(() => {
     navigation.setOptions({ headerShown: false });
@@ -55,6 +56,16 @@ export default function Chats({ navigation, route }) {
   useEffect(() => {
     checkSongPlaying();
   }, []);
+
+  useEffect(() => {
+    if (!isFocused) return;
+  
+    const intervalId = setInterval(() => {
+      fetchChats();
+    }, 3000);
+  
+    return () => clearInterval(intervalId);
+  }, [isFocused, fetchChats]);
 
   const checkSongPlaying = async () => {
     const lastSong = await AsyncStorage.getItem('lastSong');
@@ -127,6 +138,8 @@ export default function Chats({ navigation, route }) {
     const tieneMensajeSinLeer = item.lastMensaje === item.contact && item.Leido === false;
     const esUltimoMensajeDelContacto = item.lastMensaje === item.contact;
     const mensajeLeido = item.Leido;
+
+    const mensajeAMostrar = esUltimoMensajeDelContacto ? item.mensaje : `Tú: ${item.mensaje}`;
   
     return (
       <TouchableOpacity 
@@ -145,7 +158,7 @@ export default function Chats({ navigation, route }) {
         <View style={styles.chatInfo}>
           <Text style={styles.friendEmail}>{item.contact}</Text>
           <View style={styles.mensajeConEstado}>
-            <Text style={styles.lastSong}>{item.mensaje}</Text>
+            <Text style={styles.lastSong}>{mensajeAMostrar}</Text>
             
             {/* Mostrar estado del mensaje solo si el último mensaje fue enviado por el usuario */}
             {!esUltimoMensajeDelContacto && (

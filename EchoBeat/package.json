@@ -23,6 +23,7 @@
     "expo": "~52.0.38",
     "expo-auth-session": "~6.0.3",
     "expo-av": "~15.0.2",
+    "expo-crypto": "~14.0.2",
     "expo-file-system": "~18.0.11",
     "expo-image-picker": "~16.0.6",
     "expo-router": "~4.0.18",
@@ -36,8 +37,7 @@
     "react-native-screens": "~4.4.0",
     "react-native-svg": "^15.11.1",
     "react-native-svg-transformer": "^1.5.0",
-    "socket.io-client": "^4.8.1",
-    "expo-crypto": "~14.0.2"
+    "socket.io-client": "^4.8.1"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0"

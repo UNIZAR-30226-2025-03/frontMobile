@@ -17,6 +17,7 @@ export default function EditPlaylistScreen({ route, navigation }) {
   const [defaultPhotos, setDefaultPhotos] = useState([]);
   const [showDefaultPhotosModal, setShowDefaultPhotosModal] = useState(false);
   const [useDefaultImage, setUseDefaultImage] = useState(false);
+  const [subiendoPortada, setSubiendoPortada] = useState(false);
 
   useLayoutEffect(() => {
     navigation.setOptions({ headerShown: false });
@@ -113,27 +114,26 @@ export default function EditPlaylistScreen({ route, navigation }) {
   };
 
   const guardarCambios = async () => {
+    if (subiendoPortada) return; // prevenir doble clic
+      setSubiendoPortada(true);
     try {
       const baseUrl = `https://echobeatapi.duckdns.org/playlists`;
 
       // Subir portada default
       if (useDefaultImage && portadaUri) {
-        const formData = new FormData();
-        formData.append("userEmail", userEmail);
-        formData.append("file", {
-          uri: portadaUri,
-          name: "playlist.jpg",
-          type: "image/jpeg",
-        });
-      
-        await new Promise((resolve) => setTimeout(resolve, 700));
-      
-        const resDefault = await fetch(`${baseUrl}/update-photo/${playlistId}`, {
+        const resDefault = await fetch(`https://echobeatapi.duckdns.org/playlists/update-cover`, {
           method: "POST",
-          body: formData,
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            userEmail: userEmail,
+            playlistId: playlistId,
+            imageUrl: portadaUri,
+          }),
         });
       
-        if (resDefault.status !== 200 && resDefault.status !== 201) {
+        if (!resDefault.ok) {
           const msg = await resDefault.text();
           throw new Error(`Portada por URL: ${msg}`);
         }
@@ -228,10 +228,12 @@ export default function EditPlaylistScreen({ route, navigation }) {
         setShowSuccess(false);
         if (onSave) onSave();
         navigation.goBack();
+        setSubiendoPortada(false);
       }, 1500);
     } catch (error) {
       console.error("Error al guardar cambios:", error.message);
       Alert.alert("❌ Error al guardar", error.message);
+      setSubiendoPortada(false);
     }
   };
 
@@ -300,7 +302,11 @@ export default function EditPlaylistScreen({ route, navigation }) {
           </View>
         ))}
 
-        <TouchableOpacity style={styles.button} onPress={guardarCambios}>
+        <TouchableOpacity 
+          style={[styles.button, subiendoPortada && { opacity: 0.5 }]} 
+          onPress={guardarCambios}
+          disabled={subiendoPortada}
+        >
           <Text style={styles.buttonText}>Guardar cambios</Text>
         </TouchableOpacity>
 
@@ -343,7 +349,6 @@ export default function EditPlaylistScreen({ route, navigation }) {
           backgroundColor: 'rgba(0,0,0,0.6)',
           justifyContent: 'center',
           alignItems: 'center',
-          zIndex: 999
         }}>
           <View style={{
             width: '80%',
