@@ -1,8 +1,24 @@
-// Welcome.js
+/**
+ * @file Welcome.js
+ * @description Pantalla de bienvenida que muestra un mensaje de bienvenida
+ * y el nombre del usuario recuperado de la API.
+ * - Recupera el email del usuario desde AsyncStorage.
+ * - Llama a la API para obtener el nombre completo del usuario.
+ * - Muestra un mensaje de bienvenida y redirige a la pantalla principal.
+ */
 import React, { useState, useLayoutEffect, useEffect } from 'react';
 import { View, Text, StyleSheet, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+/**
+ * Pantalla de bienvenida que muestra un mensaje de bienvenida
+ * y el nombre del usuario recuperado de la API.
+ * - Recupera el email del usuario desde AsyncStorage.
+ * - Llama a la API para obtener el nombre completo del usuario.
+ * - Muestra un mensaje de bienvenida y redirige a la pantalla principal.
+ * 
+ * @param {object} navigation - Prop de navegación de React Navigation.
+ */
 export default function Welcome({ navigation }) {
   const [userName, setUserName] = useState('user');
 
@@ -11,6 +27,15 @@ export default function Welcome({ navigation }) {
   }, [navigation]);
 
   useEffect(() => {
+    /**
+     * Función para recuperar el nombre del usuario desde la API.
+     * - Obtiene el email del usuario desde AsyncStorage.
+     * - Llama a la API para obtener el nombre completo.
+     * - Maneja errores y redirige a la pantalla de inicio de sesión si no se encuentra el email.
+     * - Almacena el flag 'logged' en AsyncStorage.
+     * 
+     * @returns {Promise<void>}
+     */
     const getUserInfo = async () => {
       try {
         const email = await AsyncStorage.getItem('email');
@@ -35,8 +60,14 @@ export default function Welcome({ navigation }) {
   }, [navigation]);
 
   useEffect(() => {
+    /**
+     * Redirige a la pantalla principal después de 2 segundos.
+     * - Si el usuario no está autenticado, redirige a la pantalla de inicio de sesión.
+     * 
+     * @returns {Function} Función de limpieza para cancelar el timeout.
+     */
     const timeout = setTimeout(() => {
-      navigation.replace('HomeScreen', {fromWelcome: true});
+      navigation.replace('HomeScreen');
     }, 2000);
     return () => clearTimeout(timeout);
   }, [navigation]);

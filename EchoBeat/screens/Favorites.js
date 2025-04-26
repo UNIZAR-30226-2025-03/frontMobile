@@ -1,3 +1,9 @@
+/**
+ * @file Favorites.js
+ * @description Pantalla de Favoritos: muestra las canciones marcadas como favoritas,
+ * permite reproducir la cola completa o desde un punto,
+ * y eliminar canciones de favoritos.
+ */
 import React, { useState, useLayoutEffect, useEffect, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Image, Animated, Easing, FlatList, Dimensions, Alert, RefreshControl, TouchableWithoutFeedback, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -6,6 +12,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width } = Dimensions.get('window');
 
+/**
+ * Pantalla de Favoritos: muestra las canciones marcadas como favoritas,
+ * permite ordenarlas, reproducir la cola completa o desde un punto,
+ * y eliminar canciones de favoritos.
+ *
+ * @param {object} navigation - Prop de navegación de React Navigation.
+ */
 export default function FavoritesScreen({ navigation }) {
   const [songs, setSongs] = useState([]);
   const [userEmail, setUserEmail] = useState('');
@@ -26,6 +39,11 @@ export default function FavoritesScreen({ navigation }) {
     navigation.setOptions({ headerShown: false });
   }, [navigation]);
 
+  /**
+   * Recupera el email del usuario desde AsyncStorage.
+   * 
+   * @returns {Promise<string|null>} El email o null si no existe.
+   */
   const obtenerEmail = async () => {
     try {
       const email = await AsyncStorage.getItem('email');
@@ -39,6 +57,12 @@ export default function FavoritesScreen({ navigation }) {
     return null;
   };
 
+  /**
+   * Llama a la API para obtener las canciones favoritas del usuario
+   * y actualiza los estados de canciones, ordenOriginal y cola.
+   * 
+   * @returns {Promise<void>}
+   */
   const obtenerCanciones = async () => {
     try {
       const email = await obtenerEmail();
@@ -63,6 +87,14 @@ export default function FavoritesScreen({ navigation }) {
     return 0; // Sin orden = orden original
   });
 
+  /**
+   * Cambia el criterio de ordenación de las canciones:
+   * 'original' para restaurar orden original,
+   * 'nombre' para orden alfabético por nombre.
+   *
+   * @param {string} orderValue - Valor de orden ('original'|'nombre').
+   * @returns {void}
+   */
   const handleOrderChange = (orderValue) => {
     if (orderValue === 'original') {
       setSongs(ordenOriginal);
@@ -73,6 +105,11 @@ export default function FavoritesScreen({ navigation }) {
     setOrderDropdownVisible(false);
   };
 
+  /**
+   * Carga inicial de datos: favoritos y estado de reproducción.
+   * 
+   * @returns {Promise<void>}
+   */
   const loadData = async () => {
     await obtenerCanciones();
   };
@@ -89,6 +126,12 @@ export default function FavoritesScreen({ navigation }) {
     checkSongPlaying();
   }, []);
 
+  /**
+   * Comprueba en AsyncStorage si hay una canción sonando y su estado,
+   * y arranca o detiene la animación de giro.
+   * 
+   * @returns {Promise<void>}
+   */
   const checkSongPlaying = async () => {
     const lastSong = await AsyncStorage.getItem('lastSong');
     const isPlaying = await AsyncStorage.getItem('isPlaying');
@@ -106,6 +149,11 @@ export default function FavoritesScreen({ navigation }) {
     }
   };
 
+  /**
+   * Inicia la animación de giro en bucle para el ícono de disco.
+   * 
+   * @returns {void}
+   */
   const startRotationLoop = () => {
     rotation.setValue(0);
     Animated.loop(
@@ -118,6 +166,11 @@ export default function FavoritesScreen({ navigation }) {
     ).start();
   };
 
+  /**
+   * Detiene la animación de giro y restablece la rotación.
+   * 
+   * @returns {void}
+   */
   const stopRotation = () => {
     rotation.stopAnimation(() => {
       rotation.setValue(0);
@@ -129,6 +182,11 @@ export default function FavoritesScreen({ navigation }) {
     outputRange: ['0deg', '360deg'],
   });
 
+  /**
+   * Recupera la última canción de AsyncStorage y navega al reproductor.
+   * 
+   * @returns {Promise<void>}
+   */
   const handleOpenMusicPlayer = async () => {
     try {
       const lastSong = await AsyncStorage.getItem('lastSong');
@@ -149,6 +207,11 @@ export default function FavoritesScreen({ navigation }) {
     }
   };
 
+  /**
+   * Inicia la reproducción de toda la cola de favoritos.
+   * 
+   * @returns {Promise<void>}
+   */
   const iniciarReproduccion = async () => {
     try {
       const body = {
@@ -182,6 +245,13 @@ export default function FavoritesScreen({ navigation }) {
     }
   };
 
+  /**
+   * Inicia la reproducción desde una canción específica de la lista.
+   *
+   * @param {object} song - Objeto canción seleccionada.
+   * @param {number} index - Índice de la canción en la lista.
+   * @return {Promise<void>}
+   */
   const iniciarReproduccionDesdeCancion = async (song, index) => {
     try {
       const body = {
@@ -213,7 +283,11 @@ export default function FavoritesScreen({ navigation }) {
     }
   };
 
-  // Función para eliminar (quitar de favoritos) una canción
+  /**
+   * Elimina la canción seleccionada de los favoritos del usuario.
+   * 
+   * @returns {Promise<void>}
+   */
   const eliminarCancionDeFavoritos = async () => {
     if (!selectedSong || !userEmail) return;
     try {
@@ -235,12 +309,23 @@ export default function FavoritesScreen({ navigation }) {
     }
   };
 
+  /**
+   * Refresca la lista de favoritos al hacer pull-to-refresh.
+   * 
+   * @returns {Promise<void>}
+   */
   const onRefresh = async () => {
     setRefreshing(true);
     await loadData();
     setRefreshing(false);
   };
 
+  /**
+   * Renderiza cada item de canción en el listado de favoritos.
+   *
+   * @param {{ item: object }} param0
+   * @returns {JSX.Element}
+   */
   const renderSong = ({ item }) => (
     <TouchableOpacity
       style={styles.songItem}
@@ -268,7 +353,12 @@ export default function FavoritesScreen({ navigation }) {
     </TouchableOpacity>
   );
 
-  // Renderiza el modal de opciones para la canción (incluyendo eliminar)
+  /**
+   * Renderiza el modal de opciones para la canción seleccionada
+   * (por ejemplo, eliminar de favoritos).
+   * 
+   * @returns {JSX.Element|null}
+   */
   const renderSongOptionsModal = () => {
     if (!selectedSong) return null;
     return (
@@ -295,6 +385,11 @@ export default function FavoritesScreen({ navigation }) {
     );
   };
 
+  /**
+   * Componente de cabecera con controles de reproducción, shuffle y ordenación.
+   * 
+   * @returns {JSX.Element}
+   */
   const ListHeader = () => (
     <View style={styles.headerContent}>
       <Image source={require('../assets/favorites.jpg')} style={styles.playlistImage} />

@@ -1,12 +1,28 @@
+/**
+ * @file Login_Register.js
+ * @description Pantalla de inicio de sesión y registro.
+ * Permite al usuario iniciar sesión con correo y contraseña,
+ * recuperar contraseña, registrarse y autenticarse con Google.
+ * Redirige al usuario según su estado (nuevo o existente).
+ */
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView, Image, Alert, TouchableWithoutFeedback, Keyboard } from 'react-native';
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
-import { makeRedirectUri } from 'expo-auth-session';
 
 WebBrowser.maybeCompleteAuthSession();
 
+/**
+ * Componente de autenticación que permite:
+ * - Iniciar sesión con correo y contraseña.
+ * - Recuperar contraseña.
+ * - Registrar cuenta nueva.
+ * - Autenticar vía Google OAuth.
+ * Redirige al usuario según su estado (nuevo o existente).
+ *
+ * @param {object} navigation - Prop de navegación de React Navigation.
+ */
 export default function Login_Register({ navigation }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -20,6 +36,16 @@ export default function Login_Register({ navigation }) {
   );
   
   useEffect(() => {
+    /**
+     * Función que maneja la respuesta de Google después de la autenticación.
+     * - Si la autenticación es exitosa, obtiene el token de acceso.
+     * - Realiza una llamada a la API para obtener información del usuario.
+     * - Almacena el token y el correo en AsyncStorage.
+     * - Redirige al usuario a la pantalla de preferencias de género o a la pantalla principal.
+     * - Maneja errores en la autenticación o en la llamada a la API.
+     * 
+     * @returns {void}
+     */
     const checkLogin = async () => {
       if(response) {
         if (response.type === 'success') {
@@ -58,6 +84,12 @@ export default function Login_Register({ navigation }) {
     checkLogin();
   });
 
+  /**
+   * Maneja el inicio de sesión con email y contraseña,
+   * almacena el token y redirige a la pantalla principal.
+   * 
+   * @returns {void}
+   */
   const handleLogin = async () => {
     try {
       const response = await fetch("https://echobeatapi.duckdns.org/auth/login", {

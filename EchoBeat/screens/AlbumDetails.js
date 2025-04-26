@@ -1,3 +1,9 @@
+/**
+ * @file AlbumDetails.js
+ * @description Pantalla que muestra los detalles de un álbum (playlist),
+ * incluyendo portada, descripción, lista de canciones, y permite acciones
+ * como reproducir, alternar aleatorio, favoritar y añadir canciones a otras playlists.
+ */
 import React, { useState, useLayoutEffect, useEffect, useCallback, useRef } from "react";
 import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Image, Animated, Easing, FlatList, Dimensions, Alert, RefreshControl, Keyboard, } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -42,6 +48,8 @@ export default function AlbumDetails({ navigation, route }) {
    * - Canciones del álbum
    * - Metadatos del álbum
    * - Canciones favoritas del usuario
+   * 
+   * @returns {Promise<void>}
    */
   const loadData = async () => {
     try {
@@ -79,6 +87,8 @@ export default function AlbumDetails({ navigation, route }) {
   /**
    * Comprueba si hay una canción actualmente en reproducción
    * y gestiona el estado de la animación de rotación.
+   * 
+   * @returns {Promise<void>}
    */
   const checkSongPlaying = async () => {
     const lastSong = await AsyncStorage.getItem('lastSong');
@@ -99,6 +109,8 @@ export default function AlbumDetails({ navigation, route }) {
 
   /**
    * Inicia un bucle de animación rotatoria continua.
+   * 
+   * @returns {void}
    */
   const startRotationLoop = () => {
     rotation.setValue(0);
@@ -114,6 +126,8 @@ export default function AlbumDetails({ navigation, route }) {
 
   /**
    * Detiene la animación rotatoria y reinicia su valor.
+   * 
+   * @returns {void}
    */
   const stopRotation = () => {
     rotation.stopAnimation(() => {
@@ -129,6 +143,8 @@ export default function AlbumDetails({ navigation, route }) {
   /**
    * Navega a la pantalla del reproductor con la última canción
    * registrada en AsyncStorage.
+   * 
+   * @returns {Promise<void>}
    */
   const handleOpenMusicPlayer = async () => {
     try {
@@ -154,6 +170,7 @@ export default function AlbumDetails({ navigation, route }) {
    * Alterna el estado de favorito de una canción via API.
    *
    * @param {number} songId - ID de la canción a alternar.
+   * @returns {Promise<void>}
    */
   const toggleFavorito = async (songId) => {
     if (!userEmail) {
@@ -179,6 +196,8 @@ export default function AlbumDetails({ navigation, route }) {
 
   /**
    * Refresh control para recargar datos de la pantalla.
+   * 
+   * @returns {Promise<void>}
    */
   const onRefresh = async () => {
     setRefreshing(true);
@@ -190,6 +209,8 @@ export default function AlbumDetails({ navigation, route }) {
    * Renderiza cada canción en la FlatList.
    *
    * @param {object} param0 - Objeto con el item de la canción.
+   * @param {object} param0.item - Objeto de canción.
+   * @returns {JSX.Element} - Componente de canción.
    */
   const renderSong = ({ item }) => {
     const esFavorita = favoritos.includes(item.id);
@@ -226,6 +247,7 @@ export default function AlbumDetails({ navigation, route }) {
    *
    * @param {number} idLista - ID de la playlist destino.
    * @param {number} songId - ID de la canción a añadir.
+   * @returns {Promise<void>}
    */
   const addSongToPlaylist = async (idLista, songId) => {
     try {
@@ -246,6 +268,8 @@ export default function AlbumDetails({ navigation, route }) {
    * Inicia reproducción de la playlist desde la primera canción.
    * Usa la API de cola de reproducción. 
    * Tiene en cuenta el estado de aleatorio.
+   * 
+   * @returns {Promise<void>}
    */
   const iniciarReproduccion = async () => {
     try {
@@ -301,6 +325,8 @@ export default function AlbumDetails({ navigation, route }) {
    *
    * @param {object} song - Objeto de canción.
    * @param {number} index - Índice de la canción en la cola.
+   * 
+   * @returns {Promise<void>}
    */
   const iniciarReproduccionDesdeCancion = async (song, index) => {
     try {
@@ -333,6 +359,8 @@ export default function AlbumDetails({ navigation, route }) {
   /**
    * Cabecera de la lista: muestra portada, título, descripción,
    * controles de mezcla y botón de reproducir.
+   * 
+   * @returns {JSX.Element}
    */
   const ListHeader = () => (
     <View style={styles.headerContent}>
@@ -360,6 +388,12 @@ export default function AlbumDetails({ navigation, route }) {
     </View>
   );
 
+  /**
+   * Formatea una fecha ISO a un formato legible.
+   *
+   * @param {string} isoString - Fecha en formato ISO.
+   * @returns {string} - Fecha formateada.
+   */
   const formatDate = (isoString) => {
     const d = new Date(isoString);
     const day = String(d.getDate()).padStart(2, '0');

@@ -1,9 +1,21 @@
+/**
+ * @file MyLists.js
+ * @description Pantalla que muestra las playlists creadas y guardadas por el usuario.
+ * Permite borrar y "olvidar" las playlists.
+ * Incluye un botón para crear nuevas playlists.
+ */
 import React, { useState, useEffect, useLayoutEffect } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Image, FlatList, ActivityIndicator, Modal, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 
+/**
+ * Componente de pantalla que muestra las playlists creadas y guardadas por el usuario,
+ * permitiendo borrarlas o “olvidarlas” (desguardarlas).
+ *
+ * @param {object} navigation - Prop de navegación de React Navigation.
+ */
 export default function MyLists({ navigation }) {
   const [playlists, setPlaylists] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -26,6 +38,11 @@ export default function MyLists({ navigation }) {
     }, [])
   );
 
+  /**
+   * Obtiene el email del usuario desde AsyncStorage
+   * 
+   * @returns {Promise<void>}
+   */
   const obtenerEmail = async () => {
     try {
       const email = await AsyncStorage.getItem("email");
@@ -35,6 +52,12 @@ export default function MyLists({ navigation }) {
     }
   };
 
+  /**
+   * Descarga las playlists creadas y las guardadas,
+   * las combina y actualiza el estado.
+   * 
+   * @returns {Promise<void>}
+   */
   const obtenerPlaylists = async () => {
     try {
       const email = await AsyncStorage.getItem("email");
@@ -74,12 +97,22 @@ export default function MyLists({ navigation }) {
     }
   };
 
+  /**
+   * Abre el modal de opciones para la playlist indicada.
+   * 
+   * @param {object} playlist - Playlist a gestionar.
+   * @returns {void}
+   */
   const openOptionsModal = (playlist) => {
     setSelectedPlaylist(playlist);
     setModalVisible(true);
   };
 
-  // Función para borrar playlist creada por el usuario usando el endpoint actualizado
+  /**
+   * Borra la playlist creada por el usuario usando el endpoint DELETE.
+   * 
+   * @returns {Promise<void>}
+   */
   const borrarPlaylist = async () => {
     if (!selectedPlaylist) return;
     try {
@@ -108,7 +141,11 @@ export default function MyLists({ navigation }) {
     }
   };
 
-  // Función para olvidar (desguardar) una playlist guardada
+  /**
+   * Desguarda (olvida) una playlist que el usuario había guardado.
+   * 
+   * @returns {Promise<void>}
+   */
   const olvidarPlaylist = async () => {
     if (!selectedPlaylist) return;
     try {
@@ -129,6 +166,12 @@ export default function MyLists({ navigation }) {
     }
   };
 
+  /**
+   * Función de renderizado para cada playlist en la lista.
+   * 
+   * @param {{ item: object }} param0 - Objeto con la playlist a renderizar.
+   * @returns {JSX.Element} Elemento JSX que representa la playlist.
+   */
   const renderPlaylist = ({ item }) => {
     // Normalizamos el objeto para que incluya la propiedad "Id" (con mayúscula)
     const normalizedPlaylist = {
@@ -192,7 +235,7 @@ export default function MyLists({ navigation }) {
       ) : playlists.length === 0 ? (
         <View style={styles.emptyMessageContainer}>
           <Text style={styles.emptyMessageText}>
-            No has creado ni guardado ninguna playlist aún{'\n'}¡Créala o guárdala presionando el botón '+'!
+            No has creado ni guardado ninguna playlist aún{'\n'}¡Créa una presionadno el botón'+'!{'\n'}¡O busca una y guárdala!
           </Text>
         </View>
       ) : (

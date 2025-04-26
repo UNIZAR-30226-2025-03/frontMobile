@@ -1,9 +1,24 @@
+/**
+ * @file Search.js
+ * @description Pantalla de búsqueda que permite al usuario buscar canciones,
+ * artistas, álbumes o géneros. Incluye un botón para abrir
+ * el reproductor de música si hay una canción en reproducción.
+ */
 import React, { useState, useLayoutEffect, useEffect, useCallback, useRef } from 'react';
 import { View, Text, TouchableOpacity, TextInput, StyleSheet, Animated, Easing, TouchableWithoutFeedback, Keyboard, Modal, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+/**
+ * Pantalla de búsqueda que permite al usuario buscar canciones,
+ * artistas, álbumes o géneros. Incluye un botón para abrir
+ * el reproductor de música si hay una canción en reproducción.
+ * 
+ * @param {object} navigation - Prop de navegación de React Navigation.
+ * @param {object} route - Prop de ruta de React Navigation.
+ * @param {string} route.params.defaultFilter - Filtro de búsqueda por defecto.
+ */
 export default function Search({ navigation, route }) {
   const [searchText, setSearchText] = useState('');
   const [selectedOption, setSelectedOption] = useState(null);
@@ -50,6 +65,13 @@ export default function Search({ navigation, route }) {
     checkSongPlaying();
   }, [route.params]);
 
+  /**
+   * Comprueba si hay una canción en reproducción guardada en AsyncStorage y
+   * actualiza los estados 'cancionSonando' y 'estaReproduciendo', además de
+   * iniciar o detener la animación de rotación según corresponda.
+   * 
+   * @returns {Promise<void>}
+   */  
   const checkSongPlaying = async () => {
     const lastSong = await AsyncStorage.getItem('lastSong');
     const isPlaying = await AsyncStorage.getItem('isPlaying');
@@ -67,6 +89,11 @@ export default function Search({ navigation, route }) {
     }
   };
 
+  /**
+   * Inicia un bucle de animación que rota indefinidamente el icono de la discográfica.
+   * 
+   * @returns {void}
+   */
   const startRotationLoop = () => {
     rotation.setValue(0);
     Animated.loop(
@@ -79,6 +106,11 @@ export default function Search({ navigation, route }) {
     ).start();
   };
 
+  /**
+   * Detiene la animación de rotación y resetea el valor de rotación a cero.
+   * 
+   * @returns {void}
+   */
   const stopRotation = () => {
     rotation.stopAnimation(() => {
       rotation.setValue(0);
@@ -90,6 +122,12 @@ export default function Search({ navigation, route }) {
     outputRange: ['0deg', '360deg'],
   });
 
+  /**
+   * Navega al reproductor de música usando la canción y el ID almacenados
+   * en AsyncStorage, si existen.
+   * 
+   * @returns {Promise<void>}
+   */
   const handleOpenMusicPlayer = async () => {
     try {
       const lastSong = await AsyncStorage.getItem('lastSong');
@@ -110,6 +148,13 @@ export default function Search({ navigation, route }) {
     }
   };
 
+  /**
+   * Maneja la pulsación de una opción de filtro. Para "Generos" abre un modal,
+   * para el resto alterna la selección.
+   * 
+   * @param {string} option - Opción pulsada.
+   * @returns {void}
+   */
   const handleOptionPress = (option) => {
     if (option === "Generos") {
       setModalVisible(true);
@@ -120,7 +165,14 @@ export default function Search({ navigation, route }) {
     }
   };
 
-  // Navegamos a SearchResults pasando el texto y la opción.
+  /**
+   * Realiza la navegación a la pantalla SearchResults, pasando el texto y
+   * la opción seleccionada como parámetros.
+   * 
+   * @param {string} query - Texto de búsqueda.
+   * @param {string|null} filterOption - Filtro seleccionado.
+   * @returns {void}
+   */
   const navigateToResults = (query, filterOption) => {
     navigation.navigate('SearchResults', {
       initialSearchText: query,
@@ -128,8 +180,12 @@ export default function Search({ navigation, route }) {
     });
   };
 
-  // Función para cuando se pulsa el botón Buscar (búsqueda normal)
-  // Se valida que el texto a buscar no sea vacío.
+  /**
+   * Gestiona la acción de búsqueda desde el input principal, validando que
+   * no esté vacío y luego llamando a 'navigateToResults'.
+   * 
+   * @returns {void}
+   */
   const handleSearch = () => {
     if (!searchText.trim()) {
       setErrorMessage("Ingrese un texto para buscar");
@@ -139,14 +195,25 @@ export default function Search({ navigation, route }) {
     navigateToResults(searchText, selectedOption);
   };
 
-  // Para la búsqueda por género, se usa el género seleccionado desde el modal
+  /**
+   * Selecciona un género desde el modal y navega a SearchResults con ese
+   * género como consulta y filtro "Generos".
+   * 
+   * @param {string} genero - Género seleccionado.
+   * @return {void}
+   */
   const selectGenero = (genero) => {
     setModalVisible(false);
     // Como se seleccionó un género, este texto nunca estará vacío.
     navigateToResults(genero, "Generos");
   };
 
-  // Obtención de géneros (solo nombre) para mostrar en el modal
+  /**
+   * Obtiene la lista de géneros disponibles desde la API para mostrarlos
+   * en el modal de selección.
+   * 
+   * @returns {Promise<void>}
+   */
   const obtenerGenerosModal = async () => {
     if (!userEmail) return;
     try {

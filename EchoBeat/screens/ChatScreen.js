@@ -1,3 +1,8 @@
+/**
+ * @file ChatScreen.js
+ * Pantalla de chat que alterna entre una lista de chats recientes y una conversación con un contacto específico.
+ * También muestra un icono giratorio si hay música en reproducción.
+ */
 import React, { useState, useRef, useLayoutEffect, useEffect } from 'react';
 import { View, Text,FlatList, Image, TextInput, TouchableOpacity, StyleSheet, Dimensions, KeyboardAvoidingView, Platform, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -37,6 +42,12 @@ export default function ChatScreen({ navigation, route }) {
    * Obtiene el email del usuario desde AsyncStorage al montar el componente.
    */
   useEffect(() => {
+    /**
+     * Función asíncrona para obtener el email del usuario.
+     * Se almacena en el estado local para su uso posterior.
+     * Maneja errores de forma básica.
+     * @returns {Promise<void>}
+     */
     const fetchUserEmail = async () => {
       try {
         const email = await AsyncStorage.getItem('email');
@@ -57,6 +68,8 @@ export default function ChatScreen({ navigation, route }) {
 
   /**
    * Inicia animación de rotación infinita para el ícono de música en modo lista.
+   * La animación se detiene si hay un chat activo (modo conversación).
+   * @returns {void}
    */
   useEffect(() => {
     if (!chatDetail) {
@@ -77,6 +90,8 @@ export default function ChatScreen({ navigation, route }) {
 
   /**
    * Carga los chats recientes del usuario desde la API cuando estamos en modo lista.
+   * Se ejecuta solo si no hay un chat activo (modo conversación).
+   * @returns {void}
    */
   useEffect(() => {
     if (!chatDetail && userEmail) {
@@ -102,6 +117,8 @@ export default function ChatScreen({ navigation, route }) {
 
   /**
    * Carga el historial de mensajes para la conversación activa cada 3 segundos.
+   * 
+   * @returns {void}
    */
   useEffect(() => {
     if (chatDetail && userEmail) {
@@ -134,6 +151,8 @@ export default function ChatScreen({ navigation, route }) {
 
   /**
    * Marca todos los mensajes del chat como leídos al abrir la conversación.
+   * 
+   * @returns {void}
    */
   useEffect(() => {
     const marcarMensajesComoLeidos = async () => {
@@ -152,7 +171,7 @@ export default function ChatScreen({ navigation, route }) {
             throw new Error("Error al marcar mensajes como leídos");
           }
   
-          console.log(`✅ Marcado como leído: de ${senderId} para ${receiverId}`);
+          //console.log(`✅ Marcado como leído: de ${senderId} para ${receiverId}`);
         } catch (error) {
           console.error("❌ Error al marcar mensajes como leídos:", error);
         }
@@ -165,6 +184,8 @@ export default function ChatScreen({ navigation, route }) {
   /**
    * Envía un mensaje en la conversación actual a través de la API
    * y actualiza localmente la lista de mensajes.
+   * 
+   * @returns {void}
    */
   const sendMessage = async () => {
     if (!message.trim()) return;
@@ -184,7 +205,7 @@ export default function ChatScreen({ navigation, route }) {
         throw new Error("Error al guardar el mensaje");
       }
       const data = await response.json();
-      console.log("Mensaje guardado:", data);
+      //console.log("Mensaje guardado:", data);
     } catch (error) {
       console.error("Error al guardar el mensaje:", error);
     }
@@ -201,6 +222,7 @@ export default function ChatScreen({ navigation, route }) {
    * Renderiza cada ítem de la lista de chats recientes.
    *
    * @param {object} item - Objeto con datos del chat (contact, foto, mensaje).
+   * @return {JSX.Element} - Elemento de chat.
    */
   const renderChatItem = ({ item }) => (
     <TouchableOpacity

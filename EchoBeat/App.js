@@ -1,7 +1,6 @@
 import * as React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import Login_Register from './screens/Login_Register';
 import Register from './screens/Register';
 import Welcome from './screens/Welcome';
@@ -11,7 +10,6 @@ import ForgottenPswd from './screens/ForgottenPswd';
 import Search from './screens/Search';
 import Chats from './screens/Chats';
 import Favorites from './screens/Favorites';
-import Settings from './screens/Settings';
 import MyLists from './screens/MyLists';
 import MusicPlayer from './screens/MusicPlayer';
 import GeneroPreferences from './screens/GeneroPreferences';
@@ -42,7 +40,6 @@ export default function App() {
         <Stack.Screen name="Search" component={Search} />
         <Stack.Screen name="Chats" component={Chats} />
         <Stack.Screen name="Favorites" component={Favorites} />
-        <Stack.Screen name="Settings" component={Settings} />
         <Stack.Screen name="MyLists" component={MyLists} />
         <Stack.Screen name="MusicPlayer" component={MusicPlayer} />
         <Stack.Screen name="GeneroPreferences" component={GeneroPreferences} />

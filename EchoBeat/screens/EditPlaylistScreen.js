@@ -1,3 +1,7 @@
+/**
+ * @file EditPlaylistScreen.js
+ * @description Pantalla para editar una playlist existente.
+ */
 import React, { useEffect, useState, useLayoutEffect } from "react";
 import {View,Text,StyleSheet,SafeAreaView,TouchableOpacity,Image,Alert,ScrollView,TextInput,Modal} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -5,6 +9,16 @@ import { Picker } from "@react-native-picker/picker";
 import * as ImagePicker from "expo-image-picker";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
+/**
+ * Pantalla para editar una playlist existente.
+ * Permite modificar nombre, descripción, privacidad, portada y orden de canciones.
+ *
+ * @param {object} route.params.playlistEdit - Datos iniciales de la playlist (Nombre, Descripción, TipoPrivacidad, Portada).
+ * @param {string} route.params.playlistId - ID de la playlist a editar.
+ * @param {array} route.params.songs - Lista de canciones inicial.
+ * @param {function} route.params.onSave - Callback para actualizar datos después de guardar.
+ * @param {object} navigation - Prop de navegación de React Navigation.
+ */
 export default function EditPlaylistScreen({ route, navigation }) {
   const { playlistEdit: initialEditData, playlistId, songs: initialSongs, onSave } = route.params;
   const [playlistEdit, setPlaylistEdit] = useState(initialEditData);
@@ -54,6 +68,14 @@ export default function EditPlaylistScreen({ route, navigation }) {
     loadInitialData();
   }, []);
 
+  /**
+   * Reordena la lista de canciones moviendo una canción una posición arriba o abajo.
+   *
+   * @param {object} cancion - Objeto canción a mover.
+   * @param {number} direccion - -1 para subir, +1 para bajar.
+   * 
+   * @returns {void}
+   */
   const moverCancion = (cancion, direccion) => {
     const index = songs.findIndex((s) => s.id === cancion.id);
     const nuevoIndex = index + direccion;
@@ -66,10 +88,21 @@ export default function EditPlaylistScreen({ route, navigation }) {
     console.log("[DEBUG] Lista de canciones reordenada:", nuevaLista.map((s) => s.nombre));
   };
 
+  /**
+   * Abre el modal de opciones para cambiar la portada.
+   * 
+   * @returns {void}
+   */
   const handleImagePick = () => {
     setShowImageOptionsModal(true);
   };
 
+  /**
+   * Solicita permisos y permite al usuario elegir una imagen desde el dispositivo.
+   * Actualiza la URI de portada y marca que es portada cargada localmente.
+   * 
+   * @returns {Promise<void>}
+   */
   const pickImageFromDevice = async () => {
     setUseDefaultImage(false);
     const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -93,6 +126,11 @@ export default function EditPlaylistScreen({ route, navigation }) {
     }
   };
   
+  /**
+   * Obtiene de la API un listado de fotos predefinidas y muestra el modal para elegir una.
+   * 
+   * @returns {void}
+   */
   const openDefaultPhotos = async () => {
     try {
       const res = await fetch('https://echobeatapi.duckdns.org/playlists/default-photos');
@@ -105,6 +143,12 @@ export default function EditPlaylistScreen({ route, navigation }) {
     }
   };
   
+  /**
+   * Selecciona una foto predefinida como nueva portada.
+   *
+   * @param {string} uri - URI de la imagen predefinida seleccionada.
+   * @returns {void}
+   */
   const selectDefaultPhoto = (uri) => {
     setUseDefaultImage(true);
     setNuevaPortada(null); // eliminamos si había una portada anterior del dispositivo
@@ -112,6 +156,13 @@ export default function EditPlaylistScreen({ route, navigation }) {
     setShowDefaultPhotosModal(false);
   };
 
+  /**
+   * Envía todos los cambios de la playlist a la API:
+   * portada (URL o archivo), nombre, descripción, privacidad y orden de canciones.
+   * Muestra feedback de éxito o error.
+   * 
+   * @returns {Promise<void>}
+   */
   const guardarCambios = async () => {
     if (subiendoPortada) return; // prevenir doble clic
       setSubiendoPortada(true);

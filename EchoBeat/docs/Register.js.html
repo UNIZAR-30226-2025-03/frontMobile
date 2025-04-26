@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: Register.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: Register.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>/**
+ * @file Register.js
+ * @description Pantalla de registro de usuario.
+ * Permite al usuario ingresar nombre, apellidos, correo, nickname,
+ * contraseña y fecha de nacimiento.
+ * Valida los campos y muestra mensajes de error.
+ * Almacena el correo en AsyncStorage y navega a la pantalla de preferencias de género.
+ * Permite seleccionar la fecha de nacimiento con un DateTimePicker.
+ */
+import React, { useState, useEffect } from 'react';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView, Alert, Platform, } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
+const usuariosRegistrados = { // Ejemplos que se reemplazarán por llamada a API
+  correos: ['usuario@example.com', 'test@test.com'],
+  nicknames: ['user123', 'nick456'],
+};
+
+/**
+ * Componente de registro de usuario.
+ * - Permite ingresar nombre, apellidos, correo, nickname, contraseña y fecha de nacimiento.
+ * - Valida los campos y muestra mensajes de error.
+ * - Almacena el correo en AsyncStorage y navega a la pantalla de preferencias de género.
+ * - Permite seleccionar la fecha de nacimiento con un DateTimePicker.
+ * 
+ * @param {object} navigation - Prop de navegación de React Navigation.
+ */
+export default function Register({ navigation }) {
+  // Estados de los campos
+  const [nombreApellidos, setNombreApellidos] = useState('');
+  const [correo, setCorreo] = useState('');
+  const [nickname, setNickname] = useState('');
+  const [contraseña, setContraseña] = useState('');
+  const [confirmarContraseña, setConfirmarContraseña] = useState('');
+  const [fechaNacimiento, setFechaNacimiento] = useState(new Date());
+  const [formValido, setFormValido] = useState(false);
+  const [passwordVisible, setPasswordVisible] = useState(false);
+  const [confirmPasswordVisible, setConfirmPasswordVisible] = useState(false);
+  
+  // Estado para el DateTimePicker
+  const [showDatePicker, setShowDatePicker] = useState(false);
+
+  useEffect(() => {
+    const nombreValido = nombreApellidos.trim().length > 0;
+    const correoValido = validarCorreo(correo);
+    const nicknameValido = nickname.trim().length > 0;
+    const contraseñaValida = contraseña.trim().length > 0;
+    const confirmarValida = confirmarContraseña.trim().length > 0 &amp;&amp; confirmarContraseña === contraseña;
+    const fechaValida = fechaNacimiento !== null;
+    
+    const correoUnico = !usuariosRegistrados.correos.includes(correo);
+    const nicknameUnico = !usuariosRegistrados.nicknames.includes(nickname);
+
+    setFormValido(
+      nombreValido &amp;&amp;
+      correoValido &amp;&amp;
+      nicknameValido &amp;&amp;
+      contraseñaValida &amp;&amp;
+      confirmarValida &amp;&amp;
+      fechaValida &amp;&amp;
+      correoUnico &amp;&amp;
+      nicknameUnico
+    );
+    
+    navigation.setOptions({ headerShown: false });
+  }, [nombreApellidos, correo, nickname, contraseña, confirmarContraseña, fechaNacimiento, navigation]);
+
+  /**
+   * Valida si una cadena tiene el formato de correo electrónico correcto.
+   *
+   * @param {string} email - Cadena de texto a validar como correo.
+   * @returns {boolean} - True si el correo es válido, false en caso contrario.
+   */
+  const validarCorreo = (email) => {
+    const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return regex.test(email);
+  };
+
+  /**
+   * Envía los datos del formulario a la API para registrar un nuevo usuario.
+   * 
+   * @returns {Promise&lt;void>}
+   */
+  const handleRegister = async () => {
+    try {
+      const response = await fetch("https://echobeatapi.duckdns.org/users/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          NombreCompleto: nombreApellidos,
+          Email: correo,
+          Password: contraseña,
+          Nick: nickname,
+          FechaNacimiento: fechaNacimiento.toISOString(),
+        }),
+      });
+  
+      const data = await response.json();
+  
+      if (!response.ok) {
+        throw new Error(data.message || "Error al registrar usuario");
+      }
+  
+      await AsyncStorage.setItem("email", correo);
+      Alert.alert("Éxito", "Registro exitoso! Seleccione sus géneros preferidos e inicie sesión.");
+      
+      navigation.replace('GeneroPreferencesInit');
+    } catch (error) {
+      Alert.alert("Error", error.message);
+    }
+  };
+
+  /**
+   * Formatea un objeto Date en una cadena 'dd/mm/yyyy'.
+   *
+   * @param {Date} date - Fecha a formatear.
+   * @returns {string} - Fecha formateada.
+   */
+  const formatDate = (date) => {
+    const day = date.getDate();
+    const month = date.getMonth() + 1;
+    const year = date.getFullYear();
+    return `${day &lt; 10 ? '0' + day : day}/${month &lt; 10 ? '0' + month : month}/${year}`;
+  };
+
+  /**
+   * Maneja la selección de una nueva fecha desde el DateTimePicker.
+   *
+   * @param {Event} event - Evento de cambio de fecha.
+   * @param {Date} selectedDate - Fecha seleccionada.
+   * @returns {void}
+   */
+  const onChangeDate = (event, selectedDate) => {
+    setShowDatePicker(Platform.OS === 'ios'); // En Android se cierra automáticamente
+    if (selectedDate) {
+      setFechaNacimiento(selectedDate);
+    }
+  };
+
+  return (
+    &lt;SafeAreaView style={styles.container}>
+      &lt;ScrollView contentContainerStyle={[styles.scrollContainer, { flexGrow: 1 }]} showsVerticalScrollIndicator={false}>
+        &lt;View style={styles.headerInScroll}>
+          &lt;TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+            &lt;Ionicons name="arrow-back" size={24} color="#f2ab55" />
+          &lt;/TouchableOpacity>
+        &lt;/View>
+
+        &lt;Text style={styles.titulo}>Regístrate en EchoBeat!&lt;/Text>
+
+        {/* Nombre y Apellidos */}
+        &lt;View style={styles.inputContainer}>
+          &lt;Text style={styles.label}>Nombre y Apellidos&lt;/Text>
+          &lt;TextInput
+            style={styles.input}
+            placeholder="Introduce tu nombre y apellidos"
+            placeholderTextColor="#ffffff"
+            value={nombreApellidos}
+            onChangeText={setNombreApellidos}
+          />
+        &lt;/View>
+
+        {/* Correo Electrónico */}
+        &lt;View style={styles.inputContainer}>
+          &lt;Text style={styles.label}>Correo electrónico&lt;/Text>
+          &lt;TextInput
+            style={styles.input}
+            placeholder="Introduce tu correo electrónico"
+            placeholderTextColor="#ffffff"
+            value={correo}
+            onChangeText={setCorreo}
+            keyboardType="email-address"
+            autoCapitalize="none"
+          />
+          {correo.length > 0 &amp;&amp; !validarCorreo(correo) &amp;&amp; (
+            &lt;Text style={styles.error}>Formato de correo inválido.&lt;/Text>
+          )}
+          {usuariosRegistrados.correos.includes(correo) &amp;&amp; (
+            &lt;Text style={styles.error}>Este correo ya está registrado.&lt;/Text>
+          )}
+        &lt;/View>
+
+        {/* Nickname */}
+        &lt;View style={styles.inputContainer}>
+          &lt;Text style={styles.label}>Nickname&lt;/Text>
+          &lt;TextInput
+            style={styles.input}
+            placeholder="Introduce tu nickname"
+            placeholderTextColor="#ffffff"
+            value={nickname}
+            onChangeText={setNickname}
+          />
+          {usuariosRegistrados.nicknames.includes(nickname) &amp;&amp; (
+            &lt;Text style={styles.error}>Este nickname ya está registrado.&lt;/Text>
+          )}
+        &lt;/View>
+
+        {/* Contraseña */}
+        &lt;View style={styles.inputContainer}>
+          &lt;Text style={styles.label}>Contraseña&lt;/Text>
+          &lt;View style={styles.passwordContainer}>
+            &lt;TextInput
+              style={[styles.input, { flex: 1 }]}
+              placeholder="Crea tu contraseña"
+              placeholderTextColor="#ffffff"
+              value={contraseña}
+              onChangeText={setContraseña}
+              secureTextEntry={!passwordVisible}
+            />
+            &lt;TouchableOpacity onPress={() => setPasswordVisible(!passwordVisible)} style={styles.eyeButton}>
+              &lt;Ionicons name={passwordVisible ? "eye" : "eye-off"} size={20} color="#ffffff" />
+            &lt;/TouchableOpacity>
+          &lt;/View>
+        &lt;/View>
+
+        {/* Confirmar Contraseña */}
+        &lt;View style={styles.inputContainer}>
+          &lt;Text style={styles.label}>Confirmar contraseña&lt;/Text>
+          &lt;View style={styles.passwordContainer}>
+            &lt;TextInput
+              style={[styles.input, { flex: 1 }]}
+              placeholder="Confirma tu contraseña"
+              placeholderTextColor="#ffffff"
+              value={confirmarContraseña}
+              onChangeText={setConfirmarContraseña}
+              secureTextEntry={!confirmPasswordVisible}
+            />
+            &lt;TouchableOpacity onPress={() => setConfirmPasswordVisible(!confirmPasswordVisible)} style={styles.eyeButton}>
+              &lt;Ionicons name={confirmPasswordVisible ? "eye" : "eye-off"} size={20} color="#ffffff" />
+            &lt;/TouchableOpacity>
+          &lt;/View>
+          {confirmarContraseña.length > 0 &amp;&amp; confirmarContraseña !== contraseña &amp;&amp; (
+            &lt;Text style={styles.error}>Las contraseñas no coinciden.&lt;/Text>
+          )}
+        &lt;/View>
+
+        {/* Fecha de nacimiento */}
+        &lt;View style={styles.inputContainer}>
+          &lt;Text style={styles.label}>Fecha de nacimiento&lt;/Text>
+          &lt;TouchableOpacity onPress={() => setShowDatePicker(true)} style={styles.dateButton}>
+            &lt;Text style={styles.dateText}>
+              {fechaNacimiento ? formatDate(fechaNacimiento) : "Selecciona tu fecha de nacimiento"}
+            &lt;/Text>
+          &lt;/TouchableOpacity>
+          {showDatePicker &amp;&amp; (
+            &lt;DateTimePicker
+              value={fechaNacimiento || new Date()}
+              mode="date"
+              display={Platform.OS === 'ios' ? 'inline' : 'default'}
+              onChange={onChangeDate}
+              themeVariant="light"
+              maximumDate={new Date()}
+            />
+          )}
+        &lt;/View>
+
+        {/* Espacio extra para evitar que el contenido quede oculto tras el botón fijo */}
+        &lt;View style={{ height: 120 }} />
+      &lt;/ScrollView>
+      
+      {/* Botón fijo de REGISTRAR */}
+      &lt;View style={styles.fixedButtonContainer}>
+        &lt;TouchableOpacity
+          style={[styles.boton, !formValido &amp;&amp; styles.botonDeshabilitado]}
+          disabled={!formValido}
+          onPress={handleRegister}
+        >
+          &lt;Text style={styles.botonTexto}>REGISTRAR&lt;/Text>
+        &lt;/TouchableOpacity>
+      &lt;/View>
+    &lt;/SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#121111',
+  },
+  headerInScroll: {
+    paddingHorizontal: 20,
+  },
+  backButton: {
+    width: 30,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'flex-start',
+  },
+  scrollContainer: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 120,
+  },
+  titulo: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#f2ab55',
+    textAlign: 'center',
+    marginBottom: 20,
+    marginTop: 20,
+  },
+  inputContainer: {
+    marginBottom: 20,
+  },
+  label: {
+    color: '#f2ab55',
+    fontSize: 16,
+    marginBottom: 5,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#f2ab55',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    fontSize: 16,
+    color: '#ffffff',
+  },
+  passwordContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#f2ab55',
+    borderRadius: 8,
+  },
+  eyeButton: {
+    paddingHorizontal: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  dateButton: {
+    borderWidth: 1,
+    borderColor: '#f2ab55',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+  },
+  dateText: {
+    color: '#ffffff',
+    fontSize: 16,
+  },
+  fixedButtonContainer: {
+    position: 'absolute',
+    bottom: 25,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    backgroundColor: '#121111',
+  },
+  boton: {
+    backgroundColor: '#ffb723',
+    paddingVertical: 15,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  botonDeshabilitado: {
+    backgroundColor: '#b1b1b1',
+  },
+  botonTexto: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+});
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.4</a> on Sat Apr 26 2025 20:48:14 GMT+0200 (hora de verano de Europa central)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

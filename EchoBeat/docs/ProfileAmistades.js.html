@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: ProfileAmistades.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: ProfileAmistades.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>/**
+ * @file ProfileAmistades.js
+ * @description Pantalla para ver el perfil de un amigo.
+ * Muestra su foto, nick y playlists públicas.
+ * Incluye un botón flotante para abrir el reproductor
+ * con la última canción en reproducción.
+ */
+import React, { useEffect, useState, useLayoutEffect, useCallback, useRef } from 'react';
+import { View, Text, Image, StyleSheet, FlatList, Animated, Easing, TouchableOpacity, ActivityIndicator, Dimensions } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useFocusEffect } from "@react-navigation/native";
+
+const width = Dimensions.get('window').width;
+
+/**
+ * Componente de pantalla para ver el perfil de un amigo,
+ * incluyendo su foto, nick y playlists públicas.
+ * También muestra un botón flotante para abrir el reproductor
+ * con la última canción en reproducción.
+ *
+ * @param {object} props.route.params.userEmail - Email del usuario amigo cuyo perfil se muestra.
+ * @param {object} props.navigation - Propiedades de navegación de React Navigation.
+ */
+export default function ProfileAmistades({ route, navigation }) {
+  const { userEmail } = route.params; // Este email es el del usuario (amigo) cuyo perfil se está viendo
+  const [userData, setUserData] = useState(null);
+  // Estado para el email del usuario autenticado (logged-in)
+  const [loggedEmail, setLoggedEmail] = useState(null);
+  const [cancionSonando, setCancionSonando] = useState(false);
+  const [estaReproduciendo, setEstaReproduciendo] = useState(false);
+  const rotation = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    fetchLoggedEmail();
+    checkSongPlaying();
+  }, []);
+
+  useEffect(() => {
+    fetch(`https://echobeatapi.duckdns.org/users/profile-with-playlists?userEmail=${encodeURIComponent(userEmail)}`)
+      .then(res => res.json())
+      .then(data => setUserData(data))
+      .catch(err => console.error("Error cargando perfil:", err));
+  }, [userEmail]);
+
+  useFocusEffect(
+    useCallback(() => {
+      checkSongPlaying();
+    }, [])
+  );
+
+  /**
+   * Recupera el email del usuario autenticado desde AsyncStorage
+   * y lo guarda en el estado local.
+   * 
+   * @returns {Promise&lt;void>}
+   */
+  const fetchLoggedEmail = async () => {
+    try {
+      const email = await AsyncStorage.getItem('email');
+      if (email) {
+        setLoggedEmail(email);
+      }
+    } catch (error) {
+      console.error("Error al obtener el email autenticado:", error);
+    }
+  };
+
+  /**
+   * Consulta AsyncStorage para saber si hay canción y si está reproduciéndose,
+   * ajusta los estados correspondientes y lanza/detiene la animación de giro.
+   * 
+   * @returns {Promise&lt;void>}
+   */
+  const checkSongPlaying = async () => {
+    const lastSong = await AsyncStorage.getItem('lastSong');
+    const isPlaying = await AsyncStorage.getItem('isPlaying');
+  
+    const hayCancion = !!lastSong;
+    const reproduciendo = isPlaying === 'true';
+  
+    setCancionSonando(hayCancion);
+    setEstaReproduciendo(reproduciendo);
+  
+    if (hayCancion &amp;&amp; reproduciendo) {
+      startRotationLoop();
+    } else {
+      stopRotation();
+    }
+  };
+  
+  /**
+   * Inicia una animación continua de rotación (360° en 4 segundos).
+   * 
+   * @returns {void}
+   */
+  const startRotationLoop = () => {
+    rotation.setValue(0);
+    Animated.loop(
+      Animated.timing(rotation, {
+        toValue: 1,
+        duration: 4000,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      })
+    ).start();
+  };
+  
+  /**
+   * Detiene la animación de rotación y reinicia el valor a 0.
+   * 
+   * @returns {void}
+   */
+  const stopRotation = () => {
+    rotation.stopAnimation(() => {
+      rotation.setValue(0);
+    });
+  };
+  
+  const spin = rotation.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  });
+  
+  /**
+   * Navega a la pantalla MusicPlayer si existe una última canción guardada.
+   * En caso contrario, muestra una alerta.
+   * 
+   * @returns {Promise&lt;void>}
+   */
+  const handleOpenMusicPlayer = async () => {
+    try {
+      const lastSong = await AsyncStorage.getItem('lastSong');
+      const lastSongIdStr = await AsyncStorage.getItem('lastSongId');
+      const lastSongId = parseInt(lastSongIdStr);
+  
+      if (lastSong &amp;&amp; !isNaN(lastSongId)) {
+        navigation.navigate('MusicPlayer', {
+          songName: lastSong,
+          songId: lastSongId,
+          userEmail: userEmail
+        });
+      } else {
+        Alert.alert("No hay ninguna canción en reproducción");
+      }
+    } catch (error) {
+      console.error("Error obteniendo la última canción:", error);
+    }
+  };  
+
+  useLayoutEffect(() => {
+    navigation.setOptions({ headerShown: false });
+  }, [navigation]);
+
+  if (!userData) {
+    return (
+      &lt;View style={styles.loadingContainer}>
+        &lt;ActivityIndicator size="large" color="#f2ab55" />
+        &lt;Text style={styles.loadingText}>Cargando perfil...&lt;/Text>
+      &lt;/View>
+    );
+  }
+
+  // Se crea un objeto chat con la información necesaria para abrir la conversación.
+  const chat = {
+    contact: userEmail,      // El email del amigo
+    foto: userData.LinkFoto, // La foto del perfil del amigo
+    mensaje: ""              // Inicialmente en blanco
+  };
+
+  return (
+    &lt;View style={styles.container}>
+      {/* Back button */}
+      &lt;TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+        &lt;Ionicons name="arrow-back" size={28} color="#f2ab55" />
+      &lt;/TouchableOpacity>
+
+      {/* Icono para abrir chat (posición superior derecha) */}
+      {loggedEmail &amp;&amp; (
+        &lt;TouchableOpacity 
+          style={styles.chatIcon}
+          onPress={() => navigation.navigate('ChatScreen', { chat, userEmail: loggedEmail })}
+        >
+          &lt;Ionicons name="chatbubble-ellipses-outline" size={20} color="#f2ab55" />
+        &lt;/TouchableOpacity>
+      )}
+
+      &lt;View style={styles.profileContainer}>
+        &lt;Image
+          source={userData.LinkFoto
+            ? { uri: userData.LinkFoto }
+            : require('../assets/logo.png')
+          }
+          style={styles.profileImage}
+        />
+        &lt;Text style={styles.nick}>{userData.Nick}&lt;/Text>
+      &lt;/View>
+
+      &lt;Text style={styles.sectionTitle}>Playlists visibles&lt;/Text>
+
+      {userData.Playlists.length === 0 ? (
+        &lt;Text style={styles.emptyText}>Este usuario no tiene playlists públicas.&lt;/Text>
+      ) : (
+        &lt;FlatList
+          data={userData.Playlists}
+          keyExtractor={item => item.Id.toString()}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: 30 }}
+          renderItem={({ item }) => (
+            &lt;TouchableOpacity
+              style={styles.playlistItem}
+              activeOpacity={0.8}
+              onPress={() => navigation.navigate('PlaylistDetails', { playlist: item })}
+            >
+              &lt;Image
+                source={item.Portada
+                  ? { uri: item.Portada }
+                  : require('../assets/default_playlist_portada.jpg')}
+                style={styles.playlistImage}
+              />     
+              &lt;View style={styles.playlistInfo}>
+                &lt;Text style={styles.playlistName}>{item.Nombre}&lt;/Text>
+              &lt;/View>
+              &lt;Ionicons name="chevron-forward" size={22} color="#f2ab55" />
+            &lt;/TouchableOpacity>
+          )}
+        />
+      )}
+      {cancionSonando &amp;&amp; (
+                &lt;TouchableOpacity onPress={handleOpenMusicPlayer} style={styles.playerButton}>
+                  &lt;Animated.Image
+                    source={require('../assets/disc.png')}
+                    style={[styles.playerIcon, { transform: [{ rotate: spin }] }]} 
+                  />
+                &lt;/TouchableOpacity>
+              )}         
+    &lt;/View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#121111',
+    paddingHorizontal: 20,
+    paddingTop: 50,
+  },
+  backButton: {
+    marginBottom: 20,
+  },
+  chatIcon: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+    zIndex: 10,
+  },
+  profileContainer: {
+    alignItems: 'center',
+    marginBottom: 30,
+  },
+  profileImage: {
+    width: 130,
+    height: 130,
+    borderRadius: 65,
+    marginBottom: 12,
+    borderWidth: 2,
+    borderColor: '#f2ab55',
+    backgroundColor: '#333',
+  },
+  nick: {
+    color: '#f2ab55',
+    fontSize: 26,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  sectionTitle: {
+    fontSize: 20,
+    color: '#f2ab55',
+    marginBottom: 16,
+    fontWeight: 'bold',
+    alignSelf: 'center',
+  },
+  emptyText: {
+    color: '#aaa',
+    textAlign: 'center',
+    fontSize: 15,
+    marginTop: 20,
+  },
+  playlistItem: {
+    backgroundColor: '#1e1e1e',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  playlistImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 10,
+    marginRight: 12,
+    backgroundColor: '#444',
+  },
+  playlistInfo: {
+    flex: 1,
+  },
+  playlistName: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  loadingContainer: {
+    flex: 1,
+    backgroundColor: '#121111',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    color: '#ccc',
+    marginTop: 10,
+  },
+  playerButton: {
+    position: 'absolute',
+    bottom: 15,
+    right: 16,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+    zIndex: 4,
+  },
+  playerIcon: { 
+    width: 80, 
+    height: 80, 
+    borderRadius: 35 
+  },
+
+});
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.4</a> on Sat Apr 26 2025 20:48:14 GMT+0200 (hora de verano de Europa central)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

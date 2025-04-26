@@ -1,3 +1,10 @@
+/**
+ * @file HomeScreen.js
+ * @description Pantalla principal de la aplicación EchoBeat.
+ * Muestra el saludo al usuario, su foto de perfil, listas de reproducción creadas y recomendaciones.
+ * Permite navegar a otras pantallas y controlar la animación de un disco giratorio.
+ * Incluye un menú radial con accesos rápidos y la opción de refrescar los datos.
+ */
 import React, { useState, useLayoutEffect, useEffect, useRef } from 'react';
 import { View, Text, FlatList, Image, StyleSheet, Dimensions, TouchableOpacity, 
          TouchableWithoutFeedback, Animated, Alert, Easing,RefreshControl, ScrollView } from 'react-native';
@@ -7,6 +14,17 @@ import { useFocusEffect } from '@react-navigation/native';
 
 const { width, height } = Dimensions.get('window');
 
+/**
+ * Pantalla principal de la app donde:
+ * - Se muestra saludo y foto de perfil del usuario.
+ * - Se listan las playlists creadas y recomendaciones.
+ * - Se controla animación de disco giratorio si hay canción sonando.
+ * - Se maneja menú radial con accesos rápidos.
+ * - Se permite refrescar datos con pull-to-refresh.
+ *
+ * @param {object} navigation - Prop de navegación de React Navigation.
+ * @param {object} route - Prop de ruta de React Navigation.
+ */
 export default function HomeScreen({ navigation, route }) {
   const [playlistCreadas, setPlaylistCreadas] = useState([]);
   const [cancionSonando, setCancionSonando] = useState(false);
@@ -37,6 +55,11 @@ export default function HomeScreen({ navigation, route }) {
     checkSongPlaying();
   }, []);
 
+  /**
+   * Refresca la pantalla, recargando datos de usuario y estado de reproducción.
+   * 
+   * @returns {void}
+   */
   const onRefresh = async () => {
     setRefreshing(true);
     try {
@@ -55,9 +78,6 @@ export default function HomeScreen({ navigation, route }) {
   };
 
   useEffect(() => {
-    console.log("Canción sonando:", cancionSonando);
-    console.log("Está reproduciendo:", estaReproduciendo);
-    console.log("Menú abierto:", menuAbierto);
     if ((cancionSonando === true) && (estaReproduciendo === "true") && (menuAbierto === false)) {
       startRotationLoop();
     } else {
@@ -65,6 +85,11 @@ export default function HomeScreen({ navigation, route }) {
     }
   }, [cancionSonando, estaReproduciendo, menuAbierto]);
 
+  /**
+   * Obtiene la información básica del usuario: email, nick, foto y listas.
+   * 
+   * @returns {void}
+   */
   const obtenerInfoUser = async () => {
     try {
       const email = await AsyncStorage.getItem('email');
@@ -87,14 +112,17 @@ export default function HomeScreen({ navigation, route }) {
     }
   };
 
+  /**
+   * Verifica si actualmente hay una canción sonando y actualiza estado.
+   * 
+   * @returns {void}
+   */
   const checkSongPlaying = async () => {
     const lastSong = await AsyncStorage.getItem('lastSong');
     const isPlaying = await AsyncStorage.getItem('isPlaying');
     const loggeado = await AsyncStorage.getItem('logged');
-    //console.log("Reproduciendo? ", isPlaying);
-    //console.log("Loggeado? ", loggeado);
+
     if(loggeado === '0') {
-      //console.log("No hay canción sonando y vengo de welcome");
       try{
         const email = await AsyncStorage.getItem('email');
         if (!email) {
@@ -102,10 +130,8 @@ export default function HomeScreen({ navigation, route }) {
           return;
         }
         await AsyncStorage.setItem('logged', '1');
-        //console.log("Voy a buscar la canción actual");
         const res = await fetch(`https://echobeatapi.duckdns.org/users/first-song?Email=${(email)}`);
         const data = await res.json();
-        console.log("Canción actual:", data);
         if (res.ok) {
           await AsyncStorage.setItem('lastSong', data.Nombre);
           await AsyncStorage.setItem('lastSongId', data.PrimeraCancionId.toString());
@@ -117,7 +143,6 @@ export default function HomeScreen({ navigation, route }) {
     }
 
     const hayCancion = !!lastSong;
-    console.log("Hay canción:", hayCancion);
 
     setCancionSonando(hayCancion);
     setEstaReproduciendo(isPlaying);
@@ -129,6 +154,12 @@ export default function HomeScreen({ navigation, route }) {
     }
   };
 
+  /**
+   * Carga las playlists creadas por el usuario.
+   * 
+   * @param {string} email - Email del usuario.
+   * @returns {void}
+   */
   const obtenerPlaylistsCreadas = async (email) => {
     try {
       const response = await fetch(`https://echobeatapi.duckdns.org/playlists/user/${email}`);
@@ -139,6 +170,12 @@ export default function HomeScreen({ navigation, route }) {
     }
   };
 
+  /**
+   * Carga recomendaciones basadas en preferencias de géneros.
+   * 
+   * @param {string} email - Email del usuario.
+   * @return {void}
+   */
   const obtenerRecomendaciones = async (email) => {
     try {
       const response = await fetch(`https://echobeatapi.duckdns.org/genero/preferencia?userEmail=${email}`);
@@ -166,6 +203,11 @@ export default function HomeScreen({ navigation, route }) {
 
   const menuButtonAnimValues = useRef([...Array(5)].map(() => new Animated.Value(0))).current;
 
+  /**
+   * Alterna apertura del menú radial con animación de botones.
+   * 
+   * @returns {void}
+   */
   const toggleMenu = () => {
     if (!menuAbierto) {
       Animated.stagger(100, menuButtonAnimValues.map(anim =>
@@ -193,6 +235,12 @@ export default function HomeScreen({ navigation, route }) {
     }).start();
   };
 
+  /**
+   * Renderiza los botones del menú radial.
+   * Cada botón tiene una animación de entrada/salida.
+   * 
+   * @returns {JSX.Element} - Elementos de los botones del menú.
+   */
   const renderBotonesMenu = () => {
     const botones = [
       { id: 1, label: 'MIS LISTAS', screen: 'MyLists', icon: 'list' },
@@ -232,6 +280,11 @@ export default function HomeScreen({ navigation, route }) {
     });
   };
 
+  /**
+   * Inicia el loop de animación de rotación del icono de disco.
+   * 
+   * @returns {void}
+   */
   const startRotationLoop = () => {
     rotation.setValue(0);
     Animated.loop(
@@ -244,6 +297,11 @@ export default function HomeScreen({ navigation, route }) {
     ).start();
   };
 
+  /**
+   * Detiene la animación de rotación y resetea el valor.
+   * 
+   * @returns {void}
+   */
   const stopRotation = () => {
     rotation.stopAnimation(() => {
       rotation.setValue(0);
@@ -255,6 +313,13 @@ export default function HomeScreen({ navigation, route }) {
     outputRange: ['0deg', '360deg'],
   });
 
+  /**
+   * Renderiza cada elemento de la lista de playlists creadas.
+   * 
+   * @param {object} param0 - Objeto con la propiedad item.
+   * @param {object} param0.item - Playlist creada por el usuario.
+   * @returns {JSX.Element}
+   */
   const renderPlaylistCreada = ({ item }) => {
     const imageSource = { uri: item.lista.Portada };
     const normalizedPlaylist = {
@@ -275,13 +340,20 @@ export default function HomeScreen({ navigation, route }) {
     );
   };
 
+  /**
+   * Renderiza cada elemento de la lista de recomendaciones.
+   * 
+   * @param {object} param0 - Objeto con la propiedad item.
+   * @param {object} param0.item - Vista de la recomendación asignada al user.
+   * @returns {JSX.Element}
+   */
   const renderRecomendationsItem = ({ item }) => {
     const imageSource = { uri: item.FotoGenero };
 
     return (
       <TouchableOpacity 
       onPress={() =>
-        navigation.navigate('AlbumDetails', {
+        navigation.navigate('PlaylistDetails', {
           playlist: {
             Id: item.IdLista, // Usa el nombre como ID
             Nombre: item.NombreGenero,
@@ -298,6 +370,11 @@ export default function HomeScreen({ navigation, route }) {
     );
   };
 
+  /**
+   * Abre el reproductor de música con la última canción reproducida.
+   * 
+   * @returns {void}
+   */
   const handleOpenMusicPlayer = async () => {
     try {
       if (route.params?.fromWelcome) {
@@ -307,8 +384,6 @@ export default function HomeScreen({ navigation, route }) {
       const lastSong = await AsyncStorage.getItem('lastSong');
       const lastSongIdStr = await AsyncStorage.getItem('lastSongId');
       const lastSongId = parseInt(lastSongIdStr);
-
-      console.log("🎵 Última canción guardada:", { lastSong, lastSongId });
 
       if (lastSong && !isNaN(lastSongId)) {
         navigation.navigate('MusicPlayer', { 

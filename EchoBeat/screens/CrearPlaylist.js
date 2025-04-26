@@ -1,3 +1,9 @@
+/**
+ * @file CrearPlaylist.js
+ * @description Pantalla para crear una nueva playlist en la aplicación EchoBeat.
+ * Permite al usuario definir nombre, privacidad, descripción y portada,
+ * bien subiéndola desde el dispositivo o eligiendo una predefinida.
+ */
 import React, { useState, useLayoutEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView, Alert, Image, TouchableWithoutFeedback, Keyboard, Modal, FlatList, Dimensions } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -7,9 +13,15 @@ import * as ImagePicker from 'expo-image-picker';
 
 const { width } = Dimensions.get('window');
 
+/**
+ * Pantalla para crear una nueva playlist.
+ * Permite al usuario definir nombre, privacidad, descripción y portada,
+ * bien subiéndola desde el dispositivo o eligiendo una predefinida.
+ *
+ * @param {object} navigation - Propiedad de navegación de React Navigation.
+ */
 export default function CrearPlaylist({ navigation }) {
   const [playlistName, setPlaylistName] = useState('');
-  // Valores internos en minúsculas para la API
   const [privacy, setPrivacy] = useState('publico');
   const [description, setDescription] = useState('');
   const [image, setImage] = useState(null); // Se guardará la imagen en formato base64
@@ -23,6 +35,12 @@ export default function CrearPlaylist({ navigation }) {
     navigation.setOptions({ headerShown: false });
   }, [navigation]);
 
+  /**
+   * Muestra un diálogo de confirmación antes de descartar la creación
+   * de la playlist y regresar a la pantalla anterior.
+   * 
+   * @returns {void}
+   */
   const handleBackPress = () => {
     Alert.alert(
       'Confirmar',
@@ -34,6 +52,12 @@ export default function CrearPlaylist({ navigation }) {
     );
   };
 
+  /**
+   * Solicita permisos de galería y abre el selector de imágenes.
+   * Al seleccionar, guarda la URI en estado.
+   * 
+   * @returns {void}
+   */
   const handleImageUpload = async () => {
     setUseDefaultImage(false);
     setShowImageOptionsModal(true);
@@ -64,6 +88,12 @@ export default function CrearPlaylist({ navigation }) {
     }
   };
 
+  /**
+   * Obtiene de la API un listado de fotos predefinidas
+   * y muestra el modal de selección.
+   * 
+   * @returns {void}
+   */
   const openDefaultPhotos = async () => {
     try {
       const res = await fetch('https://echobeatapi.duckdns.org/playlists/default-photos');
@@ -77,12 +107,24 @@ export default function CrearPlaylist({ navigation }) {
     }
   };
 
+  /**
+   * Selecciona una foto predefinida para la portada.
+   *
+   * @param {string} uri - URI de la imagen predefinida elegida.
+   * @returns {void}
+   */
   const selectDefaultPhoto = (uri) => {
     setUseDefaultImage(true);
     setImage(uri);
     setShowDefaultPhotosModal(false);
   };
 
+  /**
+   * Valida los campos del formulario y envía los datos
+   * para crear la playlist a la API correspondiente.
+   * 
+   * @returns {void}
+   */
   const handleSubmit = async () => {
     if (!playlistName.trim()) {
       Alert.alert('Error', 'El nombre de la playlist es obligatorio.');

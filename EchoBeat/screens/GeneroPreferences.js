@@ -1,16 +1,22 @@
+/**
+ * @file GeneroPreferences.js
+ * @description Pantalla para configurar las preferencias de género del usuario.
+ * Permite seleccionar y guardar al menos 4 géneros favoritos.
+ * Incluye un botón de volver y un botón para guardar los cambios.
+ */
 import React, { useState, useEffect, useLayoutEffect } from "react";
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  Alert,
-  ScrollView,
-  ActivityIndicator,
-} from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, Alert, ScrollView,ActivityIndicator } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from '@expo/vector-icons';
 
+/**
+ * Pantalla para configurar las preferencias de género del usuario.
+ * - Obtiene el email del usuario de AsyncStorage.
+ * - Carga los géneros disponibles marcando los ya seleccionados.
+ * - Permite alternar la selección de géneros y guardar cambios (mínimo 4).
+ *
+ * @param {object} navigation - Prop de navegación de React Navigation.
+ */
 export default function GeneroPreferencesScreen({ navigation }) {
   const [generos, setGeneros] = useState([]); 
   const [cargando, setCargando] = useState(true);
@@ -33,7 +39,11 @@ export default function GeneroPreferencesScreen({ navigation }) {
     }
   }, [userEmail]);
 
-  // 🔹 Obtener el email del usuario desde AsyncStorage
+  /**
+   * Obtiene el correo del usuario desde AsyncStorage y lo guarda en estado.
+   * 
+   * @returns {void}
+   */
   const obtenerEmailUsuario = async () => {
     try {
       const email = await AsyncStorage.getItem("email");
@@ -48,7 +58,12 @@ export default function GeneroPreferencesScreen({ navigation }) {
     }
   };
 
-  // 🔹 Obtener los géneros desde la API y asegurarse de marcar los seleccionados
+  /**
+   * Recupera la lista de géneros desde la API, formatea sus nombres
+   * y marca aquellos previamente seleccionados.
+   * 
+   * @returns {void}
+   */
   const obtenerGeneros = async () => {
     if (!userEmail) return;
 
@@ -80,7 +95,12 @@ export default function GeneroPreferencesScreen({ navigation }) {
     }
   };
 
-  // 🔹 Función para alternar selección de géneros
+  /**
+   * Alterna el estado de selección de un género concreto.
+   *
+   * @param {string} nombre - Nombre del género a alternar.
+   * @return {void}
+   */
   const toggleGenero = (nombre) => {
     setGeneros((prevGeneros) =>
       prevGeneros.map((genero) =>
@@ -89,7 +109,12 @@ export default function GeneroPreferencesScreen({ navigation }) {
     );
   };
 
-  // 🔹 Enviar géneros seleccionados a la API en el formato correcto
+  /**
+   * Envía los géneros seleccionados a la API.
+   * Valida que haya al menos cuatro seleccionados antes de enviar.
+   * 
+   * @returns {void}
+   */
   const enviarGeneros = async () => {
     const generosSeleccionados = generos
       .filter((genero) => genero.seleccionado)

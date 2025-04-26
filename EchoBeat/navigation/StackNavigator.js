@@ -11,7 +11,6 @@ import ProfileScreen from '../screens/ProfileScreen';
 import Search from '../screens/Search';
 import Chats from './screens/Chats';
 import Favorites from './screens/Favorites';
-import Settings from './screens/Settings';
 import MyLists from './screens/MyLists';
 import MusicPlayer from './screens/MusicPlayer';
 import GeneroPreferences from './screens/GeneroPreferences';
@@ -45,7 +44,6 @@ export default function StackNavigator() {
         <Stack.Screen name="Search" component={Search} />
         <Stack.Screen name="Chats" component={Chats} />
         <Stack.Screen name="Favorites" component={Favorites} />
-        <Stack.Screen name="Settings" component={Settings} />
         <Stack.Screen name="MyLists" component={MyLists} />
         <Stack.Screen name="MusicPlayer" component={MusicPlayer} />
         <Stack.Screen name="GeneroPreferences" component={GeneroPreferences} />

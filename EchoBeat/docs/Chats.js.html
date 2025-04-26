@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: Chats.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: Chats.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>/**
+ * @file Chats.js
+ * Pantalla que muestra la lista de chats del usuario.
+ * Permite refrescar los chats, indicación de nuevos mensajes y
+ * acceder al reproductor si hay una canción en curso.
+ */
+import React, { useState, useRef, useLayoutEffect, useEffect, useCallback } from 'react';
+import { View, Text, FlatList, Image, StyleSheet, Dimensions, TouchableOpacity, Animated, Easing, RefreshControl } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect, useIsFocused } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const { width } = Dimensions.get('window');
+
+/**
+ * Pantalla que muestra la lista de chats del usuario.
+ * Permite refrescar los chats, indicación de nuevos mensajes y
+ * acceder al reproductor si hay una canción en curso.
+ *
+ * @param {object} navigation - Prop de navegación de React Navigation.
+ * @param {object} route - Prop de ruta de React Navigation.
+ * @param {string} route.params.userEmail - Email del usuario autenticado.
+ */
+export default function Chats({ navigation, route }) {
+  const { userEmail } = route.params;  // Se recibe el email del usuario desde los parámetros
+  const [chats, setChats] = useState([]);
+  const [refreshing, setRefreshing] = useState(false); // Nuevo estado para refrescar
+  const [cancionSonando, setCancionSonando] = useState(false);
+  const [estaReproduciendo, setEstaReproduciendo] = useState(false);
+  const rotation = useRef(new Animated.Value(0)).current;
+  const isFocused = useIsFocused();
+
+  useLayoutEffect(() => {
+    navigation.setOptions({ headerShown: false });
+  }, [navigation]);
+
+
+  /**
+   * Obtiene los chats del usuario desde la API y los almacena en estado.
+   * Se codifica el email y se maneja el caso de error.
+   * 
+   * @returns {Promise&lt;void>}
+   */
+  const fetchChats = useCallback(async () => {
+    try {
+      const encodedEmail = encodeURIComponent(userEmail);
+      const response = await fetch(`https://echobeatapi.duckdns.org/chat/chatsDelUsuario?userEmail=${encodedEmail}`, {
+        headers: { accept: '*/*' }
+      });
+      if (!response.ok) {
+        throw new Error('Error al obtener los chats');
+      }
+      const data = await response.json();
+      // Se asume que cada objeto "item" tiene la propiedad "contact" (correo del amigo) y "mensaje"
+      const chatsWithEmail = data.map(item => ({
+        ...item,
+        contact: item.contact,
+        foto: item.foto,
+      }));
+      setChats(chatsWithEmail);
+    } catch (error) {
+      console.error("Error al cargar chats:", error);
+    }
+  }, [userEmail]);
+
+  // Cargar chats al montar la pantalla
+  useFocusEffect(
+    useCallback(() => {
+      checkSongPlaying();
+      if (userEmail) {
+        fetchChats();
+      }
+    }, [userEmail, fetchChats])
+  );
+
+  useEffect(() => {
+    checkSongPlaying();
+  }, []);
+
+  useEffect(() => {
+    if (!isFocused) return;
+  
+    const intervalId = setInterval(() => {
+      fetchChats();
+    }, 3000);
+  
+    return () => clearInterval(intervalId);
+  }, [isFocused, fetchChats]);
+
+  /**
+   * Verifica en AsyncStorage si hay una canción en reproducción,
+   * actualiza los estados correspondientes y gestiona la animación.
+   * 
+   * @returns {Promise&lt;void>}
+   */
+  const checkSongPlaying = async () => {
+    const lastSong = await AsyncStorage.getItem('lastSong');
+    const isPlaying = await AsyncStorage.getItem('isPlaying');
+
+    const hayCancion = !!lastSong;
+    const reproduciendo = isPlaying === 'true';
+
+    setCancionSonando(hayCancion);
+    setEstaReproduciendo(reproduciendo);
+
+    if (hayCancion &amp;&amp; reproduciendo) {
+      startRotationLoop();
+    } else {
+      stopRotation();
+    }
+  };
+
+  /**
+   * Inicia la animación de rotación infinita para indicar reproducción.
+   * 
+   * @returns {void}
+   */
+  const startRotationLoop = () => {
+    rotation.setValue(0);
+    Animated.loop(
+      Animated.timing(rotation, {
+        toValue: 1,
+        duration: 4000,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      })
+    ).start();
+  };
+
+  /**
+   * Detiene la animación de rotación y resetea el valor.
+   * 
+   * @returns {void}
+   */
+  const stopRotation = () => {
+    rotation.stopAnimation(() => {
+      rotation.setValue(0);
+    });
+  };
+
+  const spin = rotation.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  });
+
+  /**
+   * Navega al reproductor si existe una canción guardada en AsyncStorage.
+   * Muestra alerta si no hay ninguna canción en reproducción.
+   * 
+   * @returns {Promise&lt;void>}
+   */
+  const handleOpenMusicPlayer = async () => {
+    try {
+      const lastSong = await AsyncStorage.getItem('lastSong');
+      const lastSongIdStr = await AsyncStorage.getItem('lastSongId');
+      const lastSongId = parseInt(lastSongIdStr);
+
+      if (lastSong &amp;&amp; !isNaN(lastSongId)) {
+        navigation.navigate('MusicPlayer', {
+          songName: lastSong,
+          songId: lastSongId,
+          userEmail: userEmail
+        });
+      } else {
+        Alert.alert("No hay ninguna canción en reproducción");
+      }
+    } catch (error) {
+      console.error("Error obteniendo la última canción:", error);
+    }
+  };
+    
+  /**
+   * Handler de pull-to-refresh que recarga los chats.
+   * 
+   * @returns {Promise&lt;void>}
+   */
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchChats();
+    setRefreshing(false);
+  };
+
+  /**
+   * Renderiza cada elemento de chat, destacando mensajes no leídos
+   * y mostrando estado de lectura cuando sea pertinente.
+   *
+   * @param {object} item - Datos de un chat individual.
+   * @returns {JSX.Element}
+   */
+  const renderChatItem = ({ item }) => {
+    const tieneMensajeSinLeer = item.lastMensaje === item.contact &amp;&amp; item.Leido === false;
+    const esUltimoMensajeDelContacto = item.lastMensaje === item.contact;
+    const mensajeLeido = item.Leido;
+
+    const mensajeAMostrar = esUltimoMensajeDelContacto ? item.mensaje : `Tú: ${item.mensaje}`;
+  
+    return (
+      &lt;TouchableOpacity 
+        style={[
+          styles.chatItem, 
+          tieneMensajeSinLeer &amp;&amp; styles.chatItemResaltado
+        ]}
+        onPress={() => navigation.navigate('ChatScreen', { chat: item, userEmail })}
+      >
+        {item.foto ? (
+          &lt;Image source={{ uri: item.foto }} style={styles.profileImage} />
+        ) : (
+          &lt;Image source={require('../assets/default_user_icon.png')} style={styles.profileImage} />
+        )}
+  
+        &lt;View style={styles.chatInfo}>
+          &lt;Text style={styles.friendEmail}>{item.contact}&lt;/Text>
+          &lt;View style={styles.mensajeConEstado}>
+            &lt;Text style={styles.lastSong}>{mensajeAMostrar}&lt;/Text>
+            
+            {/* Mostrar estado del mensaje solo si el último mensaje fue enviado por el usuario */}
+            {!esUltimoMensajeDelContacto &amp;&amp; (
+              &lt;Ionicons 
+                name={mensajeLeido ? "checkmark-done" : "checkmark"} 
+                size={16} 
+                color={mensajeLeido ? "#4fc3f7" : "#888"} 
+                style={{ marginLeft: 6 }} 
+              />
+            )}
+  
+            {/* Indicador de nuevo mensaje si es del contacto y no está leído */}
+            {tieneMensajeSinLeer &amp;&amp; (
+              &lt;Text style={{ 
+                color: '#f2ab55', 
+                fontSize: 11, 
+                marginLeft: 10, 
+                backgroundColor: '#2e2e2e', 
+                paddingHorizontal: 6, 
+                paddingVertical: 2, 
+                borderRadius: 4 
+              }}>
+                mensaje sin leer
+              &lt;/Text>
+            )}
+          &lt;/View>
+        &lt;/View>
+  
+        {/* Ícono del bocadillo siempre presente */}
+        &lt;Ionicons name="chatbubble-ellipses-outline" size={20} color="#f2ab55" />
+      &lt;/TouchableOpacity>
+    );
+  };
+
+  return (
+    &lt;View style={styles.container}>
+      &lt;View style={styles.header}>
+        &lt;TouchableOpacity onPress={() => navigation.goBack()}>
+          &lt;Ionicons name="arrow-back" size={24} color="#f2ab55" />
+        &lt;/TouchableOpacity>
+        &lt;Text style={styles.title}>Chats con amigos&lt;/Text>
+        &lt;TouchableOpacity style={{ opacity: 0 }}>
+          &lt;Ionicons name="arrow-back" size={24} color="transparent" />
+        &lt;/TouchableOpacity>
+      &lt;/View>
+      
+      &lt;FlatList
+        data={chats}
+        renderItem={renderChatItem}
+        keyExtractor={(item, index) => index.toString()}
+        contentContainerStyle={styles.chatList}
+        refreshControl={
+          &lt;RefreshControl 
+            refreshing={refreshing} 
+            onRefresh={onRefresh} 
+            colors={['#f2ab55']}
+            tintColor="#f2ab55"
+          />
+        }
+      />
+
+      &lt;View style={styles.bottomContainer}>
+        &lt;TouchableOpacity 
+          style={styles.halfCircleButton} 
+          onPress={() => navigation.navigate('Amistades', { userEmail })}
+        >
+          &lt;Ionicons name="people-outline" size={30} color="#fff" />
+        &lt;/TouchableOpacity>
+      &lt;/View>
+      {cancionSonando &amp;&amp; (
+          &lt;TouchableOpacity onPress={handleOpenMusicPlayer} style={styles.playerButton}>
+            &lt;Animated.Image
+              source={require('../assets/disc.png')}
+              style={[styles.playerIcon, { transform: [{ rotate: spin }] }]} 
+            />
+          &lt;/TouchableOpacity>
+        )}
+    &lt;/View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#121111',
+    paddingHorizontal: 15,
+    paddingTop: 40,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#f2ab55',
+    textAlign: 'center',
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  chatList: {
+    paddingBottom: 20,
+  },
+  chatItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1E1E1E',
+    padding: 12,
+    borderRadius: 10,
+    marginBottom: 10,
+  },
+  profileImage: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    marginRight: 15,
+  },
+  chatInfo: {
+    flex: 1,
+  },
+  friendEmail: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#ffffff',
+    marginBottom: 2,
+  },
+  lastSong: {
+    fontSize: 14,
+    color: '#bbbbbb',
+  },
+  musicIconContainer: {
+    position: 'absolute',
+    bottom: 20,
+    right: 20,
+  },
+  musicIcon: {
+    width: 60,
+    height: 60,
+  },
+  bottomContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 100,
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    zIndex: 5,
+  },
+  halfCircleButton: {
+    width: 160,
+    height: 100,
+    borderTopLeftRadius: 100,
+    borderTopRightRadius: 100,
+    backgroundColor: '#ffb723',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: -20,
+  },
+  playerButton: {
+    position: 'absolute',
+    bottom: 15,
+    right: 16,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+    zIndex: 5,
+  },
+  playerIcon: { 
+    width: 80, 
+    height: 80, 
+    borderRadius: 35 
+  },
+  chatItemResaltado: {
+    shadowColor: '#f2ab55',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 10,
+    elevation: 8, // para Android
+  },
+  mensajeConEstado: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+});
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.4</a> on Sat Apr 26 2025 20:48:14 GMT+0200 (hora de verano de Europa central)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

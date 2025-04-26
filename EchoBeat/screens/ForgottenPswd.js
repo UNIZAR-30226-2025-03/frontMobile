@@ -1,6 +1,17 @@
+/**
+ * @file ForgottenPswd.js
+ * @description Pantalla para recuperar la contraseña de un usuario.
+ * Permite al usuario introducir su correo electrónico y recibir un enlace de restablecimiento.
+ */
 import React, { useState, useLayoutEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView, Alert } from 'react-native';
 
+/**
+ * Pantalla para recuperar la contraseña. Permite al usuario introducir
+ * su correo electrónico y recibir un enlace de restablecimiento.
+ *
+ * @param {object} navigation - Prop de navegación de React Navigation.
+ */
 export default function ForgottenPswd({ navigation }) {
   const [correo, setCorreo] = useState('');
   const [loading, setLoading] = useState(false);
@@ -13,11 +24,25 @@ export default function ForgottenPswd({ navigation }) {
     });
   }, [navigation]);
 
+  /**
+   * Valida que un correo tenga un formato básico correcto.
+   *
+   * @param {string} email - Cadena con el correo a validar.
+   * @returns {boolean} `true` si el correo es válido, `false` en caso contrario.
+   */
   const validarCorreo = (email) => {
     const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return regex.test(email);
   };
 
+  /**
+   * Envía la solicitud de recuperación de contraseña.
+   * - Valida el formato del correo.
+   * - Llama a la API de `forgot-password`.
+   * - Muestra alertas según el resultado.
+   * 
+   * @returns {void}
+   */
   const handlePasswordReset = async () => {
     setErrorCorreo('');
     setErrorApi('');

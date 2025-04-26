@@ -1,3 +1,8 @@
+/**
+ * @file PlaylistDetail.js
+ * @description Pantalla de detalles de una playlist.
+ * Permite ver información de la lista, reordenar canciones (solo si eres autor)
+ */
 import React, { useState, useLayoutEffect, useEffect, useCallback, useRef } from "react";
 import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Image, Animated, Easing, Dimensions, Alert, RefreshControl} from "react-native";
 import DraggableFlatList from "react-native-draggable-flatlist";
@@ -5,13 +10,22 @@ import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { TextInput } from "react-native";
-import { Picker } from "@react-native-picker/picker"; 
-import * as ImagePicker from "expo-image-picker";
-
 
 const { width } = Dimensions.get("window");
 
+/**
+ * Pantalla de detalles de una playlist, que permite:
+ * - Ver información de la lista (imagen, título, descripción, likes(si se te permite)).
+ * - Reordenar canciones mediante arrastre (si es tuya la playlist).
+ * - Reproducir la playlist completa o una canción específica.
+ * - Marcar/desmarcar canciones como favoritas.
+ * - Filtrar el orden de las canciones.
+ * - Añadir/cambiar canciones (si es autor).
+ * - Mostrar opciones contextuales (eliminar iconos, añadir a otras playlists, etc.).
+ *
+ * @param {object} props.navigation - Prop de navegación de React Navigation.
+ * @param {object} props.route - Contiene `playlist` con los datos básicos de la lista.
+ */
 export default function PlaylistDetail({ navigation, route }) {
   const { playlist } = route.params;
   const [songs, setSongs] = useState([]);
@@ -54,6 +68,16 @@ export default function PlaylistDetail({ navigation, route }) {
     navigation.setOptions({ headerShown: false });
   }, [navigation]);
 
+  /**
+   * Carga todos los datos iniciales de la playlist:
+   * - Canciones de la lista.
+   * - Información detallada.
+   * - Estado de favoritos del usuario.
+   * - Listas del usuario para saber si es autor.
+   * - Número de likes y estado de amistad (si es playlist protegida).
+   *
+   * @returns {Promise<object>} Información de la playlist (infoPlaylist).
+   */
   const loadData = async () => {
     try {
       const email = await AsyncStorage.getItem("email");
@@ -88,7 +112,7 @@ export default function PlaylistDetail({ navigation, route }) {
       console.log("La privacidad es", playlistData.TipoPrivacidad);
       setInfoLista(infoPlaylist);
       setFavoritos((favoritosData.canciones || []).map((c) => c.id));
-      //console.log("Listas del usuario", listasDelUsuario);
+
       let listas = listasDelUsuario.playlists ?? listasDelUsuario;
       const idsDelUsuario = listas.map((p) => p.Id);
       const esPropia = idsDelUsuario.includes(playlist.Id);
@@ -97,7 +121,7 @@ export default function PlaylistDetail({ navigation, route }) {
       const amigosJson = await amigosRes.json();
       setIsFriend(Array.isArray(amigosJson) &&amigosJson.some((a) => a.Email === email));
       setPlaylistsUsuario(listas);
-      //console.log("Info de la playlist", infoPlaylist);
+
       return infoPlaylist;
     } catch (error) {
       console.error("Error en loadData:", error);
@@ -116,6 +140,12 @@ export default function PlaylistDetail({ navigation, route }) {
     checkSongPlaying();
   }, []);
 
+  /**
+   * Verifica si hay canción en reproducción guardada en AsyncStorage
+   * y lanza animación de giro si corresponde.
+   * 
+   * @returns {Promise<void>}
+   */
   const checkSongPlaying = async () => {
     const lastSong = await AsyncStorage.getItem('lastSong');
     const isPlaying = await AsyncStorage.getItem('isPlaying');
@@ -133,6 +163,11 @@ export default function PlaylistDetail({ navigation, route }) {
     }
   };
 
+  /**
+   * Inicia animación de rotación continua.
+   * 
+   * @returns {Promise<void>}
+   */
   const startRotationLoop = () => {
     rotation.setValue(0);
     Animated.loop(
@@ -145,6 +180,11 @@ export default function PlaylistDetail({ navigation, route }) {
     ).start();
   };
 
+  /**
+   * Detiene la animación de rotación.
+   * 
+   * @returns {Promise<void>}
+   */
   const stopRotation = () => {
     rotation.stopAnimation(() => {
       rotation.setValue(0);
@@ -156,6 +196,11 @@ export default function PlaylistDetail({ navigation, route }) {
     outputRange: ['0deg', '360deg'],
   });
 
+  /**
+   * Navega al reproductor con la última canción guardada.
+   * 
+   * @returns {Promise<void>}
+   */
   const handleOpenMusicPlayer = async () => {
     try {
       const lastSong = await AsyncStorage.getItem('lastSong');
@@ -176,7 +221,12 @@ export default function PlaylistDetail({ navigation, route }) {
     }
   };
 
-
+  /**
+   * Marca o desmarca una canción como favorita.
+   * 
+   * @param {number} songId - ID de la canción a togglear.
+   * @returns {Promise<void>}
+   */
   const toggleFavorito = async (songId) => {
     if (!userEmail) {
       console.warn("Email no disponible aún");
@@ -199,6 +249,11 @@ export default function PlaylistDetail({ navigation, route }) {
     }
   };
 
+  /**
+   * Elimina la playlist (solo autor).
+   * 
+   * @returns {Promise<void>}
+   */
   const eliminarPlaylist = async () => {
     try {
       const body = {
@@ -225,6 +280,11 @@ export default function PlaylistDetail({ navigation, route }) {
     }
   };
 
+  /**
+   * Elimina una canción de la lista (solo autor).
+   * 
+   * @returns {Promise<void>}
+   */
   const eliminarCancionDeLista = async () => {
     if (!selectedSong || !playlist?.Id) return;
     console.log("Eliminando canción de la lista:", selectedSong, playlist.Id);
@@ -250,23 +310,14 @@ export default function PlaylistDetail({ navigation, route }) {
       Alert.alert("Error", error.message || "No se pudo eliminar la canción de la lista");
     }
   };
-
-  const likeSong = async (song) => {
-    const songId = song.id || song.Id;
-    const encodedEmail = encodeURIComponent(userEmail);
-    try {
-      const response = await fetch(`https://echobeatapi.duckdns.org/cancion/like/${encodedEmail}/${songId}`, {
-        method: 'POST',
-        headers: { accept: '*/*' }
-      });
-      if (!response.ok) throw new Error("Error al dar like");
-      setFavoritos((prev) => [...prev, songId]);
-      Alert.alert("Éxito", "Canción añadida a favoritos");
-    } catch (error) {
-      Alert.alert("Error", "Ya estaba en favoritos o falló");
-    }
-  };
   
+  /**
+   * Añade una canción a otra playlist del usuario.
+   * 
+   * @param {number} idLista - ID de la playlist destino.
+   * @param {number} songId - ID de la canción.
+   * @return {Promise<void>}
+   */
   const addSongToPlaylist = async (idLista, songId) => {
     try {
       const response = await fetch(`https://echobeatapi.duckdns.org/playlists/add-song/${idLista}`, {
@@ -282,12 +333,23 @@ export default function PlaylistDetail({ navigation, route }) {
     }
   };
 
+  /**
+   * Refresca la lista de canciones al hacer pull-to-refresh.
+   * 
+   * @returns {Promise<void>}
+   */
   const onRefresh = async () => {
     setRefreshing(true);
     await loadData();
     setRefreshing(false);
   };
 
+  /**
+   * Cambia el orden de las canciones vía API.
+   * 
+   * @param {number} orderValue - Valor de orden (0,1,2).
+   * @returns {Promise<void>}
+   */
   const handleOrderChange = async (orderValue) => {
     try {
       const response = await fetch(`https://echobeatapi.duckdns.org/playlists/ordenar-canciones/${playlist.Id}/${orderValue}`);
@@ -301,8 +363,12 @@ export default function PlaylistDetail({ navigation, route }) {
     }
   };
 
-  // Render unificado para cada canción en PlaylistDetails: se muestra la imagen a la izquierda,
-  // el nombre de la canción a la derecha de la imagen y los íconos (like y opciones) al final, con el like pegado a la izquierda de los tres puntos.
+  /**
+   * Renderiza un ítem de canción en la lista draggable.
+   * 
+   * @param {{ item: object, drag: Function, isActive: boolean }} props
+   * @returns {JSX.Element} Componente de canción.
+   */
   const renderSong = ({ item, drag, isActive }) => {
     const esFavorita = favoritos.includes(item.id);
     return (
@@ -337,6 +403,11 @@ export default function PlaylistDetail({ navigation, route }) {
     );
   };
 
+  /**
+   * Inicia la reproducción de la playlist completa.
+   * 
+   * @returns {Promise<void>} Promesa que se resuelve al iniciar la reproducción.
+   */
   const iniciarReproduccion = async () => {
     try {
       const body = {
@@ -385,6 +456,13 @@ export default function PlaylistDetail({ navigation, route }) {
     }
   };
   
+  /**
+   * Inicia la reproducción desde una canción específica.
+   * 
+   * @param {object} song - Canción seleccionada.
+   * @param {number} index - Índice de la canción en la lista.
+   * @return {Promise<void>} Promesa que se resuelve al iniciar la reproducción.
+   */
   const iniciarReproduccionDesdeCancion = async (song, index) => {
     try {
       const body = {
@@ -424,6 +502,11 @@ export default function PlaylistDetail({ navigation, route }) {
     }
   };
 
+  /**
+   * Cabecera de la pantalla de la playlist.
+   * 
+   * @returns {JSX.Element} Componente de cabecera.
+   */
   const ListHeader = () => {
     const portada = infoLista?.Portada || playlist.Portada;
   
@@ -477,6 +560,12 @@ export default function PlaylistDetail({ navigation, route }) {
     );
   };
 
+  /**
+   * Pie de la lista de canciones.
+   * Si es autor, muestra botón para añadir canciones.
+   * 
+   * @returns {JSX.Element|null} Componente de pie de lista o null.
+   */
   const ListFooter = () => {
     if (!esAutor) return null;
   
@@ -490,18 +579,6 @@ export default function PlaylistDetail({ navigation, route }) {
           </TouchableOpacity>
       </View>
     );
-  };
-
-  const guardarNuevoOrden = async (nuevaLista) => {
-    try {
-      await fetch(`https://echobeatapi.duckdns.org/playlists/update-order/${playlist.Id}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ canciones: nuevaLista.map((c, i) => ({ id: c.id, orden: i })) })
-      });
-    } catch (e) {
-      Alert.alert("Error", "No se pudo guardar el nuevo orden");
-    }
   };
 
   return (
@@ -522,7 +599,6 @@ export default function PlaylistDetail({ navigation, route }) {
           onDragEnd={({ data }) => {
             const newData = data.map(item => ({ ...item }));
             setSongs(newData);
-            guardarNuevoOrden(newData);
           }}
           ListHeaderComponent={ListHeader}
           con tentContainerStyle={styles.flatListContent}

@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: ForgottenPswd.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: ForgottenPswd.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>/**
+ * @file ForgottenPswd.js
+ * @description Pantalla para recuperar la contraseña de un usuario.
+ * Permite al usuario introducir su correo electrónico y recibir un enlace de restablecimiento.
+ */
+import React, { useState, useLayoutEffect } from 'react';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView, Alert } from 'react-native';
+
+/**
+ * Pantalla para recuperar la contraseña. Permite al usuario introducir
+ * su correo electrónico y recibir un enlace de restablecimiento.
+ *
+ * @param {object} navigation - Prop de navegación de React Navigation.
+ */
+export default function ForgottenPswd({ navigation }) {
+  const [correo, setCorreo] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [errorCorreo, setErrorCorreo] = useState('');
+  const [errorApi, setErrorApi] = useState('');
+
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerShown: false,
+    });
+  }, [navigation]);
+
+  /**
+   * Valida que un correo tenga un formato básico correcto.
+   *
+   * @param {string} email - Cadena con el correo a validar.
+   * @returns {boolean} `true` si el correo es válido, `false` en caso contrario.
+   */
+  const validarCorreo = (email) => {
+    const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return regex.test(email);
+  };
+
+  /**
+   * Envía la solicitud de recuperación de contraseña.
+   * - Valida el formato del correo.
+   * - Llama a la API de `forgot-password`.
+   * - Muestra alertas según el resultado.
+   * 
+   * @returns {void}
+   */
+  const handlePasswordReset = async () => {
+    setErrorCorreo('');
+    setErrorApi('');
+
+    if (!validarCorreo(correo)) {
+      setErrorCorreo('Por favor, introduce un correo válido.');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const response = await fetch("https://echobeatapi.duckdns.org/auth/forgot-password", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ Email: correo }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Error al solicitar recuperación de contraseña.");
+      }
+
+      Alert.alert("Éxito", "Si el correo existe, recibirás un enlace para restablecer la contraseña.");
+      navigation.navigate("Login_Register");
+
+    } catch (error) {
+      setErrorApi(error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    &lt;SafeAreaView style={styles.container}>
+      &lt;Text style={styles.titulo}>Recuperar Contraseña&lt;/Text>
+      &lt;Text style={styles.descripcion}>
+        Introduce tu correo electrónico y te enviaremos instrucciones para recuperar tu contraseña.
+      &lt;/Text>
+
+      &lt;View style={styles.inputContainer}>
+        &lt;Text style={styles.label}>Correo electrónico&lt;/Text>
+        &lt;TextInput
+          style={styles.input}
+          placeholder="Introduce tu correo electrónico"
+          placeholderTextColor="#ffffff"
+          value={correo}
+          onChangeText={(text) => {
+            setCorreo(text);
+            setErrorCorreo('');
+          }}
+          keyboardType="email-address"
+          autoCapitalize="none"
+        />
+        {errorCorreo ? &lt;Text style={styles.error}>{errorCorreo}&lt;/Text> : null}
+      &lt;/View>
+
+      {errorApi ? &lt;Text style={styles.error}>{errorApi}&lt;/Text> : null}
+
+      &lt;TouchableOpacity
+        style={[styles.boton, loading &amp;&amp; styles.botonDeshabilitado]}
+        onPress={handlePasswordReset}
+        disabled={loading}
+      >
+        &lt;Text style={styles.botonTexto}>{loading ? "Enviando..." : "ENVIAR"}&lt;/Text>
+      &lt;/TouchableOpacity>
+
+      &lt;TouchableOpacity onPress={() => navigation.navigate('Login_Register')}>
+        &lt;Text style={styles.volver}>← Volver a Inicio de Sesión&lt;/Text>
+      &lt;/TouchableOpacity>
+    &lt;/SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+    backgroundColor: '#121111',
+  },
+  titulo: {
+    fontSize: 26,
+    fontWeight: 'bold',
+    color: '#f2ab55',
+    textAlign: 'center',
+    marginBottom: 10,
+  },
+  descripcion: {
+    fontSize: 16,
+    color: '#fff',
+    textAlign: 'center',
+    marginBottom: 30,
+  },
+  inputContainer: {
+    marginBottom: 20,
+  },
+  label: {
+    fontSize: 16,
+    color: '#f2ab55',
+    marginBottom: 5,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#f2ab55',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    fontSize: 16,
+    color: '#ffffff',
+    marginBottom: 5,
+  },
+  error: {
+    color: 'red',
+    fontSize: 13,
+    marginTop: 5,
+  },
+  boton: {
+    backgroundColor: '#ffb723',
+    paddingVertical: 15,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  botonDeshabilitado: {
+    backgroundColor: '#b1b1b1',
+  },
+  botonTexto: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  volver: {
+    color: '#f2ab55',
+    fontSize: 16,
+    textAlign: 'center',
+    marginTop: 10,
+    textDecorationLine: 'underline',
+  },
+});
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.4</a> on Sat Apr 26 2025 20:48:14 GMT+0200 (hora de verano de Europa central)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

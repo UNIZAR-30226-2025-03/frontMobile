@@ -1,9 +1,23 @@
-import React, { useState, useEffect, useLayoutEffect, useCallback } from 'react';
+/**
+ * @file FriendRequest.js
+ * @description Pantalla para gestionar solicitudes de amistad.
+ * Permite aceptar o rechazar solicitudes y enviar nuevas.
+ * Incluye un buscador para enviar solicitudes por nick.
+ */
+import React, { useState, useLayoutEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, TextInput, FlatList, TouchableOpacity, Image, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 
+/**
+ * Pantalla para gestionar solicitudes de amistad.
+ * - Muestra las solicitudes recibidas.
+ * - Permite aceptar o rechazar cada solicitud.
+ * - Incluye buscador para enviar nuevas solicitudes por nick.
+ *
+ * @param {object} navigation - Prop de navegación de React Navigation.
+ */
 export default function FriendRequest({ navigation }) {
   const [nick, setNick] = useState('');
   const [solicitudes, setSolicitudes] = useState([]);
@@ -21,6 +35,14 @@ export default function FriendRequest({ navigation }) {
     }, [])
   );
 
+  /**
+   * Carga las solicitudes de amistad pendientes para el usuario actual.
+   * - Obtiene el email de AsyncStorage.
+   * - Recupera el nick del usuario vía API.
+   * - Obtiene la lista de solicitudes pendientes.
+   * 
+   * @returns {void}
+   */
   const cargarSolicitudes = async () => {
     const email = await AsyncStorage.getItem('email');
     if (!email) {
@@ -43,6 +65,13 @@ export default function FriendRequest({ navigation }) {
     }
   };
 
+  /**
+   * Gestiona una solicitud de amistad.
+   *
+   * @param {'aceptar'|'rechazar'} accion - Acción a realizar.
+   * @param {string} nickSender - Nick del usuario que envió la solicitud.
+   * @returns {void}
+   */
   const gestionarSolicitud = async (accion, nickSender) => {
     try {
       const endpoint = accion === 'aceptar' ? 'aceptar' : 'rechazar';
@@ -69,6 +98,13 @@ export default function FriendRequest({ navigation }) {
     }
   };  
 
+  /**
+   * Renderiza cada elemento de la lista de solicitudes.
+   * - Muestra el avatar, nick y botones de aceptar/rechazar.
+   * 
+   * @param {object} item - Objeto de la solicitud.
+   * @returns {JSX.Element}
+   */
   const renderItem = ({ item }) => (
     <View style={styles.solicitudItem}>
     <Image
@@ -87,6 +123,14 @@ export default function FriendRequest({ navigation }) {
   </View>
   );
 
+  /**
+   * Envía una nueva solicitud de amistad al nick especificado en el buscador.
+   * - Valida que el campo no esté vacío.
+   * - Llama a la API para enviar la solicitud.
+   * - Muestra un mensaje de confirmación o error.
+   * 
+   * @returns {void}
+   */
   const handleEnviarSolicitud = async () => {
     if (!busqueda.trim()) {
       Alert.alert("Error", "Introduce un nick válido.");

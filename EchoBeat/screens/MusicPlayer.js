@@ -1,3 +1,7 @@
+/**
+ * @file MusicPlayer.js
+ * @description Pantalla de reproducción de música.
+ */
 import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Image, Alert } from 'react-native';
 import { Audio } from 'expo-av';
@@ -12,6 +16,16 @@ import { Modal } from 'react-native';
 let globalSound = null;
 let globalSocket = null;
 
+/**
+ * Pantalla de reproducción de música que:
+ * - Recibe streaming de audio por WebSocket.
+ * - Permite play/pause, avanzar, retroceder y loop.
+ * - Envía actualizaciones de progreso al servidor.
+ * - Gestiona favoritos y añadidos a playlists.
+ *
+ * @param {object} navigation - Prop de navegación de React Navigation.
+ * @param {object} route - Prop de ruta de React Navigation, con params { songId, songName, userEmail }.
+ */
 export default function MusicPlayer({ navigation, route }) {
   const { songId, songName, userEmail: passedEmail } = route.params || {};
   const [sound, setSound] = useState(null);
@@ -33,6 +47,12 @@ export default function MusicPlayer({ navigation, route }) {
   const audioChunksRef = useRef([]);
   const loopRef = useRef(loop);
 
+  /**
+   * Verifica si una cadena es base64 válida.
+   * 
+   * @param {string} str - Cadena a evaluar.
+   * @returns {boolean} true si es base64, false en caso contrario.
+   */
   const isBase64 = (str) => /^[A-Za-z0-9+/]+={0,2}$/.test(str);
 
   useLayoutEffect(() => {
@@ -79,7 +99,13 @@ export default function MusicPlayer({ navigation, route }) {
     return () => clearInterval(progressInterval);
   }, [loop, sound, socket, isPlaying, userEmail, songId]);
 
-
+  /**
+   * Configura el callback para actualizar la posición y duración,
+   * y maneja el evento 'didJustFinish' para loop o siguiente canción.
+   * 
+   * @param {Audio.Sound} soundInstance - Instancia de sonido de Expo Audio.
+   * @returns {void}
+   */
   const setupPlaybackStatusUpdate = (soundInstance) => {
     soundInstance.setOnPlaybackStatusUpdate(async (status) => {
       if (status.isLoaded) {
@@ -103,6 +129,11 @@ export default function MusicPlayer({ navigation, route }) {
     });
   };
 
+  /**
+   * Alterna el estado de favorito de la canción actual en la API.
+   * 
+   * @returns {void}
+   */
   const toggleFavorito = async () => {
     if (!userEmail) return;
     const endpoint = isFavorita ? 'unlike' : 'like';
@@ -119,6 +150,11 @@ export default function MusicPlayer({ navigation, route }) {
     }
   };
   
+  /**
+   * Obtiene las playlists del usuario para mostrarlas en el modal.
+   * 
+   * @returns {void}
+   */
   const fetchPlaylists = async () => {
     try {
       const res = await fetch(`https://echobeatapi.duckdns.org/playlists/user/${userEmail}`);
@@ -129,6 +165,13 @@ export default function MusicPlayer({ navigation, route }) {
     }
   };
   
+  /**
+   * Añade la canción actual a una playlist seleccionada.
+   * 
+   * @param {string|number} playlistId - ID de la playlist.
+   * @param {string|number} songId - ID de la canción.
+   * @returns {void}
+   */
   const addSongToPlaylist = async (playlistId, songId) => {
     try {
       const res = await fetch(`https://echobeatapi.duckdns.org/playlists/add-song/${playlistId}`, {
@@ -146,6 +189,15 @@ export default function MusicPlayer({ navigation, route }) {
   };
 
   useEffect(() => {
+    /**
+     * Inicializa el reproductor de audio y la conexión WebSocket.
+     * - Carga el estado de loop desde AsyncStorage.
+     * - Verifica si la canción está en favoritos.
+     * - Configura el socket para recibir audio.
+     * - Carga la portada y autores de la canción.
+     * 
+     * @returns {void}
+     */
     const initPlayer = async () => {
       const storedLoop = await AsyncStorage.getItem('loopMode');
       if (storedLoop !== null) {
@@ -201,6 +253,12 @@ export default function MusicPlayer({ navigation, route }) {
         globalSound = null;
       }
 
+      /**
+       * Configura el socket para recibir audio.
+       * 
+       * @param {string} userEmail 
+       * @returns {void}
+       */
       const setupSocket = (userEmail) => {
         const newSocket = io(`https://echobeatapi.duckdns.org`, { transports: ['websocket'] });
 
@@ -288,6 +346,13 @@ export default function MusicPlayer({ navigation, route }) {
     infoCancion();
   }, [songId, songName]);
 
+  /**
+   * Obtiene información de la canción actual desde la API.
+   * - Carga la portada y autores.
+   * - Maneja errores de conexión y datos faltantes.
+   * 
+   * @returns {void}
+   */
   const infoCancion = async () => {
     try {
       const response = await fetch(`https://echobeatapi.duckdns.org/playlists/song-details/${songId}`);
@@ -303,6 +368,12 @@ export default function MusicPlayer({ navigation, route }) {
     }
   };
 
+  /**
+   * Avanza a la siguiente canción en la cola.
+   * Si loop está activo, reinicia la misma canción.
+   * 
+   * @returns {void}
+   */
   const siguienteCancion = async () => {
     if (loopRef.current && sound) {
       await sound.setPositionAsync(0);
@@ -331,6 +402,11 @@ export default function MusicPlayer({ navigation, route }) {
     }
   };
 
+  /**
+   * Retrocede a la canción anterior o reinicia la actual si el progreso > 20%.
+   * 
+   * @returns {void}
+   */
   const anteriorCancion = async () => {
     if (loopRef.current && sound) {
       await sound.setPositionAsync(0);
@@ -365,6 +441,11 @@ export default function MusicPlayer({ navigation, route }) {
     }
   };
 
+  /**
+   * Alterna play/pause de la canción actual y guarda el estado.
+   * 
+   * @returns {void}
+   */
   const togglePlayPause = async () => {
     if (sound) {
       if (isPlaying) {
@@ -379,6 +460,12 @@ export default function MusicPlayer({ navigation, route }) {
     }
   };
 
+  /**
+   * Mueve la posición de reproducción al valor indicado.
+   * 
+   * @param {number} value - Tiempo en milisegundos al que hacer seek.
+   * @returns {void}
+   */
   const handleSeek = async (value) => {
     if (sound) {
       await sound.setPositionAsync(value);

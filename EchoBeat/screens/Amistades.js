@@ -1,3 +1,8 @@
+/**
+ * @file Amistades.js
+ * @description Pantalla de gestión de amistades en la aplicación EchoBeat.
+ * Permite ver la lista de amigos, buscar por nick, eliminar amistades y navegar a solicitudes de amistad.
+ */
 import React, { useState, useEffect, useLayoutEffect, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, TextInput, FlatList, TouchableOpacity, Image, Animated, Easing, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -41,6 +46,8 @@ export default function Amistades({ navigation, route }) {
   /**
    * Comprueba si hay una canción en reproducción según AsyncStorage
    * y activa/desactiva la animación de rotación del icono.
+   * 
+   * @returns {Promise<void>}
    */
   const checkSongPlaying = async () => {
     const lastSong = await AsyncStorage.getItem('lastSong');
@@ -61,6 +68,8 @@ export default function Amistades({ navigation, route }) {
 
   /**
    * Inicia un bucle de animación rotatoria continua.
+   * 
+   * @returns {void}
    */
   const startRotationLoop = () => {
     rotation.setValue(0);
@@ -76,6 +85,8 @@ export default function Amistades({ navigation, route }) {
 
   /**
    * Detiene la animación rotatoria y reinicia su valor.
+   * 
+   * @returns {void}
    */
   const stopRotation = () => {
     rotation.stopAnimation(() => {
@@ -90,6 +101,8 @@ export default function Amistades({ navigation, route }) {
 
   /**
    * Navega a la pantalla MusicPlayer con la última canción guardada.
+   * 
+   * @returns {Promise<void>}
    */
   const handleOpenMusicPlayer = async () => {
     try {
@@ -115,6 +128,7 @@ export default function Amistades({ navigation, route }) {
    * Obtiene el número de solicitudes de amistad pendientes para un nick dado.
    *
    * @param {string} nickUsuario - Nick del usuario para consultar solicitudes.
+   * @return {Promise<void>}
    */
   const cargarSolicitudes = async (nickUsuario) => {
     try {
@@ -129,6 +143,8 @@ export default function Amistades({ navigation, route }) {
 
   /**
    * Carga la lista de amigos del usuario y su propio nick desde la API.
+   * 
+   * @returns {Promise<void>}
    */
   const cargarAmigos = async () => {
     try {
@@ -158,6 +174,7 @@ export default function Amistades({ navigation, route }) {
    * Elimina una amistad entre el usuario actual y otro por nick.
    *
    * @param {string} nickReceiver - Nick del amigo a eliminar.
+   * @return {Promise<void>}
    */
   const eliminarAmigo = async (nickReceiver) => {
     try {
@@ -193,6 +210,7 @@ export default function Amistades({ navigation, route }) {
    *
    * @param {object} param0 - Objeto con la propiedad item.
    * @param {object} param0.item - Datos de un amigo.
+   * @return {JSX.Element} Elemento de la lista.
    */
   const renderItem = ({ item }) => (
     <TouchableOpacity

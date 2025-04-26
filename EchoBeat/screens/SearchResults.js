@@ -1,9 +1,27 @@
+/**
+ * @file SearchResults.js
+ * @description Pantalla de resultados de búsqueda.
+ */
 import React, { useState, useLayoutEffect, useEffect, useCallback, useRef } from 'react';
-import { View, Text, FlatList, StyleSheet, TouchableOpacity, Image, Animated, Easing, Modal, TouchableWithoutFeedback, TextInput, Keyboard, Alert } from 'react-native';
+import { View, Text, FlatList, StyleSheet, TouchableOpacity, Image, Animated, Easing, Modal, 
+         TouchableWithoutFeedback, TextInput, Keyboard, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+/**
+ * Pantalla de resultados de búsqueda.
+ * - Permite buscar canciones, artistas, álbumes y playlists.
+ * - Muestra los resultados en una lista.
+ * - Permite dar like a canciones, álbumes y playlists.
+ * - Permite añadir canciones a playlists.
+ * - Permite abrir el reproductor de música.
+ * 
+ * @param {object} route - Propiedades de la ruta, incluyendo parámetros iniciales.
+ * @param {object} navigation - Propiedades de navegación de React Navigation.
+ * @param {string} route.params.initialSearchText - Texto de búsqueda inicial.
+ * @param {string} route.params.initialSelectedOption - Opción de filtro inicial.
+ */
 export default function SearchResults({ route, navigation }) {
   // Recibimos los parámetros iniciales: texto y filtro seleccionado.
   const { initialSearchText = '', initialSelectedOption = null } = route.params || {};
@@ -44,7 +62,6 @@ export default function SearchResults({ route, navigation }) {
     }, [])
   );  
 
-
   // Al montar, obtenemos el email y el nick del usuario.
   useEffect(() => {
     const loadUserData = async () => {
@@ -73,6 +90,12 @@ export default function SearchResults({ route, navigation }) {
     checkSongPlaying();
   }, [email, userNick]);
 
+  /** 
+   * Verifica si hay una canción en reproducción en AsyncStorage y actualiza
+   * los estados para mostrar o detener la animación de disco.
+   * 
+   * @returns {Promise<void>}
+   */
   const checkSongPlaying = async () => {
     const lastSong = await AsyncStorage.getItem('lastSong');
     const isPlaying = await AsyncStorage.getItem('isPlaying');
@@ -90,6 +113,11 @@ export default function SearchResults({ route, navigation }) {
     }
   };
 
+  /**
+   * Inicia un bucle de animación de rotación en el valor `rotation`.
+   * 
+   * @returns {void}
+   */
   const startRotationLoop = () => {
     rotation.setValue(0);
     Animated.loop(
@@ -102,6 +130,11 @@ export default function SearchResults({ route, navigation }) {
     ).start();
   };
 
+  /**
+   * Detiene la animación de rotación y resetea el valor de `rotation` a 0.
+   * 
+   * @returns {void}
+   */
   const stopRotation = () => {
     rotation.stopAnimation(() => {
       rotation.setValue(0);
@@ -113,6 +146,11 @@ export default function SearchResults({ route, navigation }) {
     outputRange: ['0deg', '360deg'],
   });
 
+  /** 
+   * Navega al MusicPlayer usando la canción guardada en AsyncStorage.
+   * 
+   * @returns {Promise<void>}
+   */
   const handleOpenMusicPlayer = async () => {
     try {
       const lastSong = await AsyncStorage.getItem('lastSong');
@@ -133,7 +171,13 @@ export default function SearchResults({ route, navigation }) {
     }
   };
   
-  // Función para procesar (normalizar) los resultados agregando el tipo a cada objeto.
+  /**
+   * Normaliza la respuesta de la API añadiendo un campo `type` a cada item.
+   * 
+   * @param {object} data - Objeto de respuesta de la API.
+   * @param {string} tipo - Tipo de búsqueda (canciones, playlists, etc.).
+   * @returns {object} - Resultados normalizados.
+   */
   const processResults = (data, tipo) => {
     // Función de mapeo para cada categoría.
     const mapItems = (items, type) => items.map(item => ({ ...item, type }));
@@ -159,8 +203,12 @@ export default function SearchResults({ route, navigation }) {
     }
   };
 
-  // Función para realizar la búsqueda en la API.
-  // Se agrega la validación: si el texto a buscar está vacío, se muestra un mensaje y no se ejecuta la llamada.
+  /**
+   * Ejecuta la búsqueda en la API con el texto y filtro seleccionados.
+   * Maneja validaciones y muestra mensajes de error si es necesario.
+   * 
+   * @returns {Promise<void>}
+   */
   const handleSearch = async () => {
     if (!searchText.trim()) {
       setErrorMessage("Ingrese un texto para buscar");
@@ -191,7 +239,12 @@ export default function SearchResults({ route, navigation }) {
     }
   };
 
-  // Funciones para dar like a playlist, álbum o canción, y para agregar canción a playlist.
+  /**
+   * Marca una playlist como guardada (like).
+   * 
+   * @param {object} playlist - Objeto playlist.
+   * @return {Promise<void>}
+   */
   const likePlaylist = async (playlist) => {
     const playlistId = playlist.id || playlist.Id;
     if (!playlistId) {
@@ -212,6 +265,12 @@ export default function SearchResults({ route, navigation }) {
     }
   };
 
+  /**
+   * Marca un álbum como guardado (like).
+   * 
+   * @param {object} album - Objeto álbum.
+   * @return {Promise<void>}
+   */
   const likeAlbum = async (album) => {
     const albumId = album.id || album.Id;
     if (!albumId) {
@@ -232,6 +291,12 @@ export default function SearchResults({ route, navigation }) {
     }
   };
 
+  /**
+   * Añade una canción a favoritos (like).
+   * 
+   * @param {object} song - Objeto canción.
+   * @return {Promise<void>}
+   */
   const likeSong = async (song) => {
     const songId = song.id || song.Id;
     if (!songId) {
@@ -251,6 +316,11 @@ export default function SearchResults({ route, navigation }) {
     }
   };
 
+  /**
+   * Obtiene las playlists del usuario para el modal.
+   * 
+   * @returns {Promise<void>}
+   */
   const fetchPlaylists = async () => {
     try {
       const response = await fetch(`https://echobeatapi.duckdns.org/playlists/user/${email}`);
@@ -262,6 +332,13 @@ export default function SearchResults({ route, navigation }) {
     }
   };
 
+  /**
+   * Añade una canción a la playlist indicada.
+   * 
+   * @param {number} idLista - ID de la playlist.
+   * @param {number} songId - ID de la canción.
+   * @return {Promise<void>}
+   */
   const addSongToPlaylist = async (idLista, songId) => {
     try {
       const response = await fetch(`https://echobeatapi.duckdns.org/playlists/add-song/${idLista}`, {
@@ -276,7 +353,12 @@ export default function SearchResults({ route, navigation }) {
     }
   };
 
-  // Función para abrir el modal con acciones adicionales (como dar like o añadir a playlist).
+  /**
+   * Abre el modal de acciones para el item seleccionado.
+   * 
+   * @param {object} item - Item sobre el que se abren acciones.
+   * @returns {void}
+   */
   const openModal = (item) => {
     setSelectedItem(item);
     setModalVisible(true);
@@ -285,6 +367,11 @@ export default function SearchResults({ route, navigation }) {
     }
   };
 
+  /**
+   * Renderiza el contenido del modal según el tipo de item.
+   * 
+   * @returns {JSX.Element|null}
+   */
   const renderModalContent = () => {
     if (!selectedItem) return null;
     switch (selectedItem.type) {
@@ -386,7 +473,12 @@ export default function SearchResults({ route, navigation }) {
     }
   };
 
-  // Función auxiliar para formatear la duración de una canción.
+  /**
+   * Formatea una duración en segundos a mm:ss.
+   * 
+   * @param {number} duration - Duración en segundos.
+   * @returns {string}
+   */
   const formatDuration = (duration) => {
     if (!duration) return '0:00';
     const minutes = Math.floor(duration / 60);
@@ -394,7 +486,12 @@ export default function SearchResults({ route, navigation }) {
     return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
   };
 
-  // Función para reproducir una canción individual.
+  /**
+   * Reproduce una canción individual enviando la cola sólo con esa canción.
+   * 
+   * @param {object} song - Objeto canción.
+   * @returns {Promise<void>}
+   */
   const playSingleSong = async (song) => {
     try {
       const emailStored = await AsyncStorage.getItem('email');
@@ -439,7 +536,12 @@ export default function SearchResults({ route, navigation }) {
     ...(results.playlists || []),
   ];
 
-  // Renderizamos cada item según su "type".
+  /**
+   * Renderiza cada item del FlatList según su tipo.
+   * 
+   * @param {object} item - Objeto item a renderizar.
+   * @returns {JSX.Element}
+   */
   const renderItem = ({ item }) => {
     const imageSource = { uri: item.portada || item.Portada || item.FotoPerfil || 'https://via.placeholder.com/150' };
     switch (item.type) {

@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: EditPlaylistScreen.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: EditPlaylistScreen.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>/**
+ * @file EditPlaylistScreen.js
+ * @description Pantalla para editar una playlist existente.
+ */
+import React, { useEffect, useState, useLayoutEffect } from "react";
+import {View,Text,StyleSheet,SafeAreaView,TouchableOpacity,Image,Alert,ScrollView,TextInput,Modal} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { Picker } from "@react-native-picker/picker";
+import * as ImagePicker from "expo-image-picker";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
+/**
+ * Pantalla para editar una playlist existente.
+ * Permite modificar nombre, descripción, privacidad, portada y orden de canciones.
+ *
+ * @param {object} route.params.playlistEdit - Datos iniciales de la playlist (Nombre, Descripción, TipoPrivacidad, Portada).
+ * @param {string} route.params.playlistId - ID de la playlist a editar.
+ * @param {array} route.params.songs - Lista de canciones inicial.
+ * @param {function} route.params.onSave - Callback para actualizar datos después de guardar.
+ * @param {object} navigation - Prop de navegación de React Navigation.
+ */
+export default function EditPlaylistScreen({ route, navigation }) {
+  const { playlistEdit: initialEditData, playlistId, songs: initialSongs, onSave } = route.params;
+  const [playlistEdit, setPlaylistEdit] = useState(initialEditData);
+  const [songs, setSongs] = useState(initialSongs || []);
+  const [userEmail, setUserEmail] = useState("");
+  const [portadaUri, setPortadaUri] = useState(playlistEdit?.Portada);
+  const [nuevaPortada, setNuevaPortada] = useState(null);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [showImageOptionsModal, setShowImageOptionsModal] = useState(false);
+  const [defaultPhotos, setDefaultPhotos] = useState([]);
+  const [showDefaultPhotosModal, setShowDefaultPhotosModal] = useState(false);
+  const [useDefaultImage, setUseDefaultImage] = useState(false);
+  const [subiendoPortada, setSubiendoPortada] = useState(false);
+
+  useLayoutEffect(() => {
+    navigation.setOptions({ headerShown: false });
+  }, [navigation]);
+
+  useEffect(() => {
+    const loadInitialData = async () => {
+      const email = await AsyncStorage.getItem("email");
+      if (email) setUserEmail(email);
+  
+      try {
+        const [songsRes, infoRes] = await Promise.all([
+          fetch(`https://echobeatapi.duckdns.org/playlists/${playlistId}/songs`),
+          fetch(`https://echobeatapi.duckdns.org/playlists/lista/${playlistId}`)
+        ]);
+  
+        const songsJson = await songsRes.json();
+  
+        setSongs(songsJson.canciones);
+        setPlaylistEdit({
+          Nombre: playlistEdit.Nombre || '',
+          Descripcion: playlistEdit.Descripcion || '',
+          TipoPrivacidad: playlistEdit.TipoPrivacidad || '',
+        });
+  
+        // Usa la portada más reciente
+        setPortadaUri(playlistEdit.Portada);
+      } catch (err) {
+        console.error("Error al cargar datos:", err);
+        Alert.alert("Error", "No se pudieron cargar los datos.");
+      }
+    };
+  
+    loadInitialData();
+  }, []);
+
+  /**
+   * Reordena la lista de canciones moviendo una canción una posición arriba o abajo.
+   *
+   * @param {object} cancion - Objeto canción a mover.
+   * @param {number} direccion - -1 para subir, +1 para bajar.
+   * 
+   * @returns {void}
+   */
+  const moverCancion = (cancion, direccion) => {
+    const index = songs.findIndex((s) => s.id === cancion.id);
+    const nuevoIndex = index + direccion;
+    if (nuevoIndex &lt; 0 || nuevoIndex >= songs.length) return;
+
+    const nuevaLista = [...songs];
+    const [movida] = nuevaLista.splice(index, 1);
+    nuevaLista.splice(nuevoIndex, 0, movida);
+    setSongs(nuevaLista);
+    console.log("[DEBUG] Lista de canciones reordenada:", nuevaLista.map((s) => s.nombre));
+  };
+
+  /**
+   * Abre el modal de opciones para cambiar la portada.
+   * 
+   * @returns {void}
+   */
+  const handleImagePick = () => {
+    setShowImageOptionsModal(true);
+  };
+
+  /**
+   * Solicita permisos y permite al usuario elegir una imagen desde el dispositivo.
+   * Actualiza la URI de portada y marca que es portada cargada localmente.
+   * 
+   * @returns {Promise&lt;void>}
+   */
+  const pickImageFromDevice = async () => {
+    setUseDefaultImage(false);
+    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permissionResult.granted) {
+      Alert.alert("Permiso denegado", "Se necesita acceso a la galería.");
+      return;
+    }
+  
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.7,
+    });
+  
+    if (!result.canceled &amp;&amp; result.assets.length > 0) {
+      const image = result.assets[0];
+      setPortadaUri(image.uri);
+      setNuevaPortada(image.uri);
+      setShowImageOptionsModal(false);
+    }
+  };
+  
+  /**
+   * Obtiene de la API un listado de fotos predefinidas y muestra el modal para elegir una.
+   * 
+   * @returns {void}
+   */
+  const openDefaultPhotos = async () => {
+    try {
+      const res = await fetch('https://echobeatapi.duckdns.org/playlists/default-photos');
+      const data = await res.json();
+      setDefaultPhotos(data);
+      setShowImageOptionsModal(false);
+      setShowDefaultPhotosModal(true);
+    } catch (error) {
+      Alert.alert("Error", "No se pudieron cargar las imágenes predefinidas.");
+    }
+  };
+  
+  /**
+   * Selecciona una foto predefinida como nueva portada.
+   *
+   * @param {string} uri - URI de la imagen predefinida seleccionada.
+   * @returns {void}
+   */
+  const selectDefaultPhoto = (uri) => {
+    setUseDefaultImage(true);
+    setNuevaPortada(null); // eliminamos si había una portada anterior del dispositivo
+    setPortadaUri(uri);
+    setShowDefaultPhotosModal(false);
+  };
+
+  /**
+   * Envía todos los cambios de la playlist a la API:
+   * portada (URL o archivo), nombre, descripción, privacidad y orden de canciones.
+   * Muestra feedback de éxito o error.
+   * 
+   * @returns {Promise&lt;void>}
+   */
+  const guardarCambios = async () => {
+    if (subiendoPortada) return; // prevenir doble clic
+      setSubiendoPortada(true);
+    try {
+      const baseUrl = `https://echobeatapi.duckdns.org/playlists`;
+
+      // Subir portada default
+      if (useDefaultImage &amp;&amp; portadaUri) {
+        const resDefault = await fetch(`https://echobeatapi.duckdns.org/playlists/update-cover`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            userEmail: userEmail,
+            playlistId: playlistId,
+            imageUrl: portadaUri,
+          }),
+        });
+      
+        if (!resDefault.ok) {
+          const msg = await resDefault.text();
+          throw new Error(`Portada por URL: ${msg}`);
+        }
+      }
+
+      // Subir portada si se cambió
+      if (nuevaPortada) {
+        const formData = new FormData();
+        formData.append("userEmail", userEmail);
+        formData.append("file", {
+          uri: nuevaPortada,
+          name: "playlist.jpg",
+          type: "image/jpeg",
+        });
+
+        await new Promise((resolve) => setTimeout(resolve, 700));
+
+        const resPortada = await fetch(`${baseUrl}/update-photo/${playlistId}`, {
+          method: "POST",
+          body: formData,
+        });
+        
+        if (resPortada.status != 200 &amp;&amp; resPortada.status != 201) {
+          const msg = await resPortada.text();
+          throw new Error(`Portada: ${msg}`);
+        }
+      }
+
+      // Nombre
+      const resNombre = await fetch(`${baseUrl}/update-nombre`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userEmail,
+          idPlaylist: playlistId,
+          nuevoNombre: playlistEdit.Nombre,
+        }),
+      });
+      if (resNombre.status != 200 &amp;&amp; resNombre.status != 201) {
+        const msg = await resNombre.text();
+        throw new Error(`Nombre: ${msg}`);
+      }
+
+      // Descripción
+      const resDesc = await fetch(`${baseUrl}/update-descripcion`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userEmail,
+          idPlaylist: playlistId,
+          nuevaDescripcion: playlistEdit.Descripcion,
+        }),
+      });
+      if (resDesc.status != 200 &amp;&amp; resDesc.status != 201) {
+        const msg = await resDesc.text();
+        throw new Error(`Descripción: ${msg}`);
+      }
+
+      // Privacidad
+      const resPriv = await fetch(`${baseUrl}/update-privacidad`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userEmail,
+          idPlaylist: playlistId,
+          nuevoTipoPrivacidad: playlistEdit.TipoPrivacidad,
+        }),
+      });
+      if (resPriv.status != 200 &amp;&amp; resPriv.status != 201) {
+        const msg = await resPriv.text();
+        throw new Error(`Privacidad: ${msg}`);
+      }
+
+      // Reordenar canciones
+      const resOrden = await fetch(`${baseUrl}/reordenar-canciones`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            idPlaylist: playlistId,
+            cancionesJson: {
+              canciones: songs,
+            },
+          }),
+      });
+      if (!resOrden.ok) {
+        const msg = await resOrden.text();
+        throw new Error(`Orden de canciones: ${msg}`);
+      }
+
+      setShowSuccess(true);
+      setTimeout(() => {
+        setShowSuccess(false);
+        if (onSave) onSave();
+        navigation.goBack();
+        setSubiendoPortada(false);
+      }, 1500);
+    } catch (error) {
+      console.error("Error al guardar cambios:", error.message);
+      Alert.alert("❌ Error al guardar", error.message);
+      setSubiendoPortada(false);
+    }
+  };
+
+  return (
+    &lt;SafeAreaView style={styles.container}>
+      &lt;ScrollView contentContainerStyle={{ padding: 20 }}>
+        &lt;View style={styles.header}>
+            &lt;TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerButton}>
+                &lt;Ionicons name="arrow-back" size={24} color="#f2ab55" />
+            &lt;/TouchableOpacity>
+        &lt;/View>
+
+        &lt;View style={{ marginBottom: 20, alignSelf: 'center', position: 'relative' }}>
+          &lt;TouchableOpacity onPress={handleImagePick}>
+            &lt;Image source={{ uri: portadaUri }} style={styles.image} />
+          &lt;/TouchableOpacity>
+          &lt;TouchableOpacity onPress={handleImagePick} style={styles.imageOverlay}>
+            &lt;Ionicons name="pencil" size={20} color="#fff" />
+          &lt;/TouchableOpacity>
+        &lt;/View>
+
+        &lt;Text style={styles.label}>Nombre de la Playlist *&lt;/Text>
+        &lt;TextInput
+          style={styles.input}
+          value={playlistEdit.Nombre}
+          onChangeText={(text) => setPlaylistEdit({ ...playlistEdit, Nombre: text })}
+        />
+
+        &lt;Text style={styles.label}>Privacidad *&lt;/Text>
+        &lt;View style={styles.pickerContainer}>
+          &lt;Picker
+            selectedValue={playlistEdit.TipoPrivacidad}
+            onValueChange={(value) => setPlaylistEdit({ ...playlistEdit, TipoPrivacidad: value })}
+            style={styles.picker}
+          >
+            &lt;Picker.Item label="publico" value="publico" />
+            &lt;Picker.Item label="protegido" value="protegido" />
+            &lt;Picker.Item label="privado" value="privado" />
+          &lt;/Picker>
+        &lt;/View>
+
+        &lt;Text style={styles.label}>Descripción&lt;/Text>
+        &lt;TextInput
+          style={[styles.input, { height: 80, textAlignVertical: "top" }]}
+          multiline
+          maxLength={150}
+          value={playlistEdit.Descripcion}
+          onChangeText={(text) => setPlaylistEdit({ ...playlistEdit, Descripcion: text })}
+        />
+
+        &lt;Text style={styles.label}>Orden de las canciones&lt;/Text>
+        {songs.map((song) => (
+          &lt;View key={song.id} style={styles.songItem}>
+            &lt;Image source={{ uri: song.portada }} style={styles.songImage} />
+            &lt;View style={styles.songTextContainer}>
+              &lt;Text numberOfLines={1} style={styles.songTitle}>{song.nombre}&lt;/Text>
+            &lt;/View>
+            &lt;View style={styles.songIconsContainer}>
+              &lt;TouchableOpacity onPress={() => moverCancion(song, -1)} style={{ marginBottom: 4 }}>
+                &lt;Ionicons name="arrow-up" size={20} color="#fff" />
+              &lt;/TouchableOpacity>
+              &lt;TouchableOpacity onPress={() => moverCancion(song, 1)}>
+                &lt;Ionicons name="arrow-down" size={20} color="#fff" />
+              &lt;/TouchableOpacity>
+            &lt;/View>
+          &lt;/View>
+        ))}
+
+        &lt;TouchableOpacity 
+          style={[styles.button, subiendoPortada &amp;&amp; { opacity: 0.5 }]} 
+          onPress={guardarCambios}
+          disabled={subiendoPortada}
+        >
+          &lt;Text style={styles.buttonText}>Guardar cambios&lt;/Text>
+        &lt;/TouchableOpacity>
+
+        &lt;TouchableOpacity onPress={() => navigation.goBack()} style={{ marginTop: 20 }}>
+          &lt;Text style={{ color: "#f2ab55", textAlign: "center" }}>Cancelar&lt;/Text>
+        &lt;/TouchableOpacity>
+      &lt;/ScrollView>
+      {showSuccess &amp;&amp; (
+        &lt;View style={{
+            position: 'absolute',
+            top: '45%',
+            left: '10%',
+            right: '10%',
+            backgroundColor: '#1e1e1e',
+            padding: 20,
+            borderRadius: 16,
+            alignItems: 'center',
+            justifyContent: 'center',
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.3,
+            shadowRadius: 4,
+            elevation: 5,
+          }}>
+            &lt;Ionicons name="checkmark-circle" size={36} color="#f2ab55" style={{ marginBottom: 10 }} />
+            &lt;Text style={{ color: '#f2ab55', fontSize: 16, fontWeight: 'bold' }}>
+              Cambios guardados
+            &lt;/Text>
+          &lt;/View>
+      )}
+      {/* Modal de opciones de imagen */}
+      &lt;Modal
+        visible={showImageOptionsModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowImageOptionsModal(false)}
+      >
+        &lt;View style={{
+          ...StyleSheet.absoluteFillObject,
+          backgroundColor: 'rgba(0,0,0,0.6)',
+          justifyContent: 'center',
+          alignItems: 'center',
+        }}>
+          &lt;View style={{
+            width: '80%',
+            backgroundColor: '#2e2e2e',
+            borderRadius: 12,
+            padding: 20,
+            position: 'relative',
+          }}>
+            &lt;TouchableOpacity style={{ backgroundColor: '#ffb723', borderRadius: 8, paddingVertical: 12, marginTop: 18 }} onPress={pickImageFromDevice}>
+              &lt;Text style={{ textAlign: 'center', fontWeight: 'bold', color: '#000' }}>Elegir imagen del dispositivo&lt;/Text>
+            &lt;/TouchableOpacity>
+            &lt;TouchableOpacity style={{ backgroundColor: '#ffb723', borderRadius: 8, paddingVertical: 12, marginTop: 18 }} onPress={openDefaultPhotos}>
+              &lt;Text style={{ textAlign: 'center', fontWeight: 'bold', color: '#000' }}>Elegir foto predefinida&lt;/Text>
+            &lt;/TouchableOpacity>
+            &lt;TouchableOpacity style={{ position: 'absolute', top: 12, right: 12 }} onPress={() => setShowImageOptionsModal(false)}>
+              &lt;Ionicons name="close" size={24} color="#fff" />
+            &lt;/TouchableOpacity>
+          &lt;/View>
+        &lt;/View>
+      &lt;/Modal>
+
+      {/* Modal para mostrar fotos predefinidas */}
+      &lt;Modal
+        visible={showDefaultPhotosModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowImageOptionsModal(false)}
+      >
+        &lt;View style={{
+          ...StyleSheet.absoluteFillObject,
+          backgroundColor: 'rgba(0,0,0,0.6)',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 999
+        }}>
+          &lt;View style={{
+            width: '90%',
+            maxHeight: '80%',
+            backgroundColor: '#fff',
+            borderRadius: 12,
+            paddingTop: 40,
+            paddingBottom: 20,
+            paddingHorizontal: 10,
+          }}>
+            &lt;TouchableOpacity style={{ position: 'absolute', top: 12, right: 12 }} onPress={() => setShowDefaultPhotosModal(false)}>
+              &lt;Ionicons name="close" size={24} color="#000" />
+            &lt;/TouchableOpacity>
+            &lt;ScrollView contentContainerStyle={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center' }}>
+              {defaultPhotos.map((item) => (
+                &lt;TouchableOpacity key={item} onPress={() => selectDefaultPhoto(item)} style={{ margin: 5 }}>
+                  &lt;Image source={{ uri: item }} style={{ width: 140, height: 140, borderRadius: 8 }} />
+                &lt;/TouchableOpacity>
+              ))}
+            &lt;/ScrollView>
+          &lt;/View>
+        &lt;/View>
+      &lt;/Modal>
+    &lt;/SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#121111",
+  },
+  image: {
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+  },
+  imageOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    borderRadius: 12,
+    padding: 4,
+  },
+  label: {
+    fontSize: 16,
+    color: '#f2ab55',
+    marginBottom: 5,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#f2ab55',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 16,
+    color: '#ffffff',
+    marginBottom: 15,
+  },
+  pickerContainer: {
+    borderWidth: 1,
+    borderColor: '#f2ab55',
+    borderRadius: 8,
+    overflow: 'hidden',
+    marginBottom: 15,
+  },
+  picker: {
+    color: '#ffffff',
+  },
+  button: {
+    backgroundColor: '#f2ab55',
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 20,
+  },
+  buttonText: {
+    color: '#121111',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  songItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#222",
+    borderRadius: 8,
+    marginVertical: 5,
+    padding: 8,
+  },
+  songImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 8,
+  },
+  songTextContainer: {
+    flex: 1,
+    marginHorizontal: 10,
+  },
+  songTitle: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#fff",
+  },
+  songIconsContainer: {
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  headerButton: {},
+  headerContent: {
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    alignItems: "center",
+    position: "relative",
+  },
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 25,
+    paddingTop: 30,
+  },
+});
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.4</a> on Sat Apr 26 2025 20:48:14 GMT+0200 (hora de verano de Europa central)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

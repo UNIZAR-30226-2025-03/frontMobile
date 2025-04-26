@@ -1,12 +1,27 @@
+/**
+ * @file ProfileAmistades.js
+ * @description Pantalla para ver el perfil de un amigo.
+ * Muestra su foto, nick y playlists públicas.
+ * Incluye un botón flotante para abrir el reproductor
+ * con la última canción en reproducción.
+ */
 import React, { useEffect, useState, useLayoutEffect, useCallback, useRef } from 'react';
 import { View, Text, Image, StyleSheet, FlatList, Animated, Easing, TouchableOpacity, ActivityIndicator, Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from "@react-navigation/native";
 
+const width = Dimensions.get('window').width;
 
-const screenWidth = Dimensions.get('window').width;
-
+/**
+ * Componente de pantalla para ver el perfil de un amigo,
+ * incluyendo su foto, nick y playlists públicas.
+ * También muestra un botón flotante para abrir el reproductor
+ * con la última canción en reproducción.
+ *
+ * @param {object} props.route.params.userEmail - Email del usuario amigo cuyo perfil se muestra.
+ * @param {object} props.navigation - Propiedades de navegación de React Navigation.
+ */
 export default function ProfileAmistades({ route, navigation }) {
   const { userEmail } = route.params; // Este email es el del usuario (amigo) cuyo perfil se está viendo
   const [userData, setUserData] = useState(null);
@@ -17,17 +32,6 @@ export default function ProfileAmistades({ route, navigation }) {
   const rotation = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    // Obtener el email del usuario autenticado desde AsyncStorage
-    const fetchLoggedEmail = async () => {
-      try {
-        const email = await AsyncStorage.getItem('email');
-        if (email) {
-          setLoggedEmail(email);
-        }
-      } catch (error) {
-        console.error("Error al obtener el email autenticado:", error);
-      }
-    };
     fetchLoggedEmail();
     checkSongPlaying();
   }, []);
@@ -39,71 +43,110 @@ export default function ProfileAmistades({ route, navigation }) {
       .catch(err => console.error("Error cargando perfil:", err));
   }, [userEmail]);
 
-    useFocusEffect(
-      useCallback(() => {
-        checkSongPlaying();
-      }, [])
-    );
+  useFocusEffect(
+    useCallback(() => {
+      checkSongPlaying();
+    }, [])
+  );
 
-    const checkSongPlaying = async () => {
-      const lastSong = await AsyncStorage.getItem('lastSong');
-      const isPlaying = await AsyncStorage.getItem('isPlaying');
-  
-      const hayCancion = !!lastSong;
-      const reproduciendo = isPlaying === 'true';
-  
-      setCancionSonando(hayCancion);
-      setEstaReproduciendo(reproduciendo);
-  
-      if (hayCancion && reproduciendo) {
-        startRotationLoop();
-      } else {
-        stopRotation();
+  /**
+   * Recupera el email del usuario autenticado desde AsyncStorage
+   * y lo guarda en el estado local.
+   * 
+   * @returns {Promise<void>}
+   */
+  const fetchLoggedEmail = async () => {
+    try {
+      const email = await AsyncStorage.getItem('email');
+      if (email) {
+        setLoggedEmail(email);
       }
-    };
+    } catch (error) {
+      console.error("Error al obtener el email autenticado:", error);
+    }
+  };
+
+  /**
+   * Consulta AsyncStorage para saber si hay canción y si está reproduciéndose,
+   * ajusta los estados correspondientes y lanza/detiene la animación de giro.
+   * 
+   * @returns {Promise<void>}
+   */
+  const checkSongPlaying = async () => {
+    const lastSong = await AsyncStorage.getItem('lastSong');
+    const isPlaying = await AsyncStorage.getItem('isPlaying');
   
-    const startRotationLoop = () => {
+    const hayCancion = !!lastSong;
+    const reproduciendo = isPlaying === 'true';
+  
+    setCancionSonando(hayCancion);
+    setEstaReproduciendo(reproduciendo);
+  
+    if (hayCancion && reproduciendo) {
+      startRotationLoop();
+    } else {
+      stopRotation();
+    }
+  };
+  
+  /**
+   * Inicia una animación continua de rotación (360° en 4 segundos).
+   * 
+   * @returns {void}
+   */
+  const startRotationLoop = () => {
+    rotation.setValue(0);
+    Animated.loop(
+      Animated.timing(rotation, {
+        toValue: 1,
+        duration: 4000,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      })
+    ).start();
+  };
+  
+  /**
+   * Detiene la animación de rotación y reinicia el valor a 0.
+   * 
+   * @returns {void}
+   */
+  const stopRotation = () => {
+    rotation.stopAnimation(() => {
       rotation.setValue(0);
-      Animated.loop(
-        Animated.timing(rotation, {
-          toValue: 1,
-          duration: 4000,
-          easing: Easing.linear,
-          useNativeDriver: true,
-        })
-      ).start();
-    };
-  
-    const stopRotation = () => {
-      rotation.stopAnimation(() => {
-        rotation.setValue(0);
-      });
-    };
-  
-    const spin = rotation.interpolate({
-      inputRange: [0, 1],
-      outputRange: ['0deg', '360deg'],
     });
+  };
   
-    const handleOpenMusicPlayer = async () => {
-      try {
-        const lastSong = await AsyncStorage.getItem('lastSong');
-        const lastSongIdStr = await AsyncStorage.getItem('lastSongId');
-        const lastSongId = parseInt(lastSongIdStr);
+  const spin = rotation.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  });
   
-        if (lastSong && !isNaN(lastSongId)) {
-          navigation.navigate('MusicPlayer', {
-            songName: lastSong,
-            songId: lastSongId,
-            userEmail: userEmail
-          });
-        } else {
-          Alert.alert("No hay ninguna canción en reproducción");
-        }
-      } catch (error) {
-        console.error("Error obteniendo la última canción:", error);
+  /**
+   * Navega a la pantalla MusicPlayer si existe una última canción guardada.
+   * En caso contrario, muestra una alerta.
+   * 
+   * @returns {Promise<void>}
+   */
+  const handleOpenMusicPlayer = async () => {
+    try {
+      const lastSong = await AsyncStorage.getItem('lastSong');
+      const lastSongIdStr = await AsyncStorage.getItem('lastSongId');
+      const lastSongId = parseInt(lastSongIdStr);
+  
+      if (lastSong && !isNaN(lastSongId)) {
+        navigation.navigate('MusicPlayer', {
+          songName: lastSong,
+          songId: lastSongId,
+          userEmail: userEmail
+        });
+      } else {
+        Alert.alert("No hay ninguna canción en reproducción");
       }
-    };  
+    } catch (error) {
+      console.error("Error obteniendo la última canción:", error);
+    }
+  };  
 
   useLayoutEffect(() => {
     navigation.setOptions({ headerShown: false });

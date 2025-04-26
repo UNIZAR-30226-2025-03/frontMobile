@@ -1,14 +1,24 @@
+/**
+ * @file ProfileScreen.js
+ * @description Pantalla de perfil del usuario.
+ * Permite ver y editar información del perfil, incluyendo foto, nickname, nombre completo, fecha de nacimiento y privacidad.
+ * Incluye opciones para cambiar la imagen de perfil y cerrar sesión.
+ */
 import React, { useState, useEffect, useLayoutEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView, Alert, Image, ScrollView, Dimensions, Modal, FlatList } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import * as ImagePicker from 'expo-image-picker'
-import * as FileSystem from 'expo-file-system';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from '@expo/vector-icons';
 
 const { width } = Dimensions.get('window');
 
+/**
+ * Componente de pantalla para visualizar y editar el perfil del usuario.
+ *
+ * @param {object} props.navigation - Objeto de navegación de React Navigation.
+ */
 export default function ProfileScreen({ navigation }) {
   const [userEmail, setUserEmail] = useState('');
   const [userName, setUserName] = useState('');
@@ -46,6 +56,11 @@ export default function ProfileScreen({ navigation }) {
     protegido: "Protegido"
   };
 
+  /**
+   * Obtiene los datos del perfil actual desde la API y AsyncStorage.
+   * 
+   * @returns {Promise<void>}
+   */
   const obtenerDatosUsuario = async () => {
     try {
       const email = await AsyncStorage.getItem('email');
@@ -83,8 +98,18 @@ export default function ProfileScreen({ navigation }) {
     }
   };
 
+  /**
+   * Abre un modal con opciones para cambiar la imagen de perfil.
+   * 
+   * @returns {void}
+   */
   const openImageOptions = () => setShowImageOptionsModal(true);
 
+  /**
+   * Obtiene fotos predeterminadas de la API y muestra el selector.
+   * 
+   * @returns {Promise<void>}
+   */
   const openDefaultPhotos = async () => {
     try {
       const response = await fetch('https://echobeatapi.duckdns.org/users/default-photos');
@@ -98,6 +123,12 @@ export default function ProfileScreen({ navigation }) {
     }
   };
 
+  /**
+   * Selecciona una foto predeterminada y actualiza el perfil en la API.
+   *
+   * @param {string} imageUri URI de la imagen seleccionada.
+   * @return {Promise<void>}
+   */
   const selectDefaultPhoto = async (imageUri) => {
     try {
       console.log("Imagen seleccionada:", imageUri);
@@ -120,6 +151,11 @@ export default function ProfileScreen({ navigation }) {
     }
   };
 
+  /**
+   * Abre la galería para que el usuario elija una imagen desde su dispositivo.
+   * 
+   * @returns {Promise<void>}
+   */
   const seleccionarImagen = async () => {
     console.log("Botón de cambiar imagen presionado");
   
@@ -153,7 +189,12 @@ export default function ProfileScreen({ navigation }) {
     }
   };
   
-
+  /**
+   * Actualiza la imagen de perfil en la API.
+   * 
+   * @param {string} imageUri URI de la imagen seleccionada.
+   * @returns {Promise<void>}
+   */
   const actualizarFotoPerfil = async (imageUri) => {
     try {
       const fileExtension = imageUri.split('.').pop();
@@ -200,6 +241,11 @@ export default function ProfileScreen({ navigation }) {
     }
   };
 
+  /**
+   * Actualiza el nickname del usuario en la API.
+   * 
+   * @returns {Promise<void>}
+   */
   const actualizarNick = async () => {
     try {
       if (!newNick.trim()) {
@@ -224,6 +270,11 @@ export default function ProfileScreen({ navigation }) {
     }
   };
 
+  /**
+   * Actualiza la privacidad del usuario en la API.
+   * 
+   * @returns {Promise<void>}
+   */
   const actualizarPrivacidad = async () => {
     try {
       const response = await fetch(`https://echobeatapi.duckdns.org/users/update-privacy`, {
@@ -243,6 +294,11 @@ export default function ProfileScreen({ navigation }) {
     }
   };
 
+  /**
+   * Actualiza el nombre completo del usuario en la API.
+   * 
+   * @returns {Promise<void>}
+   */
   const actualizarFullName = async () => {
     if(!newFullName.trim()) return Alert.alert("Error", "El nombre completo no puede estar vacío.");
     try {
@@ -260,10 +316,22 @@ export default function ProfileScreen({ navigation }) {
     }
   };
 
+  /**
+   * Muestra el modal para seleccionar la fecha de nacimiento.
+   * 
+   * @returns {void}
+   */
   const showDatePickerModal = () => {
     setShowDOBPicker(true);
   };
 
+  /**
+   * Maneja el cambio de fecha en el selector de fecha.
+   *
+   * @param {object} event - Evento del selector de fecha.
+   * @param {Date} selectedDate - Fecha seleccionada.
+   * @returns {void}
+   */
   const onChangeDOB = (event, selectedDate) => {
     setShowDOBPicker(false);
     if (selectedDate) {
@@ -281,6 +349,12 @@ export default function ProfileScreen({ navigation }) {
     }
   };
 
+  /**
+   * Cierra la sesión del usuario.
+   * Limpia el AsyncStorage y reinicia la navegación.
+   * 
+   * @returns {Promise<void>}
+   */
   const cerrarSesion = async () => {
     try {
       // Borrar todo el AsyncStorage
@@ -295,6 +369,7 @@ export default function ProfileScreen({ navigation }) {
       Alert.alert("Error", "No se pudo cerrar la sesión correctamente.");
     }
   };
+  
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>

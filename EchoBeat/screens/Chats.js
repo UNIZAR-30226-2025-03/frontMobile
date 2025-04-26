@@ -1,3 +1,9 @@
+/**
+ * @file Chats.js
+ * Pantalla que muestra la lista de chats del usuario.
+ * Permite refrescar los chats, indicación de nuevos mensajes y
+ * acceder al reproductor si hay una canción en curso.
+ */
 import React, { useState, useRef, useLayoutEffect, useEffect, useCallback } from 'react';
 import { View, Text, FlatList, Image, StyleSheet, Dimensions, TouchableOpacity, Animated, Easing, RefreshControl } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -32,6 +38,8 @@ export default function Chats({ navigation, route }) {
   /**
    * Obtiene los chats del usuario desde la API y los almacena en estado.
    * Se codifica el email y se maneja el caso de error.
+   * 
+   * @returns {Promise<void>}
    */
   const fetchChats = useCallback(async () => {
     try {
@@ -82,6 +90,8 @@ export default function Chats({ navigation, route }) {
   /**
    * Verifica en AsyncStorage si hay una canción en reproducción,
    * actualiza los estados correspondientes y gestiona la animación.
+   * 
+   * @returns {Promise<void>}
    */
   const checkSongPlaying = async () => {
     const lastSong = await AsyncStorage.getItem('lastSong');
@@ -102,6 +112,8 @@ export default function Chats({ navigation, route }) {
 
   /**
    * Inicia la animación de rotación infinita para indicar reproducción.
+   * 
+   * @returns {void}
    */
   const startRotationLoop = () => {
     rotation.setValue(0);
@@ -117,6 +129,8 @@ export default function Chats({ navigation, route }) {
 
   /**
    * Detiene la animación de rotación y resetea el valor.
+   * 
+   * @returns {void}
    */
   const stopRotation = () => {
     rotation.stopAnimation(() => {
@@ -132,6 +146,8 @@ export default function Chats({ navigation, route }) {
   /**
    * Navega al reproductor si existe una canción guardada en AsyncStorage.
    * Muestra alerta si no hay ninguna canción en reproducción.
+   * 
+   * @returns {Promise<void>}
    */
   const handleOpenMusicPlayer = async () => {
     try {
@@ -155,6 +171,8 @@ export default function Chats({ navigation, route }) {
     
   /**
    * Handler de pull-to-refresh que recarga los chats.
+   * 
+   * @returns {Promise<void>}
    */
   const onRefresh = async () => {
     setRefreshing(true);
@@ -167,6 +185,7 @@ export default function Chats({ navigation, route }) {
    * y mostrando estado de lectura cuando sea pertinente.
    *
    * @param {object} item - Datos de un chat individual.
+   * @returns {JSX.Element}
    */
   const renderChatItem = ({ item }) => {
     const tieneMensajeSinLeer = item.lastMensaje === item.contact && item.Leido === false;

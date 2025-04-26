@@ -1,3 +1,9 @@
+/**
+ * @file ArtistDetails.js
+ * Pantalla que muestra detalles de un artista, incluyendo su biografía,
+ * discografía y top canciones. Permite reproducir canciones, marcarlas
+ * como favoritas y añadirlas a playlists del usuario.s
+ */
 import React, { useState, useEffect, useLayoutEffect } from 'react';
 import { View, Text, Image, StyleSheet, TouchableOpacity, Modal, TouchableWithoutFeedback, FlatList, Dimensions, ScrollView, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -27,6 +33,13 @@ export default function ArtistDetails({ route, navigation }) {
   }, [navigation]);
 
   useEffect(() => {
+    /**
+     * Obtiene el email del usuario almacenado en AsyncStorage.
+     * Si existe, lo guarda en el estado `email`.
+     * Maneja errores de lectura.
+     * 
+     * @return {Promise<void>}
+     */
     const getEmail = async () => {
       try {
         const storedEmail = await AsyncStorage.getItem('email');
@@ -61,6 +74,7 @@ export default function ArtistDetails({ route, navigation }) {
    * Inicia la reproducción de una única canción, creando una cola con un solo elemento.
    *
    * @param {object} song - Objeto canción con propiedades id/Id, nombre/Nombre, duracion/Duracion, etc.
+   * @return {Promise<void>}
    */
   const playSingleSong = async (song) => {
     try {
@@ -99,6 +113,8 @@ export default function ArtistDetails({ route, navigation }) {
 
   /**
    * Marca la canción seleccionada como favorita.
+   * 
+   * @return {Promise<void>}
    */
   const likeSong = async () => {
     try {
@@ -119,6 +135,7 @@ export default function ArtistDetails({ route, navigation }) {
    *
    * @param {number|string} playlistId - ID de la playlist destino.
    * @param {number|string} songId - ID de la canción a añadir.
+   * @return {Promise<void>}
    */
   const addSongToPlaylist = async (playlistId, songId) => {
     try {
@@ -147,6 +164,7 @@ export default function ArtistDetails({ route, navigation }) {
    * Abre el modal de opciones para la canción y carga las playlists del usuario.
    *
    * @param {object} song - Objeto canción seleccionado.
+   * @return {void}
    */
   const openSongOptions = (song) => {
     setSelectedSong(song);
@@ -156,6 +174,8 @@ export default function ArtistDetails({ route, navigation }) {
 
   /**
    * Obtiene las playlists del usuario autenticado.
+   * 
+   * @return {Promise<void>}
    */
   const fetchPlaylists = async () => {
     try {
@@ -172,6 +192,7 @@ export default function ArtistDetails({ route, navigation }) {
    * Renderiza cada álbum de la discografía.
    *
    * @param {object} param0.item - Objeto álbum con propiedades Id, Portada, Nombre.
+   * @return {JSX.Element}
    */
   const renderAlbumItem = ({ item }) => (
     <TouchableOpacity 
@@ -187,6 +208,7 @@ export default function ArtistDetails({ route, navigation }) {
    * Renderiza cada canción del listado topCanciones.
    *
    * @param {object} param0.item - Objeto canción con propiedades Id, Nombre, Portada.
+   * @return {JSX.Element}
    */
   const renderSongItem = ({ item }) => (
     <View style={styles.songItem}>
@@ -210,6 +232,8 @@ export default function ArtistDetails({ route, navigation }) {
   /**
    * Componente de cabecera para la lista, incluye imagen del artista,
    * biografía y sección de discografía/top canciones.
+   * 
+   * @return {JSX.Element}
    */
   const ListHeaderComponent = () => (
     <View>

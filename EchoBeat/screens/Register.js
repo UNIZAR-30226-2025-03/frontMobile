@@ -1,3 +1,12 @@
+/**
+ * @file Register.js
+ * @description Pantalla de registro de usuario.
+ * Permite al usuario ingresar nombre, apellidos, correo, nickname,
+ * contraseña y fecha de nacimiento.
+ * Valida los campos y muestra mensajes de error.
+ * Almacena el correo en AsyncStorage y navega a la pantalla de preferencias de género.
+ * Permite seleccionar la fecha de nacimiento con un DateTimePicker.
+ */
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView, Alert, Platform, } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -9,6 +18,15 @@ const usuariosRegistrados = { // Ejemplos que se reemplazarán por llamada a API
   nicknames: ['user123', 'nick456'],
 };
 
+/**
+ * Componente de registro de usuario.
+ * - Permite ingresar nombre, apellidos, correo, nickname, contraseña y fecha de nacimiento.
+ * - Valida los campos y muestra mensajes de error.
+ * - Almacena el correo en AsyncStorage y navega a la pantalla de preferencias de género.
+ * - Permite seleccionar la fecha de nacimiento con un DateTimePicker.
+ * 
+ * @param {object} navigation - Prop de navegación de React Navigation.
+ */
 export default function Register({ navigation }) {
   // Estados de los campos
   const [nombreApellidos, setNombreApellidos] = useState('');
@@ -49,11 +67,22 @@ export default function Register({ navigation }) {
     navigation.setOptions({ headerShown: false });
   }, [nombreApellidos, correo, nickname, contraseña, confirmarContraseña, fechaNacimiento, navigation]);
 
+  /**
+   * Valida si una cadena tiene el formato de correo electrónico correcto.
+   *
+   * @param {string} email - Cadena de texto a validar como correo.
+   * @returns {boolean} - True si el correo es válido, false en caso contrario.
+   */
   const validarCorreo = (email) => {
     const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return regex.test(email);
   };
 
+  /**
+   * Envía los datos del formulario a la API para registrar un nuevo usuario.
+   * 
+   * @returns {Promise<void>}
+   */
   const handleRegister = async () => {
     try {
       const response = await fetch("https://echobeatapi.duckdns.org/users/register", {
@@ -77,14 +106,18 @@ export default function Register({ navigation }) {
       await AsyncStorage.setItem("email", correo);
       Alert.alert("Éxito", "Registro exitoso! Seleccione sus géneros preferidos e inicie sesión.");
       
-      //navigation.replace('Welcome');
       navigation.replace('GeneroPreferencesInit');
     } catch (error) {
       Alert.alert("Error", error.message);
     }
   };
 
-  // Formatea la fecha en dd/mm/yyyy
+  /**
+   * Formatea un objeto Date en una cadena 'dd/mm/yyyy'.
+   *
+   * @param {Date} date - Fecha a formatear.
+   * @returns {string} - Fecha formateada.
+   */
   const formatDate = (date) => {
     const day = date.getDate();
     const month = date.getMonth() + 1;
@@ -92,6 +125,13 @@ export default function Register({ navigation }) {
     return `${day < 10 ? '0' + day : day}/${month < 10 ? '0' + month : month}/${year}`;
   };
 
+  /**
+   * Maneja la selección de una nueva fecha desde el DateTimePicker.
+   *
+   * @param {Event} event - Evento de cambio de fecha.
+   * @param {Date} selectedDate - Fecha seleccionada.
+   * @returns {void}
+   */
   const onChangeDate = (event, selectedDate) => {
     setShowDatePicker(Platform.OS === 'ios'); // En Android se cierra automáticamente
     if (selectedDate) {
