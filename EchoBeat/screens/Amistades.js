@@ -4,6 +4,14 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 
+/**
+ * Pantalla de gestión de amistades. Permite ver la lista de amigos,
+ * buscar por nick, eliminar amistades y navegar a solicitudes de amistad.
+ *
+ * @param {object} navigation - Objeto de navegación de React Navigation.
+ * @param {object} route - Objeto de ruta de React Navigation.
+ * @param {string} route.params.userEmail - Email del usuario autenticado.
+ */
 export default function Amistades({ navigation, route }) {
   const { userEmail } = route.params;
   const [nick, setNick] = useState('');
@@ -30,6 +38,10 @@ export default function Amistades({ navigation, route }) {
     checkSongPlaying();
   }, []);
 
+  /**
+   * Comprueba si hay una canción en reproducción según AsyncStorage
+   * y activa/desactiva la animación de rotación del icono.
+   */
   const checkSongPlaying = async () => {
     const lastSong = await AsyncStorage.getItem('lastSong');
     const isPlaying = await AsyncStorage.getItem('isPlaying');
@@ -47,6 +59,9 @@ export default function Amistades({ navigation, route }) {
     }
   };
 
+  /**
+   * Inicia un bucle de animación rotatoria continua.
+   */
   const startRotationLoop = () => {
     rotation.setValue(0);
     Animated.loop(
@@ -59,6 +74,9 @@ export default function Amistades({ navigation, route }) {
     ).start();
   };
 
+  /**
+   * Detiene la animación rotatoria y reinicia su valor.
+   */
   const stopRotation = () => {
     rotation.stopAnimation(() => {
       rotation.setValue(0);
@@ -70,6 +88,9 @@ export default function Amistades({ navigation, route }) {
     outputRange: ['0deg', '360deg'],
   });
 
+  /**
+   * Navega a la pantalla MusicPlayer con la última canción guardada.
+   */
   const handleOpenMusicPlayer = async () => {
     try {
       const lastSong = await AsyncStorage.getItem('lastSong');
@@ -90,6 +111,11 @@ export default function Amistades({ navigation, route }) {
     }
   };
 
+  /**
+   * Obtiene el número de solicitudes de amistad pendientes para un nick dado.
+   *
+   * @param {string} nickUsuario - Nick del usuario para consultar solicitudes.
+   */
   const cargarSolicitudes = async (nickUsuario) => {
     try {
       const res = await fetch(`https://echobeatapi.duckdns.org/amistades/verSolicitudes/${nickUsuario}`);
@@ -101,6 +127,9 @@ export default function Amistades({ navigation, route }) {
     }
   };  
 
+  /**
+   * Carga la lista de amigos del usuario y su propio nick desde la API.
+   */
   const cargarAmigos = async () => {
     try {
       const email = await AsyncStorage.getItem('email');
@@ -125,6 +154,11 @@ export default function Amistades({ navigation, route }) {
     }
   };
 
+  /**
+   * Elimina una amistad entre el usuario actual y otro por nick.
+   *
+   * @param {string} nickReceiver - Nick del amigo a eliminar.
+   */
   const eliminarAmigo = async (nickReceiver) => {
     try {
       console.log(`Eliminando a: ${nick} -> ${nickReceiver}`);
@@ -149,10 +183,17 @@ export default function Amistades({ navigation, route }) {
     setTimeout(() => setMensajeConfirmacion(''), 3000);
   };  
 
+  // Filtra amigos según texto de búsqueda en el nick
   const amigosFiltrados = amigos.filter(a =>
     a.Nick?.toLowerCase().includes(busqueda.toLowerCase())
   );
 
+  /**
+   * Renderiza cada elemento de la lista de amigos.
+   *
+   * @param {object} param0 - Objeto con la propiedad item.
+   * @param {object} param0.item - Datos de un amigo.
+   */
   const renderItem = ({ item }) => (
     <TouchableOpacity
       style={styles.friendItem}

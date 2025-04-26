@@ -3,8 +3,17 @@ import { View, Text, Image, StyleSheet, TouchableOpacity, Modal, TouchableWithou
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+/**
+ * Pantalla que muestra detalles de un artista, incluyendo su biografía,
+ * discografía y top canciones. Permite reproducir canciones, marcarlas
+ * como favoritas y añadirlas a playlists del usuario.
+ *
+ * @param {object} route - Prop de ruta de React Navigation.
+ * @param {object} route.params.artist - Objeto artista con propiedades `nombre` o `Nombre`.
+ * @param {object} navigation - Prop de navegación de React Navigation.
+ */
 export default function ArtistDetails({ route, navigation }) {
-  const { artist } = route.params; // Se espera que artist tenga al menos la propiedad "nombre" o "Nombre"
+  const { artist } = route.params;
   const [artistData, setArtistData] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [songOptionsVisible, setSongOptionsVisible] = useState(false);
@@ -29,6 +38,7 @@ export default function ArtistDetails({ route, navigation }) {
       }
     };
     getEmail();
+    // Solicita datos del artista al servidor
     const fetchArtistDetails = async () => {
       try {
         const response = await fetch(`https://echobeatapi.duckdns.org/artistas/perfil?artistName=${encodeURIComponent(artist.nombre || artist.Nombre)}`);
@@ -43,10 +53,15 @@ export default function ArtistDetails({ route, navigation }) {
     fetchArtistDetails();
   }, [artist, email]);
 
-  // Obtenemos la altura de la pantalla para limitar el modal
+  // Altura para limitar el modal de biografía
   const { height } = Dimensions.get('window');
   const modalMaxHeight = (2 / 3) * height;
 
+  /**
+   * Inicia la reproducción de una única canción, creando una cola con un solo elemento.
+   *
+   * @param {object} song - Objeto canción con propiedades id/Id, nombre/Nombre, duracion/Duracion, etc.
+   */
   const playSingleSong = async (song) => {
     try {
       const emailStored = await AsyncStorage.getItem('email');
@@ -82,6 +97,9 @@ export default function ArtistDetails({ route, navigation }) {
     }
   };
 
+  /**
+   * Marca la canción seleccionada como favorita.
+   */
   const likeSong = async () => {
     try {
       const response = await fetch(`https://echobeatapi.duckdns.org/cancion/like/${encodeURIComponent(email)}/${selectedSong.id}`, {
@@ -96,6 +114,12 @@ export default function ArtistDetails({ route, navigation }) {
     }
   };
 
+  /**
+   * Añade la canción seleccionada a la playlist indicada.
+   *
+   * @param {number|string} playlistId - ID de la playlist destino.
+   * @param {number|string} songId - ID de la canción a añadir.
+   */
   const addSongToPlaylist = async (playlistId, songId) => {
     try {
       const response = await fetch(`https://echobeatapi.duckdns.org/playlists/add-song/${playlistId}`, {
@@ -119,14 +143,20 @@ export default function ArtistDetails({ route, navigation }) {
     );
   }
 
+  /**
+   * Abre el modal de opciones para la canción y carga las playlists del usuario.
+   *
+   * @param {object} song - Objeto canción seleccionado.
+   */
   const openSongOptions = (song) => {
     setSelectedSong(song);
     setSongOptionsVisible(true);
-    // Opcionalmente, se pueden cargar las playlists del usuario para la opción "Añadir a Playlist"
     fetchPlaylists();
   };
 
-  // Función para obtener playlists (se utiliza la misma API que en SearchResults.js)
+  /**
+   * Obtiene las playlists del usuario autenticado.
+   */
   const fetchPlaylists = async () => {
     try {
       // Aquí se podría ajustar la URL según la lógica de tu API
@@ -138,7 +168,11 @@ export default function ArtistDetails({ route, navigation }) {
     }
   };
 
-  // Renderizado de cada álbum en la discografía (más grande)
+  /**
+   * Renderiza cada álbum de la discografía.
+   *
+   * @param {object} param0.item - Objeto álbum con propiedades Id, Portada, Nombre.
+   */
   const renderAlbumItem = ({ item }) => (
     <TouchableOpacity 
       style={styles.albumItem} 
@@ -149,7 +183,11 @@ export default function ArtistDetails({ route, navigation }) {
     </TouchableOpacity>
   );
 
-  // Renderizado de cada canción en Top Canciones (vertical)
+  /**
+   * Renderiza cada canción del listado topCanciones.
+   *
+   * @param {object} param0.item - Objeto canción con propiedades Id, Nombre, Portada.
+   */
   const renderSongItem = ({ item }) => (
     <View style={styles.songItem}>
       <TouchableOpacity 
@@ -169,7 +207,10 @@ export default function ArtistDetails({ route, navigation }) {
     </View>
   );
 
-  // Header que se mostrará en la FlatList
+  /**
+   * Componente de cabecera para la lista, incluye imagen del artista,
+   * biografía y sección de discografía/top canciones.
+   */
   const ListHeaderComponent = () => (
     <View>
       {/* Cabecera con la imagen del artista, botón de volver y botón para ver biografía */}

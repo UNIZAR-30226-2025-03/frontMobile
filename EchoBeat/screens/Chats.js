@@ -6,6 +6,15 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width } = Dimensions.get('window');
 
+/**
+ * Pantalla que muestra la lista de chats del usuario.
+ * Permite refrescar los chats, indicación de nuevos mensajes y
+ * acceder al reproductor si hay una canción en curso.
+ *
+ * @param {object} navigation - Prop de navegación de React Navigation.
+ * @param {object} route - Prop de ruta de React Navigation.
+ * @param {string} route.params.userEmail - Email del usuario autenticado.
+ */
 export default function Chats({ navigation, route }) {
   const { userEmail } = route.params;  // Se recibe el email del usuario desde los parámetros
   const [chats, setChats] = useState([]);
@@ -20,7 +29,10 @@ export default function Chats({ navigation, route }) {
   }, [navigation]);
 
 
-  // Función para cargar chats vía API
+  /**
+   * Obtiene los chats del usuario desde la API y los almacena en estado.
+   * Se codifica el email y se maneja el caso de error.
+   */
   const fetchChats = useCallback(async () => {
     try {
       const encodedEmail = encodeURIComponent(userEmail);
@@ -67,6 +79,10 @@ export default function Chats({ navigation, route }) {
     return () => clearInterval(intervalId);
   }, [isFocused, fetchChats]);
 
+  /**
+   * Verifica en AsyncStorage si hay una canción en reproducción,
+   * actualiza los estados correspondientes y gestiona la animación.
+   */
   const checkSongPlaying = async () => {
     const lastSong = await AsyncStorage.getItem('lastSong');
     const isPlaying = await AsyncStorage.getItem('isPlaying');
@@ -84,6 +100,9 @@ export default function Chats({ navigation, route }) {
     }
   };
 
+  /**
+   * Inicia la animación de rotación infinita para indicar reproducción.
+   */
   const startRotationLoop = () => {
     rotation.setValue(0);
     Animated.loop(
@@ -96,6 +115,9 @@ export default function Chats({ navigation, route }) {
     ).start();
   };
 
+  /**
+   * Detiene la animación de rotación y resetea el valor.
+   */
   const stopRotation = () => {
     rotation.stopAnimation(() => {
       rotation.setValue(0);
@@ -107,6 +129,10 @@ export default function Chats({ navigation, route }) {
     outputRange: ['0deg', '360deg'],
   });
 
+  /**
+   * Navega al reproductor si existe una canción guardada en AsyncStorage.
+   * Muestra alerta si no hay ninguna canción en reproducción.
+   */
   const handleOpenMusicPlayer = async () => {
     try {
       const lastSong = await AsyncStorage.getItem('lastSong');
@@ -127,13 +153,21 @@ export default function Chats({ navigation, route }) {
     }
   };
     
-  // Función para refrescar la lista de chats (pull to refresh)
+  /**
+   * Handler de pull-to-refresh que recarga los chats.
+   */
   const onRefresh = async () => {
     setRefreshing(true);
     await fetchChats();
     setRefreshing(false);
   };
 
+  /**
+   * Renderiza cada elemento de chat, destacando mensajes no leídos
+   * y mostrando estado de lectura cuando sea pertinente.
+   *
+   * @param {object} item - Datos de un chat individual.
+   */
   const renderChatItem = ({ item }) => {
     const tieneMensajeSinLeer = item.lastMensaje === item.contact && item.Leido === false;
     const esUltimoMensajeDelContacto = item.lastMensaje === item.contact;

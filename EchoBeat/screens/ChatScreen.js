@@ -1,22 +1,21 @@
 import React, { useState, useRef, useLayoutEffect, useEffect } from 'react';
-import {
-  View,
-  Text,
-  FlatList,
-  Image,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  Dimensions,
-  KeyboardAvoidingView,
-  Platform,
-  Animated
-} from 'react-native';
+import { View, Text,FlatList, Image, TextInput, TouchableOpacity, StyleSheet, Dimensions, KeyboardAvoidingView, Platform, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width } = Dimensions.get('window');
 
+/**
+ * Pantalla de chat que alterna entre:
+ *  - Lista de chats recientes (modo lista)
+ *  - Conversación con un contacto específico (modo conversación)
+ * También muestra un icono giratorio si hay música en reproducción.
+ *
+ * @param {object} navigation - Prop de navegación de React Navigation.
+ * @param {object} route - Prop de ruta de React Navigation.
+ * @param {object} route.params.chat - (Opcional) Objeto de chat para modo conversación.
+ * @param {string} route.params.userEmail - Email del usuario autenticado.
+ */
 export default function ChatScreen({ navigation, route }) {
   // Si se recibe el objeto "chat" en route.params, estamos en modo conversación.
   const chatDetail = route.params?.chat;
@@ -34,7 +33,9 @@ export default function ChatScreen({ navigation, route }) {
   // Ahora userEmail se obtiene dinámicamente (por ejemplo, de AsyncStorage)
   const [userEmail, setUserEmail] = useState('');
 
-  // Al montar el componente, obtenemos el email del usuario
+  /**
+   * Obtiene el email del usuario desde AsyncStorage al montar el componente.
+   */
   useEffect(() => {
     const fetchUserEmail = async () => {
       try {
@@ -54,7 +55,9 @@ export default function ChatScreen({ navigation, route }) {
     navigation.setOptions({ headerShown: false });
   }, [navigation]);
 
-  // MODO LISTA: Iniciar animación para el ícono de música
+  /**
+   * Inicia animación de rotación infinita para el ícono de música en modo lista.
+   */
   useEffect(() => {
     if (!chatDetail) {
       Animated.loop(
@@ -72,7 +75,9 @@ export default function ChatScreen({ navigation, route }) {
     outputRange: ['0deg', '360deg'],
   });
 
-  // MODO LISTA: Cargar chats recientes vía API
+  /**
+   * Carga los chats recientes del usuario desde la API cuando estamos en modo lista.
+   */
   useEffect(() => {
     if (!chatDetail && userEmail) {
       const fetchChats = async () => {
@@ -95,7 +100,9 @@ export default function ChatScreen({ navigation, route }) {
     }
   }, [chatDetail, userEmail]);
 
-  // MODO CONVERSACIÓN: Cargar historial de mensajes vía API mediante polling cada 3 segundos
+  /**
+   * Carga el historial de mensajes para la conversación activa cada 3 segundos.
+   */
   useEffect(() => {
     if (chatDetail && userEmail) {
       const fetchHistory = async () => {
@@ -125,7 +132,9 @@ export default function ChatScreen({ navigation, route }) {
     }
   }, [chatDetail, userEmail]);
 
-  //Marcar mensajes como leidos al abrir el chat.
+  /**
+   * Marca todos los mensajes del chat como leídos al abrir la conversación.
+   */
   useEffect(() => {
     const marcarMensajesComoLeidos = async () => {
       if (chatDetail && userEmail) {
@@ -153,7 +162,10 @@ export default function ChatScreen({ navigation, route }) {
     marcarMensajesComoLeidos();
   }, [chatDetail, userEmail]);
 
-  // Función para enviar mensaje en modo conversación.
+  /**
+   * Envía un mensaje en la conversación actual a través de la API
+   * y actualiza localmente la lista de mensajes.
+   */
   const sendMessage = async () => {
     if (!message.trim()) return;
 
@@ -185,7 +197,11 @@ export default function ChatScreen({ navigation, route }) {
     setMessage('');
   };
 
-  // MODO LISTA: Renderiza cada ítem del listado de chats recientes.
+  /**
+   * Renderiza cada ítem de la lista de chats recientes.
+   *
+   * @param {object} item - Objeto con datos del chat (contact, foto, mensaje).
+   */
   const renderChatItem = ({ item }) => (
     <TouchableOpacity
       style={styles.chatItem}

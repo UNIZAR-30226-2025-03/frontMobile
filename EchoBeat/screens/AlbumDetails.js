@@ -6,11 +6,20 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const { width } = Dimensions.get("window");
 
+/**
+ * Componente de pantalla que muestra los detalles de un álbum (playlist),
+ * incluyendo portada, descripción, lista de canciones, y permite acciones
+ * como reproducir, alternar aleatorio, favoritar y añadir canciones a otras playlists.
+ *
+ * @param {object} navigation - Objeto de navegación de React Navigation.
+ * @param {object} route - Objeto de ruta de React Navigation.
+ * @param {object} route.params.playlist - Datos del álbum: { Id, Nombre, Portada, Descripcion }.
+ */
 export default function AlbumDetails({ navigation, route }) {
   const { playlist } = route.params;
   const [songs, setSongs] = useState([]);
   const [userEmail, setUserEmail] = useState("");
-  const [playlistInfo, setPlaylistInfo] = useState(null);
+  const [albumInfo, setAlbumInfo] = useState(null);
   const [infoVisible, setInfoVisible] = useState(false);
   const [selectedSong, setSelectedSong] = useState(null);
   const [songOptionsVisible, setSongOptionsVisible] = useState(false);
@@ -28,6 +37,12 @@ export default function AlbumDetails({ navigation, route }) {
     navigation.setOptions({ headerShown: false });
   }, [navigation]);
 
+  /**
+   * Carga los datos iniciales del álbum:
+   * - Canciones del álbum
+   * - Metadatos del álbum
+   * - Canciones favoritas del usuario
+   */
   const loadData = async () => {
     try {
       const email = await AsyncStorage.getItem("email");
@@ -35,14 +50,14 @@ export default function AlbumDetails({ navigation, route }) {
       setUserEmail(email);
       const listasDelUsuario = await fetch(`https://echobeatapi.duckdns.org/playlists/user/${encodeURIComponent(email)}`).then(res => res.json());
       setPlaylistsUsuario(listasDelUsuario);
-      const [cancionesData, playlistData, favoritosData] = await Promise.all([
+      const [cancionesData, albumData, favoritosData] = await Promise.all([
         fetch(`https://echobeatapi.duckdns.org/playlists/${playlist.Id}/songs`).then((res) => res.json()),
-        fetch(`https://echobeatapi.duckdns.org/playlists/playlist/${playlist.Id}`).then((res) => res.json()),
+        fetch(`https://echobeatapi.duckdns.org/playlists/album/${playlist.Id}`).then((res) => res.json()),
         fetch(`https://echobeatapi.duckdns.org/cancion/favorites?email=${encodeURIComponent(email)}`).then((res) => res.json()),
       ]);
       setCola(cancionesData);
       setSongs(cancionesData.canciones || []);
-      setPlaylistInfo(playlistData);
+      setAlbumInfo(albumData);
       setFavoritos((favoritosData.canciones || []).map((c) => c.id));
     } catch (error) {
       console.error("Error en loadData:", error);
@@ -61,6 +76,10 @@ export default function AlbumDetails({ navigation, route }) {
     checkSongPlaying();
   }, []);
 
+  /**
+   * Comprueba si hay una canción actualmente en reproducción
+   * y gestiona el estado de la animación de rotación.
+   */
   const checkSongPlaying = async () => {
     const lastSong = await AsyncStorage.getItem('lastSong');
     const isPlaying = await AsyncStorage.getItem('isPlaying');
@@ -78,6 +97,9 @@ export default function AlbumDetails({ navigation, route }) {
     }
   };
 
+  /**
+   * Inicia un bucle de animación rotatoria continua.
+   */
   const startRotationLoop = () => {
     rotation.setValue(0);
     Animated.loop(
@@ -90,6 +112,9 @@ export default function AlbumDetails({ navigation, route }) {
     ).start();
   };
 
+  /**
+   * Detiene la animación rotatoria y reinicia su valor.
+   */
   const stopRotation = () => {
     rotation.stopAnimation(() => {
       rotation.setValue(0);
@@ -101,6 +126,10 @@ export default function AlbumDetails({ navigation, route }) {
     outputRange: ['0deg', '360deg'],
   });
 
+  /**
+   * Navega a la pantalla del reproductor con la última canción
+   * registrada en AsyncStorage.
+   */
   const handleOpenMusicPlayer = async () => {
     try {
       const lastSong = await AsyncStorage.getItem('lastSong');
@@ -121,6 +150,11 @@ export default function AlbumDetails({ navigation, route }) {
     }
   };
 
+  /**
+   * Alterna el estado de favorito de una canción via API.
+   *
+   * @param {number} songId - ID de la canción a alternar.
+   */
   const toggleFavorito = async (songId) => {
     if (!userEmail) {
       console.warn("Email no disponible aún");
@@ -143,14 +177,20 @@ export default function AlbumDetails({ navigation, route }) {
     }
   };
 
+  /**
+   * Refresh control para recargar datos de la pantalla.
+   */
   const onRefresh = async () => {
     setRefreshing(true);
     await loadData();
     setRefreshing(false);
   };
 
-  // Render unificado para cada canción: imagen a la izquierda, título a la derecha y
-  // en el extremo derecho (en un contenedor) se ubican el ícono de like y el de opciones.
+  /**
+   * Renderiza cada canción en la FlatList.
+   *
+   * @param {object} param0 - Objeto con el item de la canción.
+   */
   const renderSong = ({ item }) => {
     const esFavorita = favoritos.includes(item.id);
     return (
@@ -181,6 +221,12 @@ export default function AlbumDetails({ navigation, route }) {
     );
   };
 
+  /**
+   * Añade una canción a una playlist existente del usuario.
+   *
+   * @param {number} idLista - ID de la playlist destino.
+   * @param {number} songId - ID de la canción a añadir.
+   */
   const addSongToPlaylist = async (idLista, songId) => {
     try {
       const response = await fetch(`https://echobeatapi.duckdns.org/playlists/add-song/${idLista}`, {
@@ -196,6 +242,11 @@ export default function AlbumDetails({ navigation, route }) {
     }
   };
 
+  /**
+   * Inicia reproducción de la playlist desde la primera canción.
+   * Usa la API de cola de reproducción. 
+   * Tiene en cuenta el estado de aleatorio.
+   */
   const iniciarReproduccion = async () => {
     try {
           const body = {
@@ -245,6 +296,12 @@ export default function AlbumDetails({ navigation, route }) {
         }
   };
 
+  /**
+   * Reproduce la canción seleccionada en su posición dentro de la cola.
+   *
+   * @param {object} song - Objeto de canción.
+   * @param {number} index - Índice de la canción en la cola.
+   */
   const iniciarReproduccionDesdeCancion = async (song, index) => {
     try {
       const body = {
@@ -273,6 +330,10 @@ export default function AlbumDetails({ navigation, route }) {
     }
   };
 
+  /**
+   * Cabecera de la lista: muestra portada, título, descripción,
+   * controles de mezcla y botón de reproducir.
+   */
   const ListHeader = () => (
     <View style={styles.headerContent}>
       <Image
@@ -298,6 +359,14 @@ export default function AlbumDetails({ navigation, route }) {
       )}
     </View>
   );
+
+  const formatDate = (isoString) => {
+    const d = new Date(isoString);
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    return `${day}/${month}/${year}`;
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -390,10 +459,10 @@ export default function AlbumDetails({ navigation, route }) {
               <Ionicons name="close" size={30} color="#000" />
             </TouchableOpacity>
             <Text style={styles.infoTitle}>Información</Text>
-            {playlistInfo ? (
+            {albumInfo ? (
               <>
-                <Text style={styles.infoText}>Privacidad: {playlistInfo.TipoPrivacidad}</Text>
-                <Text style={styles.infoText}>Género: {playlistInfo.Genero}</Text>
+                <Text style={styles.infoText}>Autor: {albumInfo.autor}</Text>
+                <Text style={styles.infoText}>Fecha de Lanzamiento: {formatDate(albumInfo.fechaLanzamiento)}</Text>
               </>
             ) : (
               <Text style={styles.infoText}>Cargando información...</Text>
