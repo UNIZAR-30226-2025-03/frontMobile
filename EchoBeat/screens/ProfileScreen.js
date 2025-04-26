@@ -282,11 +282,19 @@ export default function ProfileScreen({ navigation }) {
   };
 
   const cerrarSesion = async () => {
-    await AsyncStorage.removeItem("email");
-    await AsyncStorage.removeItem("token");
-    navigation.replace("Login_Register");
+    try {
+      // Borrar todo el AsyncStorage
+      await AsyncStorage.clear();
+      // Reiniciar la pila de navegación para que no se pueda volver atrás
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'Login_Register' }],
+      });
+    } catch (error) {
+      console.error("Error al cerrar sesión:", error);
+      Alert.alert("Error", "No se pudo cerrar la sesión correctamente.");
+    }
   };
-
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>

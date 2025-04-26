@@ -67,6 +67,7 @@ export default function MusicPlayer({ navigation, route }) {
               currentTime: currentTimeSec,
             });
             console.log(`Progreso enviado: ${currentTimeSec} segundos`);
+            await AsyncStorage.setItem('minuto', String(currentTimeSec));
           }
         } catch (error) {
           console.error("Error obteniendo el estado del sonido:", error);
@@ -184,6 +185,16 @@ export default function MusicPlayer({ navigation, route }) {
         setupPlaybackStatusUpdate(globalSound);
         const status = await globalSound.getStatusAsync();
         setIsPlaying(status.isPlaying);
+        console.log("Reproducion status? ", status.isPlaying);
+        if(!status.isPlaying) {
+          const minStr = await AsyncStorage.getItem('minuto');
+          const min = parseInt(minStr);
+          if(!isNaN(min)) {
+            await globalSound.setPositionAsync(min * 1000);
+            return;
+          }
+          return;
+        }
         return;
       } else if (globalSound) {
         await globalSound.unloadAsync();
@@ -226,6 +237,9 @@ export default function MusicPlayer({ navigation, route }) {
             });
 
             const playFlag = (await AsyncStorage.getItem('isPlaying')) === 'true';
+            const minStr = await AsyncStorage.getItem('minuto');
+            const min = parseInt(minStr);
+
             const { sound: newSound } = await Audio.Sound.createAsync(
               { uri: fileUri },
               { shouldPlay: playFlag }
@@ -237,11 +251,16 @@ export default function MusicPlayer({ navigation, route }) {
             setupPlaybackStatusUpdate(newSound);
             setIsPlaying(true);
             globalSound = newSound;
+
+            if (!playFlag && !isNaN(min)) {
+              await newSound.setPositionAsync(min * 1000);
+            }
+
             if (songId && songName) {
               console.log("💾 Guardando en AsyncStorage:", { songId, songName });
               await AsyncStorage.setItem('lastSongId', String(songId));
               await AsyncStorage.setItem('lastSong', songName);
-              await AsyncStorage.setItem('isPlaying', 'true');
+              await AsyncStorage.setItem('isPlaying', playFlag ? 'true' : 'false');
             } else {
               console.warn("❌ songId o songName undefined al intentar guardar");
             }
@@ -298,6 +317,7 @@ export default function MusicPlayer({ navigation, route }) {
       const data = await response.json();
       if (!response.ok) return;
       const res2 = await fetch(`https://echobeatapi.duckdns.org/playlists/song-details/${data.siguienteCancionId}`);
+      await AsyncStorage.setItem('isPlaying', 'true');
       const songData = await res2.json();
       setPortadaSong(songData.Portada);
       setAutoresSong(songData.Autores);

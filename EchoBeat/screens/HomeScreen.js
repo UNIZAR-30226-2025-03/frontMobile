@@ -5,7 +5,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 
-
 const { width, height } = Dimensions.get('window');
 
 export default function HomeScreen({ navigation, route }) {
@@ -43,6 +42,11 @@ export default function HomeScreen({ navigation, route }) {
     try {
       await obtenerInfoUser();
       await checkSongPlaying();
+      if ((cancionSonando === true) && (estaReproduciendo === "true") && (menuAbierto === false)) {
+        startRotationLoop();
+      } else {
+        stopRotation();
+      }
     } catch (error) {
       Alert.alert("Error", "No se pudo actualizar los datos");
     } finally {
@@ -51,7 +55,10 @@ export default function HomeScreen({ navigation, route }) {
   };
 
   useEffect(() => {
-    if (cancionSonando && estaReproduciendo && !menuAbierto) {
+    console.log("Canción sonando:", cancionSonando);
+    console.log("Está reproduciendo:", estaReproduciendo);
+    console.log("Menú abierto:", menuAbierto);
+    if ((cancionSonando === true) && (estaReproduciendo === "true") && (menuAbierto === false)) {
       startRotationLoop();
     } else {
       stopRotation();
@@ -83,15 +90,42 @@ export default function HomeScreen({ navigation, route }) {
   const checkSongPlaying = async () => {
     const lastSong = await AsyncStorage.getItem('lastSong');
     const isPlaying = await AsyncStorage.getItem('isPlaying');
+    const loggeado = await AsyncStorage.getItem('logged');
+    //console.log("Reproduciendo? ", isPlaying);
+    //console.log("Loggeado? ", loggeado);
+    if(loggeado === '0') {
+      //console.log("No hay canción sonando y vengo de welcome");
+      try{
+        const email = await AsyncStorage.getItem('email');
+        if (!email) {
+          Alert.alert("Error", "No se pudo recuperar el email del usuario.");
+          return;
+        }
+        await AsyncStorage.setItem('logged', '1');
+        //console.log("Voy a buscar la canción actual");
+        const res = await fetch(`https://echobeatapi.duckdns.org/users/first-song?Email=${(email)}`);
+        const data = await res.json();
+        console.log("Canción actual:", data);
+        if (res.ok) {
+          await AsyncStorage.setItem('lastSong', data.Nombre);
+          await AsyncStorage.setItem('lastSongId', data.PrimeraCancionId.toString());
+          await AsyncStorage.setItem('minuto', data.MinutoEscucha.toString());
+        }
+      }catch(error){
+        console.error("Error al obtener la canción actual:", error);
+      }
+    }
 
     const hayCancion = !!lastSong;
-    const reproduciendo = isPlaying === 'true';
+    console.log("Hay canción:", hayCancion);
 
     setCancionSonando(hayCancion);
-    setEstaReproduciendo(reproduciendo);
+    setEstaReproduciendo(isPlaying);
 
-    if (hayCancion && reproduciendo && !menuAbierto) {
+    if (hayCancion && (isPlaying==='true') && !menuAbierto) {
       startRotationLoop();
+    } else{
+      stopRotation();
     }
   };
 

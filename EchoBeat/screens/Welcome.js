@@ -28,6 +28,8 @@ export default function Welcome({ navigation }) {
       } catch (error) {
         Alert.alert("Error", error.message);
       }
+      console.log('Se ha puesto bien el flag logged');
+      await AsyncStorage.setItem('logged', '0');
     };
     getUserInfo();
   }, [navigation]);
