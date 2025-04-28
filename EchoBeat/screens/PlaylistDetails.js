@@ -592,16 +592,22 @@ export default function PlaylistDetail({ navigation, route }) {
           </TouchableOpacity>
         </View>
         <DraggableFlatList
-          data={songs}
-          keyExtractor={(item) => item.id.toString()}
-          renderItem={renderSong}
+          data={[...songs, { id: "fake-item-final" }]} // ⚡ Añadimos un item falso al final
+          keyExtractor={(item, index) => item.id?.toString() || index.toString()}
+          renderItem={({ item, drag, isActive }) => (
+            item.id === "fake-item-final" ? (
+              <View style={{ height: 120 }} /> // 🔥 Hueco extra para evitar que el disco tape la última
+            ) : (
+              renderSong({ item, drag, isActive }) // 👉 Tus canciones normales
+            )
+          )}
           onDragEnd={({ data }) => {
-            const newData = data.map(item => ({ ...item }));
+            const newData = data.filter(item => item.id !== "fake-item-final"); // ⚡️ Filtramos el fake-item
             setSongs(newData);
           }}
           ListHeaderComponent={ListHeader}
-          con tentContainerStyle={styles.flatListContent}
           ListFooterComponent={ListFooter}
+          contentContainerStyle={{ paddingBottom: 120, paddingHorizontal: 10 }}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -610,6 +616,8 @@ export default function PlaylistDetail({ navigation, route }) {
               tintColor="#f2ab55"
             />
           }
+          keyboardDismissMode="on-drag"
+          keyboardShouldPersistTaps="handled"
         />
 
         {cancionSonando && (
@@ -1063,4 +1071,8 @@ const styles = StyleSheet.create({
     height: 80, 
     borderRadius: 35 
   },
+  flatListContentPadding: {
+    paddingBottom: 80,
+    paddingHorizontal: 10,
+  }
 });
