@@ -109,7 +109,6 @@ export default function PlaylistDetail({ navigation, route }) {
         Descripcion: infoPlaylist.Descripcion || "",
         TipoPrivacidad: playlistData.TipoPrivacidad,
       });
-      console.log("La privacidad es", playlistData.TipoPrivacidad);
       setInfoLista(infoPlaylist);
       setFavoritos((favoritosData.canciones || []).map((c) => c.id));
 

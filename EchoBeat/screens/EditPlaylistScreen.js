@@ -8,6 +8,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { Picker } from "@react-native-picker/picker";
 import * as ImagePicker from "expo-image-picker";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { ActivityIndicator } from "react-native";
+
 
 /**
  * Pantalla para editar una playlist existente.
@@ -32,6 +34,9 @@ export default function EditPlaylistScreen({ route, navigation }) {
   const [showDefaultPhotosModal, setShowDefaultPhotosModal] = useState(false);
   const [useDefaultImage, setUseDefaultImage] = useState(false);
   const [subiendoPortada, setSubiendoPortada] = useState(false);
+  const [bloqueoTemporal, setBloqueoTemporal] = useState(false);
+
+  
 
   useLayoutEffect(() => {
     navigation.setOptions({ headerShown: false });
@@ -49,6 +54,7 @@ export default function EditPlaylistScreen({ route, navigation }) {
         ]);
   
         const songsJson = await songsRes.json();
+        const infoJson = await infoRes.json();
   
         setSongs(songsJson.canciones);
         setPlaylistEdit({
@@ -58,7 +64,7 @@ export default function EditPlaylistScreen({ route, navigation }) {
         });
   
         // Usa la portada más reciente
-        setPortadaUri(playlistEdit.Portada);
+        setPortadaUri(infoJson.Portada);
       } catch (err) {
         console.error("Error al cargar datos:", err);
         Alert.alert("Error", "No se pudieron cargar los datos.");
@@ -86,6 +92,23 @@ export default function EditPlaylistScreen({ route, navigation }) {
     nuevaLista.splice(nuevoIndex, 0, movida);
     setSongs(nuevaLista);
     console.log("[DEBUG] Lista de canciones reordenada:", nuevaLista.map((s) => s.nombre));
+  };
+
+  /**
+   * Muestra una alerta de confirmación antes de cancelar la edición de la playlist.
+   * Si el usuario confirma, se vuelve a la pantalla anterior sin guardar cambios.
+   * 
+   * @returns {void}
+   */
+  const confirmarCancelarEdicion = () => {
+    Alert.alert(
+      "Confirmar",
+      "¿Desea descartar la edición de la playlist?",
+      [
+        { text: "Cancelar", style: "cancel" },
+        { text: "Confirmar", style: "destructive", onPress: () => navigation.goBack() }
+      ]
+    );
   };
 
   /**
@@ -124,6 +147,9 @@ export default function EditPlaylistScreen({ route, navigation }) {
       setNuevaPortada(image.uri);
       setShowImageOptionsModal(false);
     }
+
+    setBloqueoTemporal(true);
+    setTimeout(() => setBloqueoTemporal(false), 7000);
   };
   
   /**
@@ -166,6 +192,7 @@ export default function EditPlaylistScreen({ route, navigation }) {
   const guardarCambios = async () => {
     if (subiendoPortada) return; // prevenir doble clic
       setSubiendoPortada(true);
+
     try {
       const baseUrl = `https://echobeatapi.duckdns.org/playlists`;
 
@@ -289,10 +316,31 @@ export default function EditPlaylistScreen({ route, navigation }) {
 
   return (
     <SafeAreaView style={styles.container}>
+      {bloqueoTemporal && (
+        <View style={{
+          position: 'absolute',
+          top: 20,
+          left: '10%',
+          right: '10%',
+          backgroundColor: 'rgba(0, 0, 0, 0.8)', // Recuadro negro semiopaco
+          paddingVertical: 10,
+          paddingHorizontal: 20,
+          borderRadius: 12,
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 10,
+        }}>
+          <ActivityIndicator size="small" color="#f2ab55" style={{ marginRight: 10 }} />
+          <Text style={{ color: "#f2ab55", fontSize: 16, fontWeight: 'bold' }}>
+            Actualizando imagen...
+          </Text>
+        </View>
+      )}
       <ScrollView contentContainerStyle={{ padding: 20 }}>
         <View style={styles.header}>
-            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerButton}>
-                <Ionicons name="arrow-back" size={24} color="#f2ab55" />
+            <TouchableOpacity onPress style={styles.headerButton}>
+                <Ionicons name="" size={24} color="#f2ab55" />
             </TouchableOpacity>
         </View>
 
@@ -352,15 +400,18 @@ export default function EditPlaylistScreen({ route, navigation }) {
           </View>
         ))}
 
-        <TouchableOpacity 
-          style={[styles.button, subiendoPortada && { opacity: 0.5 }]} 
-          onPress={guardarCambios}
-          disabled={subiendoPortada}
-        >
+          <TouchableOpacity 
+            style={[
+              styles.button, 
+              (subiendoPortada || bloqueoTemporal) && { opacity: 0.5 }
+            ]} 
+            onPress={guardarCambios}
+            disabled={subiendoPortada || bloqueoTemporal}
+          >
           <Text style={styles.buttonText}>Guardar cambios</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginTop: 20 }}>
+        <TouchableOpacity onPress={confirmarCancelarEdicion} style={{ marginTop: 20 }}>
           <Text style={{ color: "#f2ab55", textAlign: "center" }}>Cancelar</Text>
         </TouchableOpacity>
       </ScrollView>
