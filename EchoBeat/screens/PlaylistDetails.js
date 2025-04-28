@@ -64,6 +64,7 @@ export default function PlaylistDetail({ navigation, route }) {
   const [estaReproduciendo, setEstaReproduciendo] = useState(false);
   const rotation = useRef(new Animated.Value(0)).current;
 
+
   useLayoutEffect(() => {
     navigation.setOptions({ headerShown: false });
   }, [navigation]);
@@ -580,6 +581,8 @@ export default function PlaylistDetail({ navigation, route }) {
     );
   };
 
+  const listaConFakeItem = esAutor ? songs : [...songs, { id: "fake-item-final" }];
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaView style={styles.container}>
@@ -592,17 +595,17 @@ export default function PlaylistDetail({ navigation, route }) {
           </TouchableOpacity>
         </View>
         <DraggableFlatList
-          data={[...songs, { id: "fake-item-final" }]} // ⚡ Añadimos un item falso al final
+          data={listaConFakeItem} // ⚡ Añadimos un item falso al final
           keyExtractor={(item, index) => item.id?.toString() || index.toString()}
           renderItem={({ item, drag, isActive }) => (
             item.id === "fake-item-final" ? (
-              <View style={{ height: 120 }} /> // 🔥 Hueco extra para evitar que el disco tape la última
+              <View style={{ height: 120 }} /> // 🔥 Solo espacio vacío si fake-item
             ) : (
-              renderSong({ item, drag, isActive }) // 👉 Tus canciones normales
+              renderSong({ item, drag, isActive })
             )
           )}
           onDragEnd={({ data }) => {
-            const newData = data.filter(item => item.id !== "fake-item-final"); // ⚡️ Filtramos el fake-item
+            const newData = data.filter(item => item.id !== "fake-item-final");
             setSongs(newData);
           }}
           ListHeaderComponent={ListHeader}
