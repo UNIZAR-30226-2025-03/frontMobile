@@ -100,7 +100,7 @@ export default function Register({ navigation }) {
       const data = await response.json();
   
       if (!response.ok) {
-        throw new Error(data.message || "Error al registrar usuario");
+        throw new Error("El Nick o Correo introducidos ya se encuentran registrados en la aplicación.");
       }
   
       await AsyncStorage.setItem("email", correo);
@@ -142,13 +142,12 @@ export default function Register({ navigation }) {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={[styles.scrollContainer, { flexGrow: 1 }]} showsVerticalScrollIndicator={false}>
-        <View style={styles.headerInScroll}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color="#f2ab55" />
-          </TouchableOpacity>
-        </View>
-
+      <View style={styles.headerRow}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <Ionicons name="arrow-back" size={24} color="#f2ab55" />
+        </TouchableOpacity>
         <Text style={styles.titulo}>Regístrate en EchoBeat!</Text>
+      </View>
 
         {/* Nombre y Apellidos */}
         <View style={styles.inputContainer}>
@@ -297,9 +296,14 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     color: '#f2ab55',
-    textAlign: 'center',
-    marginBottom: 20,
+    marginLeft: 30, 
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 5,
     marginTop: 20,
+    marginBottom: 25,
   },
   inputContainer: {
     marginBottom: 20,

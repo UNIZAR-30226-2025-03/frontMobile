@@ -53,6 +53,7 @@ export default function PlaylistDetail({ navigation, route }) {
   const [creadorNick, setCreadorNick] = useState("");
   const [numLikes, setNumLikes] = useState(0);
   const [isFriend, setIsFriend] = useState(false);
+  const [numCanciones, setNumCanciones] = useState(0);
 
   const orderOptions = [
     { value: 0, label: "Orden original" },
@@ -63,6 +64,8 @@ export default function PlaylistDetail({ navigation, route }) {
   const [cancionSonando, setCancionSonando] = useState(false);
   const [estaReproduciendo, setEstaReproduciendo] = useState(false);
   const rotation = useRef(new Animated.Value(0)).current;
+  const [isPlaylistLiked, setIsPlaylistLiked] = useState(false);
+
 
 
   useLayoutEffect(() => {
@@ -84,6 +87,10 @@ export default function PlaylistDetail({ navigation, route }) {
       const email = await AsyncStorage.getItem("email");
       if (!email) return;
       setUserEmail(email);
+      const resFavoritos = await fetch(`https://echobeatapi.duckdns.org/playlists/liked/${email}`);
+      const listasFavoritas = await resFavoritos.json();
+      const idsFavoritos = listasFavoritas.map(l => l.Id);
+      setIsPlaylistLiked(idsFavoritos.includes(playlist.Id));
       const encodedEmail = encodeURIComponent(email);
       const [cancionesData, playlistData, favoritosData, listasDelUsuario, infoPlaylist] = await Promise.all([
         fetch(`https://echobeatapi.duckdns.org/playlists/${playlist.Id}/songs`).then((res) => res.json()),
@@ -99,11 +106,28 @@ export default function PlaylistDetail({ navigation, route }) {
       setCreadorNick(playlistData.Autor.Nick);
       // Número de Likes de la playlist
       setNumLikes(infoPlaylist.NumLikes);
+      // Número de Canciones de la playlist
+      setNumCanciones(infoPlaylist.NumCanciones);
 
       // Canciones de la playlist
       setCola(cancionesData);
       const loadedSongs = cancionesData.canciones || [];
       setSongs([...loadedSongs]);
+      // Obtener el autor de cada canción
+      const cancionesConAutor = await Promise.all(loadedSongs.map(async (cancion) => {
+        try {
+          const res = await fetch(`https://echobeatapi.duckdns.org/playlists/song-details/${cancion.id}`);
+          const detalle = await res.json();
+          return {
+            ...cancion,
+            autor: Array.isArray(detalle.Autores) ? detalle.Autores.join(", ") : "Autor desconocido"
+          };
+        } catch (e) {
+          console.warn("Error al obtener el autor para la canción", cancion.id);
+          return { ...cancion, autor: "Autor desconocido" };
+        }
+      }));
+      setSongs(cancionesConAutor);
       setPlaylistInfo(playlistData);
       setPlaylistEdit({
         Nombre: infoPlaylist.Nombre || "",
@@ -160,6 +184,34 @@ export default function PlaylistDetail({ navigation, route }) {
       startRotationLoop();
     } else {
       stopRotation();
+    }
+  };
+
+  /**
+   * Alterna el estado de favorito de una playlist para el usuario actual.
+   * 
+   * Esta función realiza una solicitud a la API para añadir o eliminar la playlist de la lista de favoritos
+   * del usuario, utilizando el método POST para añadir y DELETE para quitar. El estado local `isPlaylistLiked`
+   * se actualiza en consecuencia y se muestra una alerta al usuario con el resultado.
+   * 
+   * @async
+   * @function togglePlaylistLike
+   * @returns {Promise<void>} No retorna ningún valor, pero actualiza el estado local y muestra alertas.
+   */
+  const togglePlaylistLike = async () => {
+    try {
+      const method = isPlaylistLiked ? "DELETE" : "POST";
+      const response = await fetch(`https://echobeatapi.duckdns.org/playlists/like/${userEmail}/${playlist.Id}`, {
+        method,
+        headers: { "accept": "*/*" }
+      });
+  
+      if (!response.ok) throw new Error("Error al cambiar favorito");
+  
+      setIsPlaylistLiked(prev => !prev);
+      Alert.alert("Éxito", isPlaylistLiked ? "Playlist eliminada de favoritos" : "Playlist añadida a favoritos");
+    } catch (error) {
+      Alert.alert("Error", "No se pudo actualizar favoritos");
     }
   };
 
@@ -384,6 +436,7 @@ export default function PlaylistDetail({ navigation, route }) {
         />
         <View style={styles.songTextContainer}>
           <Text style={styles.songTitle} numberOfLines={1}>{item.nombre}</Text>
+          <Text style={styles.songAuthor} numberOfLines={1}>{item.autor}</Text>
         </View>
 
         <View style={styles.songIconsContainer}>
@@ -517,7 +570,12 @@ export default function PlaylistDetail({ navigation, route }) {
               source={{ uri: portada }}
               style={styles.playlistImage}
             />
-            <Text style={styles.playlistTitle}>{infoLista?.Nombre || playlist.Nombre}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <Text style={styles.playlistTitle}>{infoLista?.Nombre || playlist.Nombre}</Text>
+              <TouchableOpacity onPress={togglePlaylistLike}>
+                <Ionicons name="heart" size={24} color={isPlaylistLiked ? "#f2ab55" : "#fff"} />
+              </TouchableOpacity>
+            </View>
             <Text style={styles.playlistDescription}>{playlistInfo?.Descripcion || infoLista?.Descripcion}</Text>
   
             <View style={styles.controlsRow}>
@@ -696,6 +754,7 @@ export default function PlaylistDetail({ navigation, route }) {
                 <>
                   <Text style={styles.infoText}>Privacidad: {playlistInfo.TipoPrivacidad}</Text>
                   <Text style={styles.infoText}>Género: {playlistInfo.Genero}</Text>
+                  <Text style={styles.infoText}>Número de Canciones: {numCanciones}</Text>
                   {(esAutor ||
                     privCreador === "publico" ||
                     (privCreador === "protegido" && isFriend)) && (
@@ -1032,6 +1091,10 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     marginBottom: 15,
     width: '100%',
+  },
+  songAuthor: {
+    fontSize: 12,
+    color: "#ccc",
   },
   pickerContainer: {
     borderWidth: 1,

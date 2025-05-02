@@ -38,6 +38,8 @@ export default function AlbumDetails({ navigation, route }) {
   const rotation = useRef(new Animated.Value(0)).current;
   const [playlistsUsuario, setPlaylistsUsuario] = useState([]);
   const [mostrarPlaylists, setMostrarPlaylists] = useState(false);
+  const [isAlbumLiked, setIsAlbumLiked] = useState(false);
+
 
   useLayoutEffect(() => {
     navigation.setOptions({ headerShown: false });
@@ -56,6 +58,10 @@ export default function AlbumDetails({ navigation, route }) {
       const email = await AsyncStorage.getItem("email");
       if (!email) return;
       setUserEmail(email);
+      const resFavoritos = await fetch(`https://echobeatapi.duckdns.org/playlists/liked/${email}`);
+      const listasFavoritas = await resFavoritos.json();
+      const idsFavoritos = listasFavoritas.map(l => l.Id);
+      setIsAlbumLiked(idsFavoritos.includes(playlist.Id));
       const listasDelUsuario = await fetch(`https://echobeatapi.duckdns.org/playlists/user/${encodeURIComponent(email)}`).then(res => res.json());
       setPlaylistsUsuario(listasDelUsuario);
       const [cancionesData, albumData, favoritosData] = await Promise.all([
@@ -64,7 +70,22 @@ export default function AlbumDetails({ navigation, route }) {
         fetch(`https://echobeatapi.duckdns.org/cancion/favorites?email=${encodeURIComponent(email)}`).then((res) => res.json()),
       ]);
       setCola(cancionesData);
-      setSongs(cancionesData.canciones || []);
+      const loadedSongs = cancionesData.canciones || [];
+
+      const cancionesConAutor = await Promise.all(loadedSongs.map(async (cancion) => {
+        try {
+          const res = await fetch(`https://echobeatapi.duckdns.org/playlists/song-details/${cancion.id}`);
+          const detalle = await res.json();
+          return {
+            ...cancion,
+            autor: Array.isArray(detalle.Autores) ? detalle.Autores.join(", ") : "Autor desconocido"
+          };
+        } catch (e) {
+          console.warn("Error al obtener el autor para la canción", cancion.id);
+          return { ...cancion, autor: "Autor desconocido" };
+        }
+      }));
+      setSongs(cancionesConAutor);
       setAlbumInfo(albumData);
       setFavoritos((favoritosData.canciones || []).map((c) => c.id));
     } catch (error) {
@@ -83,6 +104,35 @@ export default function AlbumDetails({ navigation, route }) {
     loadData();
     checkSongPlaying();
   }, []);
+
+  /**
+   * Alterna el estado de favorito de un álbum para el usuario actual.
+   * 
+   * Esta función envía una solicitud a la API para añadir o eliminar el álbum de la lista
+   * de favoritos del usuario. Utiliza el método POST para añadir y DELETE para eliminar.
+   * El estado local `isAlbumLiked` se actualiza en función de la acción realizada, y se
+   * muestra una alerta indicando el resultado.
+   * 
+   * @async
+   * @function toggleAlbumLike
+   * @returns {Promise<void>} No retorna valor, pero actualiza el estado local y notifica al usuario.
+   */
+  const toggleAlbumLike = async () => {
+    try {
+      const method = isAlbumLiked ? "DELETE" : "POST";
+      const response = await fetch(`https://echobeatapi.duckdns.org/playlists/like/${userEmail}/${playlist.Id}`, {
+        method,
+        headers: { "accept": "*/*" }
+      });
+  
+      if (!response.ok) throw new Error("Error al cambiar favorito");
+  
+      setIsAlbumLiked(prev => !prev);
+      Alert.alert("Éxito", isAlbumLiked ? "Álbum eliminado de favoritos" : "Álbum añadido a favoritos");
+    } catch (error) {
+      Alert.alert("Error", "No se pudo actualizar favoritos");
+    }
+  };
 
   /**
    * Comprueba si hay una canción actualmente en reproducción
@@ -223,9 +273,8 @@ export default function AlbumDetails({ navigation, route }) {
           style={styles.songImage}
         />
         <View style={styles.songTextContainer}>
-          <Text style={styles.songTitle} numberOfLines={1}>
-            {item.nombre}
-          </Text>
+          <Text style={styles.songTitle} numberOfLines={1}>{item.nombre}</Text>
+          <Text style={styles.songAuthor} numberOfLines={1}>{item.autor}</Text>
         </View>
         <View style={styles.songIconsContainer}>
           <TouchableOpacity onPress={() => toggleFavorito(item.id)} style={styles.heartButton}>
@@ -368,7 +417,12 @@ export default function AlbumDetails({ navigation, route }) {
         source={{ uri: playlist.Portada }}
         style={styles.playlistImage}
       />
-      <Text style={styles.playlistTitle}>{playlist.Nombre}</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+        <Text style={styles.playlistTitle}>{playlist.Nombre}</Text>
+        <TouchableOpacity onPress={toggleAlbumLike}>
+          <Ionicons name="heart" size={24} color={isAlbumLiked ? "#f2ab55" : "#fff"} />
+        </TouchableOpacity>
+      </View>
       <Text style={styles.playlistDescription}>{playlist.Descripcion}</Text>
       <View style={styles.controlsRow}>
         <TouchableOpacity style={[styles.shuffleButton, shuffle && styles.shuffleActive]} onPress={() => setShuffle(prev => !prev)}>
@@ -497,6 +551,9 @@ export default function AlbumDetails({ navigation, route }) {
               <>
                 <Text style={styles.infoText}>Autor: {albumInfo.autor}</Text>
                 <Text style={styles.infoText}>Fecha de Lanzamiento: {formatDate(albumInfo.fechaLanzamiento)}</Text>
+                <Text style={styles.infoText}>Número de Canciones: {albumInfo.numCanciones}</Text>
+                <Text style={styles.infoText}>Número de Likes: {albumInfo.numLikes}</Text>
+                <Text style={styles.infoText}>Número de Reproducciones: {albumInfo.numReproducciones}</Text>
               </>
             ) : (
               <Text style={styles.infoText}>Cargando información...</Text>
@@ -704,6 +761,10 @@ const styles = StyleSheet.create({
     padding: 20,
     zIndex: 101,
     alignItems: "center",
+  },
+  songAuthor: {
+    fontSize: 12,
+    color: "#ccc",
   },
   infoTitle: {
     fontSize: 22,

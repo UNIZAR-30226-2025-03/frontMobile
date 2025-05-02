@@ -369,6 +369,18 @@ export default function MusicPlayer({ navigation, route }) {
   };
 
   /**
+   * Pasa los segundos a minutos y segundos en formato mm:ss.
+   * 
+   * @returns {string} Formato mm:ss.
+   */
+  const formatTime = (millis) => {
+    const totalSeconds = Math.floor(millis / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+  };
+
+  /**
    * Avanza a la siguiente canción en la cola.
    * Si loop está activo, reinicia la misma canción.
    * 
@@ -543,6 +555,16 @@ export default function MusicPlayer({ navigation, route }) {
           maximumTrackTintColor="#ffffff"
           thumbTintColor="#f2ab55"
         />
+
+        <View style={{ 
+          flexDirection: 'row', 
+          justifyContent: 'space-between', 
+          width: '85%', 
+          marginTop: -10 // <- sube los tiempos
+        }}>
+          <Text style={{ color: '#ccc', fontSize: 12 }}>{formatTime(position)}</Text>
+          <Text style={{ color: '#ccc', fontSize: 12 }}>{formatTime(duration)}</Text>
+        </View>
     
         {/* Controles */}
         <View style={styles.controls}>
