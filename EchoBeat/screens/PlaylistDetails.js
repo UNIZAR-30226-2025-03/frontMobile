@@ -65,6 +65,7 @@ export default function PlaylistDetail({ navigation, route }) {
   const [estaReproduciendo, setEstaReproduciendo] = useState(false);
   const rotation = useRef(new Animated.Value(0)).current;
   const [isPlaylistLiked, setIsPlaylistLiked] = useState(false);
+  const [canciones, setCanciones] = useState([]);
 
 
 
@@ -108,10 +109,10 @@ export default function PlaylistDetail({ navigation, route }) {
       setNumLikes(infoPlaylist.NumLikes);
       // Número de Canciones de la playlist
       setNumCanciones(infoPlaylist.NumCanciones);
-
       // Canciones de la playlist
-      setCola(cancionesData);
+      setCanciones(cancionesData);
       const loadedSongs = cancionesData.canciones || [];
+      console.log("Canciones de la playlist:", loadedSongs);
       setSongs([...loadedSongs]);
       // Obtener el autor de cada canción
       const cancionesConAutor = await Promise.all(loadedSongs.map(async (cancion) => {
@@ -406,8 +407,24 @@ export default function PlaylistDetail({ navigation, route }) {
     try {
       const response = await fetch(`https://echobeatapi.duckdns.org/playlists/ordenar-canciones/${playlist.Id}/${orderValue}`);
       const data = await response.json();
+      console.log("Respuesta de la API:", data);
       // Se supone que la API devuelve un objeto con un array de canciones similar al obtenido en loadData.
-      setSongs(data.canciones || []);
+      const cancionesConAutor = await Promise.all(data.canciones.map(async (cancion) => {
+        try {
+          const res = await fetch(`https://echobeatapi.duckdns.org/playlists/song-details/${cancion.id}`);
+          const detalle = await res.json();
+          return {
+            ...cancion,
+            autor: Array.isArray(detalle.Autores) ? detalle.Autores.join(", ") : "Autor desconocido"
+          };
+        } catch (e) {
+          console.warn("Error al obtener el autor para la canción", cancion.id);
+          return { ...cancion, autor: "Autor desconocido" };
+        }
+      }));
+      setSongs(cancionesConAutor);
+      console.log("Canciones ordenadas:", cancionesConAutor);
+      setCanciones(data);
       setOrderDropdownVisible(false);
     } catch (error) {
       console.error("Error al cambiar el orden de canciones:", error);
@@ -423,6 +440,7 @@ export default function PlaylistDetail({ navigation, route }) {
    */
   const renderSong = ({ item, drag, isActive }) => {
     const esFavorita = favoritos.includes(item.id);
+    console.log("Renderizando canción:", item);
     return (
       <TouchableOpacity
         onLongPress={drag}
@@ -463,11 +481,14 @@ export default function PlaylistDetail({ navigation, route }) {
    */
   const iniciarReproduccion = async () => {
     try {
+      setCola(canciones);
       const body = {
         userEmail: userEmail,
         reproduccionAleatoria: shuffle,
         colaReproduccion: cola,
       };
+
+      console.log("📤 Enviando datos a la API:", JSON.stringify(body, null, 2));
   
       const response = await fetch('https://echobeatapi.duckdns.org/cola-reproduccion/play-list', {
         method: 'POST',
@@ -497,6 +518,8 @@ export default function PlaylistDetail({ navigation, route }) {
           return;
         }
 
+        await AsyncStorage.setItem('minuto', '0');
+
         navigation.navigate('MusicPlayer', {
           songId: primeraCancionId,
           songName: detalle.Nombre, 
@@ -518,6 +541,7 @@ export default function PlaylistDetail({ navigation, route }) {
    */
   const iniciarReproduccionDesdeCancion = async (song, index) => {
     try {
+      setCola(canciones);
       const body = {
         userEmail: userEmail,
         reproduccionAleatoria: shuffle,
@@ -653,11 +677,11 @@ export default function PlaylistDetail({ navigation, route }) {
           </TouchableOpacity>
         </View>
         <DraggableFlatList
-          data={listaConFakeItem} // ⚡ Añadimos un item falso al final
+          data={listaConFakeItem} // Añadimos un item falso al final
           keyExtractor={(item, index) => item.id?.toString() || index.toString()}
           renderItem={({ item, drag, isActive }) => (
             item.id === "fake-item-final" ? (
-              <View style={{ height: 120 }} /> // 🔥 Solo espacio vacío si fake-item
+              <View style={{ height: 120 }} /> // Solo espacio vacío si fake-item
             ) : (
               renderSong({ item, drag, isActive })
             )
