@@ -195,8 +195,6 @@ export default function PlaylistDetail({ navigation, route }) {
    * del usuario, utilizando el método POST para añadir y DELETE para quitar. El estado local `isPlaylistLiked`
    * se actualiza en consecuencia y se muestra una alerta al usuario con el resultado.
    * 
-   * @async
-   * @function togglePlaylistLike
    * @returns {Promise<void>} No retorna ningún valor, pero actualiza el estado local y muestra alertas.
    */
   const togglePlaylistLike = async () => {

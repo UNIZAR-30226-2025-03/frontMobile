@@ -66,6 +66,8 @@ export default function AlbumDetails({ navigation, route }) {
   const rotation = useRef(new Animated.Value(0)).current;
   const [playlistsUsuario, setPlaylistsUsuario] = useState([]);
   const [mostrarPlaylists, setMostrarPlaylists] = useState(false);
+  const [isAlbumLiked, setIsAlbumLiked] = useState(false);
+
 
   useLayoutEffect(() => {
     navigation.setOptions({ headerShown: false });
@@ -84,6 +86,10 @@ export default function AlbumDetails({ navigation, route }) {
       const email = await AsyncStorage.getItem("email");
       if (!email) return;
       setUserEmail(email);
+      const resFavoritos = await fetch(`https://echobeatapi.duckdns.org/playlists/liked/${email}`);
+      const listasFavoritas = await resFavoritos.json();
+      const idsFavoritos = listasFavoritas.map(l => l.Id);
+      setIsAlbumLiked(idsFavoritos.includes(playlist.Id));
       const listasDelUsuario = await fetch(`https://echobeatapi.duckdns.org/playlists/user/${encodeURIComponent(email)}`).then(res => res.json());
       setPlaylistsUsuario(listasDelUsuario);
       const [cancionesData, albumData, favoritosData] = await Promise.all([
@@ -92,7 +98,22 @@ export default function AlbumDetails({ navigation, route }) {
         fetch(`https://echobeatapi.duckdns.org/cancion/favorites?email=${encodeURIComponent(email)}`).then((res) => res.json()),
       ]);
       setCola(cancionesData);
-      setSongs(cancionesData.canciones || []);
+      const loadedSongs = cancionesData.canciones || [];
+
+      const cancionesConAutor = await Promise.all(loadedSongs.map(async (cancion) => {
+        try {
+          const res = await fetch(`https://echobeatapi.duckdns.org/playlists/song-details/${cancion.id}`);
+          const detalle = await res.json();
+          return {
+            ...cancion,
+            autor: Array.isArray(detalle.Autores) ? detalle.Autores.join(", ") : "Autor desconocido"
+          };
+        } catch (e) {
+          console.warn("Error al obtener el autor para la canción", cancion.id);
+          return { ...cancion, autor: "Autor desconocido" };
+        }
+      }));
+      setSongs(cancionesConAutor);
       setAlbumInfo(albumData);
       setFavoritos((favoritosData.canciones || []).map((c) => c.id));
     } catch (error) {
@@ -111,6 +132,33 @@ export default function AlbumDetails({ navigation, route }) {
     loadData();
     checkSongPlaying();
   }, []);
+
+  /**
+   * Alterna el estado de favorito de un álbum para el usuario actual.
+   * 
+   * Esta función envía una solicitud a la API para añadir o eliminar el álbum de la lista
+   * de favoritos del usuario. Utiliza el método POST para añadir y DELETE para eliminar.
+   * El estado local `isAlbumLiked` se actualiza en función de la acción realizada, y se
+   * muestra una alerta indicando el resultado.
+   * 
+   * @returns {Promise&lt;void>} No retorna valor, pero actualiza el estado local y notifica al usuario.
+   */
+  const toggleAlbumLike = async () => {
+    try {
+      const method = isAlbumLiked ? "DELETE" : "POST";
+      const response = await fetch(`https://echobeatapi.duckdns.org/playlists/like/${userEmail}/${playlist.Id}`, {
+        method,
+        headers: { "accept": "*/*" }
+      });
+  
+      if (!response.ok) throw new Error("Error al cambiar favorito");
+  
+      setIsAlbumLiked(prev => !prev);
+      Alert.alert("Éxito", isAlbumLiked ? "Álbum eliminado de favoritos" : "Álbum añadido a favoritos");
+    } catch (error) {
+      Alert.alert("Error", "No se pudo actualizar favoritos");
+    }
+  };
 
   /**
    * Comprueba si hay una canción actualmente en reproducción
@@ -251,9 +299,8 @@ export default function AlbumDetails({ navigation, route }) {
           style={styles.songImage}
         />
         &lt;View style={styles.songTextContainer}>
-          &lt;Text style={styles.songTitle} numberOfLines={1}>
-            {item.nombre}
-          &lt;/Text>
+          &lt;Text style={styles.songTitle} numberOfLines={1}>{item.nombre}&lt;/Text>
+          &lt;Text style={styles.songAuthor} numberOfLines={1}>{item.autor}&lt;/Text>
         &lt;/View>
         &lt;View style={styles.songIconsContainer}>
           &lt;TouchableOpacity onPress={() => toggleFavorito(item.id)} style={styles.heartButton}>
@@ -396,7 +443,12 @@ export default function AlbumDetails({ navigation, route }) {
         source={{ uri: playlist.Portada }}
         style={styles.playlistImage}
       />
-      &lt;Text style={styles.playlistTitle}>{playlist.Nombre}&lt;/Text>
+      &lt;View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+        &lt;Text style={styles.playlistTitle}>{playlist.Nombre}&lt;/Text>
+        &lt;TouchableOpacity onPress={toggleAlbumLike}>
+          &lt;Ionicons name="heart" size={24} color={isAlbumLiked ? "#f2ab55" : "#fff"} />
+        &lt;/TouchableOpacity>
+      &lt;/View>
       &lt;Text style={styles.playlistDescription}>{playlist.Descripcion}&lt;/Text>
       &lt;View style={styles.controlsRow}>
         &lt;TouchableOpacity style={[styles.shuffleButton, shuffle &amp;&amp; styles.shuffleActive]} onPress={() => setShuffle(prev => !prev)}>
@@ -525,6 +577,9 @@ export default function AlbumDetails({ navigation, route }) {
               &lt;>
                 &lt;Text style={styles.infoText}>Autor: {albumInfo.autor}&lt;/Text>
                 &lt;Text style={styles.infoText}>Fecha de Lanzamiento: {formatDate(albumInfo.fechaLanzamiento)}&lt;/Text>
+                &lt;Text style={styles.infoText}>Número de Canciones: {albumInfo.numCanciones}&lt;/Text>
+                &lt;Text style={styles.infoText}>Número de Likes: {albumInfo.numLikes}&lt;/Text>
+                &lt;Text style={styles.infoText}>Número de Reproducciones: {albumInfo.numReproducciones}&lt;/Text>
               &lt;/>
             ) : (
               &lt;Text style={styles.infoText}>Cargando información...&lt;/Text>
@@ -733,6 +788,10 @@ const styles = StyleSheet.create({
     zIndex: 101,
     alignItems: "center",
   },
+  songAuthor: {
+    fontSize: 12,
+    color: "#ccc",
+  },
   infoTitle: {
     fontSize: 22,
     fontWeight: "bold",
@@ -778,7 +837,7 @@ const styles = StyleSheet.create({
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.4</a> on Mon Apr 28 2025 19:04:02 GMT+0200 (hora de verano de Europa central)
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.4</a> on Sun May 04 2025 21:41:41 GMT+0200 (hora de verano de Europa central)
 </footer>
 
 <script> prettyPrint(); </script>

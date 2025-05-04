@@ -113,8 +113,6 @@ export default function AlbumDetails({ navigation, route }) {
    * El estado local `isAlbumLiked` se actualiza en función de la acción realizada, y se
    * muestra una alerta indicando el resultado.
    * 
-   * @async
-   * @function toggleAlbumLike
    * @returns {Promise<void>} No retorna valor, pero actualiza el estado local y notifica al usuario.
    */
   const toggleAlbumLike = async () => {

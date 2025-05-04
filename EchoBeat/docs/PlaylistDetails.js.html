@@ -81,6 +81,7 @@ export default function PlaylistDetail({ navigation, route }) {
   const [creadorNick, setCreadorNick] = useState("");
   const [numLikes, setNumLikes] = useState(0);
   const [isFriend, setIsFriend] = useState(false);
+  const [numCanciones, setNumCanciones] = useState(0);
 
   const orderOptions = [
     { value: 0, label: "Orden original" },
@@ -91,6 +92,10 @@ export default function PlaylistDetail({ navigation, route }) {
   const [cancionSonando, setCancionSonando] = useState(false);
   const [estaReproduciendo, setEstaReproduciendo] = useState(false);
   const rotation = useRef(new Animated.Value(0)).current;
+  const [isPlaylistLiked, setIsPlaylistLiked] = useState(false);
+  const [canciones, setCanciones] = useState([]);
+
+
 
   useLayoutEffect(() => {
     navigation.setOptions({ headerShown: false });
@@ -111,6 +116,10 @@ export default function PlaylistDetail({ navigation, route }) {
       const email = await AsyncStorage.getItem("email");
       if (!email) return;
       setUserEmail(email);
+      const resFavoritos = await fetch(`https://echobeatapi.duckdns.org/playlists/liked/${email}`);
+      const listasFavoritas = await resFavoritos.json();
+      const idsFavoritos = listasFavoritas.map(l => l.Id);
+      setIsPlaylistLiked(idsFavoritos.includes(playlist.Id));
       const encodedEmail = encodeURIComponent(email);
       const [cancionesData, playlistData, favoritosData, listasDelUsuario, infoPlaylist] = await Promise.all([
         fetch(`https://echobeatapi.duckdns.org/playlists/${playlist.Id}/songs`).then((res) => res.json()),
@@ -126,11 +135,28 @@ export default function PlaylistDetail({ navigation, route }) {
       setCreadorNick(playlistData.Autor.Nick);
       // Número de Likes de la playlist
       setNumLikes(infoPlaylist.NumLikes);
-
+      // Número de Canciones de la playlist
+      setNumCanciones(infoPlaylist.NumCanciones);
       // Canciones de la playlist
-      setCola(cancionesData);
+      setCanciones(cancionesData);
       const loadedSongs = cancionesData.canciones || [];
+      console.log("Canciones de la playlist:", loadedSongs);
       setSongs([...loadedSongs]);
+      // Obtener el autor de cada canción
+      const cancionesConAutor = await Promise.all(loadedSongs.map(async (cancion) => {
+        try {
+          const res = await fetch(`https://echobeatapi.duckdns.org/playlists/song-details/${cancion.id}`);
+          const detalle = await res.json();
+          return {
+            ...cancion,
+            autor: Array.isArray(detalle.Autores) ? detalle.Autores.join(", ") : "Autor desconocido"
+          };
+        } catch (e) {
+          console.warn("Error al obtener el autor para la canción", cancion.id);
+          return { ...cancion, autor: "Autor desconocido" };
+        }
+      }));
+      setSongs(cancionesConAutor);
       setPlaylistInfo(playlistData);
       setPlaylistEdit({
         Nombre: infoPlaylist.Nombre || "",
@@ -187,6 +213,32 @@ export default function PlaylistDetail({ navigation, route }) {
       startRotationLoop();
     } else {
       stopRotation();
+    }
+  };
+
+  /**
+   * Alterna el estado de favorito de una playlist para el usuario actual.
+   * 
+   * Esta función realiza una solicitud a la API para añadir o eliminar la playlist de la lista de favoritos
+   * del usuario, utilizando el método POST para añadir y DELETE para quitar. El estado local `isPlaylistLiked`
+   * se actualiza en consecuencia y se muestra una alerta al usuario con el resultado.
+   * 
+   * @returns {Promise&lt;void>} No retorna ningún valor, pero actualiza el estado local y muestra alertas.
+   */
+  const togglePlaylistLike = async () => {
+    try {
+      const method = isPlaylistLiked ? "DELETE" : "POST";
+      const response = await fetch(`https://echobeatapi.duckdns.org/playlists/like/${userEmail}/${playlist.Id}`, {
+        method,
+        headers: { "accept": "*/*" }
+      });
+  
+      if (!response.ok) throw new Error("Error al cambiar favorito");
+  
+      setIsPlaylistLiked(prev => !prev);
+      Alert.alert("Éxito", isPlaylistLiked ? "Playlist eliminada de favoritos" : "Playlist añadida a favoritos");
+    } catch (error) {
+      Alert.alert("Error", "No se pudo actualizar favoritos");
     }
   };
 
@@ -381,8 +433,24 @@ export default function PlaylistDetail({ navigation, route }) {
     try {
       const response = await fetch(`https://echobeatapi.duckdns.org/playlists/ordenar-canciones/${playlist.Id}/${orderValue}`);
       const data = await response.json();
+      console.log("Respuesta de la API:", data);
       // Se supone que la API devuelve un objeto con un array de canciones similar al obtenido en loadData.
-      setSongs(data.canciones || []);
+      const cancionesConAutor = await Promise.all(data.canciones.map(async (cancion) => {
+        try {
+          const res = await fetch(`https://echobeatapi.duckdns.org/playlists/song-details/${cancion.id}`);
+          const detalle = await res.json();
+          return {
+            ...cancion,
+            autor: Array.isArray(detalle.Autores) ? detalle.Autores.join(", ") : "Autor desconocido"
+          };
+        } catch (e) {
+          console.warn("Error al obtener el autor para la canción", cancion.id);
+          return { ...cancion, autor: "Autor desconocido" };
+        }
+      }));
+      setSongs(cancionesConAutor);
+      console.log("Canciones ordenadas:", cancionesConAutor);
+      setCanciones(data);
       setOrderDropdownVisible(false);
     } catch (error) {
       console.error("Error al cambiar el orden de canciones:", error);
@@ -398,6 +466,7 @@ export default function PlaylistDetail({ navigation, route }) {
    */
   const renderSong = ({ item, drag, isActive }) => {
     const esFavorita = favoritos.includes(item.id);
+    console.log("Renderizando canción:", item);
     return (
       &lt;TouchableOpacity
         onLongPress={drag}
@@ -411,6 +480,7 @@ export default function PlaylistDetail({ navigation, route }) {
         />
         &lt;View style={styles.songTextContainer}>
           &lt;Text style={styles.songTitle} numberOfLines={1}>{item.nombre}&lt;/Text>
+          &lt;Text style={styles.songAuthor} numberOfLines={1}>{item.autor}&lt;/Text>
         &lt;/View>
 
         &lt;View style={styles.songIconsContainer}>
@@ -437,11 +507,14 @@ export default function PlaylistDetail({ navigation, route }) {
    */
   const iniciarReproduccion = async () => {
     try {
+      setCola(canciones);
       const body = {
         userEmail: userEmail,
         reproduccionAleatoria: shuffle,
         colaReproduccion: cola,
       };
+
+      console.log("📤 Enviando datos a la API:", JSON.stringify(body, null, 2));
   
       const response = await fetch('https://echobeatapi.duckdns.org/cola-reproduccion/play-list', {
         method: 'POST',
@@ -471,6 +544,8 @@ export default function PlaylistDetail({ navigation, route }) {
           return;
         }
 
+        await AsyncStorage.setItem('minuto', '0');
+
         navigation.navigate('MusicPlayer', {
           songId: primeraCancionId,
           songName: detalle.Nombre, 
@@ -492,6 +567,7 @@ export default function PlaylistDetail({ navigation, route }) {
    */
   const iniciarReproduccionDesdeCancion = async (song, index) => {
     try {
+      setCola(canciones);
       const body = {
         userEmail: userEmail,
         reproduccionAleatoria: shuffle,
@@ -544,7 +620,12 @@ export default function PlaylistDetail({ navigation, route }) {
               source={{ uri: portada }}
               style={styles.playlistImage}
             />
-            &lt;Text style={styles.playlistTitle}>{infoLista?.Nombre || playlist.Nombre}&lt;/Text>
+            &lt;View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              &lt;Text style={styles.playlistTitle}>{infoLista?.Nombre || playlist.Nombre}&lt;/Text>
+              &lt;TouchableOpacity onPress={togglePlaylistLike}>
+                &lt;Ionicons name="heart" size={24} color={isPlaylistLiked ? "#f2ab55" : "#fff"} />
+              &lt;/TouchableOpacity>
+            &lt;/View>
             &lt;Text style={styles.playlistDescription}>{playlistInfo?.Descripcion || infoLista?.Descripcion}&lt;/Text>
   
             &lt;View style={styles.controlsRow}>
@@ -608,6 +689,8 @@ export default function PlaylistDetail({ navigation, route }) {
     );
   };
 
+  const listaConFakeItem = esAutor ? songs : [...songs, { id: "fake-item-final" }];
+
   return (
     &lt;GestureHandlerRootView style={{ flex: 1 }}>
       &lt;SafeAreaView style={styles.container}>
@@ -620,16 +703,22 @@ export default function PlaylistDetail({ navigation, route }) {
           &lt;/TouchableOpacity>
         &lt;/View>
         &lt;DraggableFlatList
-          data={songs}
-          keyExtractor={(item) => item.id.toString()}
-          renderItem={renderSong}
+          data={listaConFakeItem} // Añadimos un item falso al final
+          keyExtractor={(item, index) => item.id?.toString() || index.toString()}
+          renderItem={({ item, drag, isActive }) => (
+            item.id === "fake-item-final" ? (
+              &lt;View style={{ height: 120 }} /> // Solo espacio vacío si fake-item
+            ) : (
+              renderSong({ item, drag, isActive })
+            )
+          )}
           onDragEnd={({ data }) => {
-            const newData = data.map(item => ({ ...item }));
+            const newData = data.filter(item => item.id !== "fake-item-final");
             setSongs(newData);
           }}
           ListHeaderComponent={ListHeader}
-          con tentContainerStyle={styles.flatListContent}
           ListFooterComponent={ListFooter}
+          contentContainerStyle={{ paddingBottom: 120, paddingHorizontal: 10 }}
           refreshControl={
             &lt;RefreshControl
               refreshing={refreshing}
@@ -638,6 +727,8 @@ export default function PlaylistDetail({ navigation, route }) {
               tintColor="#f2ab55"
             />
           }
+          keyboardDismissMode="on-drag"
+          keyboardShouldPersistTaps="handled"
         />
 
         {cancionSonando &amp;&amp; (
@@ -713,6 +804,7 @@ export default function PlaylistDetail({ navigation, route }) {
                 &lt;>
                   &lt;Text style={styles.infoText}>Privacidad: {playlistInfo.TipoPrivacidad}&lt;/Text>
                   &lt;Text style={styles.infoText}>Género: {playlistInfo.Genero}&lt;/Text>
+                  &lt;Text style={styles.infoText}>Número de Canciones: {numCanciones}&lt;/Text>
                   {(esAutor ||
                     privCreador === "publico" ||
                     (privCreador === "protegido" &amp;&amp; isFriend)) &amp;&amp; (
@@ -1050,6 +1142,10 @@ const styles = StyleSheet.create({
     marginBottom: 15,
     width: '100%',
   },
+  songAuthor: {
+    fontSize: 12,
+    color: "#ccc",
+  },
   pickerContainer: {
     borderWidth: 1,
     borderColor: '#f2ab55',
@@ -1091,6 +1187,10 @@ const styles = StyleSheet.create({
     height: 80, 
     borderRadius: 35 
   },
+  flatListContentPadding: {
+    paddingBottom: 80,
+    paddingHorizontal: 10,
+  }
 });
 </code></pre>
         </article>
@@ -1108,7 +1208,7 @@ const styles = StyleSheet.create({
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.4</a> on Mon Apr 28 2025 19:04:02 GMT+0200 (hora de verano de Europa central)
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.4</a> on Sun May 04 2025 21:41:41 GMT+0200 (hora de verano de Europa central)
 </footer>
 
 <script> prettyPrint(); </script>
